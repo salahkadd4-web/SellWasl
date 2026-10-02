@@ -1,6 +1,6 @@
 # Cas d'utilisation — SellWasl
 
-> **Phase 0 — validé le 2026-10-01.** Mis à jour le 2026-10-02 : parfums des produits.
+> **Phase 0 — validé le 2026-10-01.** Mis à jour le 2026-10-02 : parfums des produits ; règles réglables par entreprise.
 > Chaque cas d'utilisation (`UC-xx`) renvoie aux [règles métier](business-rules.md) (`BR-XXX-nn`) qui le gouvernent. Le périmètre d'ensemble est décrit dans le [cahier des charges](cahier-des-charges.md).
 
 ## Lecture
@@ -711,9 +711,10 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
    - la distance hors zone ;
    - la largeur du ticket ;
    - les dépôts et les camions ;
-   - les informations imprimées en tête des bons.
+   - les informations imprimées en tête des bons ;
+   - les règles réglables P-01 à P-10, préremplies avec leurs valeurs par défaut.
 
-**Règles** : BR-TEN-06, BR-TEN-07, BR-STK-01, BR-IMP-02.
+**Règles** : BR-TEN-06 à 08, BR-STK-01, BR-IMP-02.
 
 ### UC-83 — Importer des clients et des produits
 

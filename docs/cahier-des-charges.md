@@ -1,7 +1,7 @@
 # Cahier des charges — SellWasl
 
 > **Phase 0 — validé le 2026-10-01.**
-> **Mis à jour le 2026-10-02** : parfums des produits.
+> **Mis à jour le 2026-10-02** : parfums des produits ; règles réglables par entreprise.
 > Ce document fixe le périmètre du **MVP**. Il complète [README_vf.md](../README_vf.md), qui décrit la vision d'ensemble. En cas de différence, les documents de `docs/` priment.
 >
 > Documents liés :
@@ -246,7 +246,7 @@ Jour ouvré suivant                              Soir
 
 ### 5.12 Administration
 
-- **Admin** : utilisateurs, catalogue, prix, paramètres de l'entreprise (types de clients, jours travaillés et fériés, motifs, distance hors zone, largeur du ticket, dépôts et camions), import CSV.
+- **Admin** : utilisateurs, catalogue, prix, paramètres de l'entreprise, dont les **règles réglables** de BR-TEN-08 (types de clients, jours travaillés et fériés, motifs, distance hors zone, largeur du ticket, dépôts et camions), import CSV.
 - **Super Admin**, minimal : création d'une entreprise, de son administrateur et choix de son mode.
 
 *UC-80 à UC-83, UC-90 · BR-TEN, BR-USR*
@@ -368,15 +368,49 @@ Le MVP est réussi quand **deux entreprises isolées l'une de l'autre**, l'une e
 - **Camion traité comme un entrepôt**, en prévente comme en cash van.
 - **Android uniquement** pour le MVP.
 - **Parfums des produits**, avec stock, quota et prix éventuellement propres à chaque parfum (ajout du 2026-10-02).
+- **Règles réglables par entreprise** (BR-TEN-08) : chaque entreprise adapte dix règles de fonctionnement à sa façon de travailler (ajout du 2026-10-02).
 
 ---
 
 ## 10. Règles déduites à confirmer
 
-Ces règles ont été ajoutées pendant la rédaction pour que le document ne laisse aucun cas ambigu. Elles n'ont pas encore été validées explicitement.
+Ces règles ont été ajoutées pendant la rédaction pour que le document ne laisse aucun cas ambigu.
 
-| # | Règle | Choix retenu |
-|---|---|---|
+### Règles devenues réglables par entreprise
+
+Pour que chaque entreprise garde ses propres règles, la plupart sont devenues des **paramètres** ([BR-TEN-08](business-rules.md#1-entreprise-et-modules--ten)) ou des réglages de chaque palier et bonus (BR-CAT-15). La valeur par défaut favorise les ventes et protège la marge ; l'admin peut la changer.
+
+| # | Sujet | Défaut | Réglage |
+|---|---|---|---|
+| 2 | Travail les jours non travaillés et fériés | Autorisé, sans clients du jour | P-01 |
+| 3 | Visites hors programme | Autorisées | P-02 |
+| 4 | Les bonus consomment le quota | Non | P-03 |
+| 5 | Paliers et bonus quand les quantités baissent | Recalculés | P-04 |
+| 6 | Livraison échouée | Reprogrammée une fois, sauf refus | P-05 |
+| 8 | Fin de journée d'un camion | Déchargement complet | P-06 |
+| 9 | Chargements cash van par jour | Plusieurs | P-07 |
+| 10 | Le livreur encaisse les anciennes dettes | Oui | P-08 |
+| — | Client créé par un vendeur | Actif tout de suite | P-09 |
+| 16 | Le superviseur modifie prix, paliers et bonus | Non | P-10 |
+| 17 | Seuil d'un palier avec des parfums | Total des parfums | Sur chaque palier |
+| 18 | Achat d'un bonus avec des parfums | Tous parfums cumulés | Sur chaque bonus |
+| 19 | Parfum offert | Automatique : le plus en stock | Sur chaque bonus |
+
+### Règles fixes, communes à toutes les entreprises
+
+Ces règles restent identiques partout, parce qu'elles protègent la fiabilité des données ou parce que les rendre réglables compliquerait le MVP sans gain réel. Elles restent à confirmer.
+
+| # | Règle | Choix retenu | Pourquoi elle est fixe |
+|---|---|---|---|
+| 1 | BR-ORG-03 | Les secteurs de types de clients différents peuvent se superposer ; ceux d'un même type, non | Sinon, un client serait affecté à deux vendeurs à la fois |
+| 7 | BR-CV-05 | Une vente cash van est définitive ; avoirs et retours hors MVP | Évite les annulations frauduleuses après encaissement |
+| 11 | BR-USR-01 | Un utilisateur a un seul rôle | Droits simples et vérifiables |
+| 12 | BR-USR-06 | Un utilisateur terrain a un seul appareil actif | Garantit des numéros de bons uniques et un stock du camion exact hors connexion |
+| 13 | §6 | Prix saisis TTC, sans facturation fiscale dans le MVP | La facturation fiscale vient après le MVP |
+| 14 | BR-CLI-02 | Un client créé par un vendeur est rattaché au secteur de ce vendeur ; s'il est hors des parties, il reste visitable | Le client doit toujours avoir un vendeur responsable |
+| 15 | BR-PRE-02 | La journée jamais démarrée d'un vendeur absent ne bloque pas le lancement de la préparation | Sinon, une absence bloquerait toute la livraison du lendemain |
+
+---|---|---|
 | 1 | BR-ORG-03 | Les secteurs de types de clients différents peuvent se superposer ; ceux d'un même type, non |
 | 2 | BR-PLA-04, BR-JOU-03 | Pas de journée ni de visites les jours non travaillés et fériés |
 | 3 | BR-VIS-07 | Visites hors programme autorisées, comptées à part du x/N |

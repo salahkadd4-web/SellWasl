@@ -2,7 +2,7 @@
 
 > **Phase 0 — validé le 2026-10-01.**
 > Chaque règle porte un identifiant stable (`BR-XXX-nn`). Les [cas d'utilisation](use-cases.md) et, plus tard, les tests y font référence.
-> **Mis à jour le 2026-10-02** : parfums des produits (BR-CAT-12 à BR-CAT-16).
+> **Mis à jour le 2026-10-02** : parfums des produits (BR-CAT-12 à BR-CAT-16) ; règles réglables par entreprise (BR-TEN-08).
 > Les règles marquées **(à confirmer)** ont été déduites pendant la rédaction et n'ont pas encore été validées explicitement. Elles sont listées au [§10 du cahier des charges](cahier-des-charges.md#10-règles-déduites-à-confirmer).
 
 ## Conventions
@@ -73,6 +73,23 @@ Le socle commun est toujours actif.
 | Motifs de non-commande | voir BR-VIS-04 |
 | Motifs d'échec de livraison | voir BR-LIV-02 |
 | Types de clients | Détail |
+
+**BR-TEN-08** — **Règles réglables par entreprise.** Chaque entreprise adapte ces règles à sa façon de travailler, sans développement spécifique. L'admin les règle sur le Web ; chaque changement est audité et s'applique aux opérations suivantes, jamais aux opérations passées. Les valeurs par défaut favorisent les ventes et protègent la marge.
+
+| Code | Paramètre | Choix possibles | Défaut | Pourquoi ce défaut | Règle |
+|---|---|---|---|---|---|
+| P-01 | Travail les jours non travaillés et fériés | Interdit · Autorisé, sans clients du jour | **Autorisé** | Un vendeur qui veut travailler un jour férié ne perd pas de ventes | BR-JOU-03 |
+| P-02 | Visites hors programme | Autorisées · Interdites | **Autorisées** | Un client qui appelle ou que le vendeur croise peut commander | BR-VIS-07 |
+| P-03 | Les bonus consomment le quota | Non · Oui | **Non** | Le quota sert à répartir les ventes payantes entre les vendeurs | BR-CAT-08 |
+| P-04 | Quantités qui baissent (rupture, livraison partielle) | Recalculer paliers et bonus · Conserver ceux de la commande | **Recalculer** | On n'offre pas un bonus ni une remise sur une marchandise non livrée | BR-CAT-10 |
+| P-05 | Livraison échouée | Pas de reprogrammation · Reprogrammée une fois au jour ouvré suivant, sauf en cas de refus | **Reprogrammée** | La vente est récupérée au lieu d'attendre la visite suivante | BR-LIV-06 |
+| P-06 | Fin de journée d'un camion | Déchargement complet · Comptage, et le stock reste dans le camion | **Déchargement complet** | Contrôle chaque soir de la marchandise et des écarts | BR-CV-06, BR-STK-07 |
+| P-07 | Chargements cash van par jour | Un seul · Plusieurs (rechargement) | **Plusieurs** | Un vendeur qui a tout vendu à midi peut recharger et continuer | BR-CV-01 |
+| P-08 | Le livreur encaisse les anciennes dettes | Non · Oui | **Oui** | L'argent rentre plus vite : le livreur voit le client chaque fois qu'il livre | BR-PAY-05 |
+| P-09 | Client créé par un vendeur | Actif tout de suite · Visitable, mais vente au comptant seulement jusqu'à validation | **Actif tout de suite** | Le vendeur vend dès la première visite ; le crédit reste fermé par défaut | BR-CLI-03 |
+| P-10 | Le superviseur modifie les prix, paliers et bonus | Non · Oui | **Non** | Les prix décident de la marge : seule la direction les fixe | BR-CAT-12 |
+
+Les choix propres à une règle de prix (cumul des parfums, parfum offert) se règlent sur chaque palier et chaque bonus (BR-CAT-15).
 
 ---
 
@@ -147,7 +164,7 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 **BR-PLA-03** — Quand un client est créé ou change de partie, sa date de référence est, par défaut, le prochain jour ouvré prévu pour sa partie. Le superviseur peut la changer, par exemple pour répartir les clients « tous les 15 jours » sur les deux semaines.
 
-**BR-PLA-04** — Un jour non travaillé ou férié n'a pas de clients du jour. Les visites qui y tomberaient ne sont ni reportées ni comptées comme manquées. **(à confirmer)**
+**BR-PLA-04** — Un jour non travaillé ou férié n'a pas de clients du jour. Les visites qui y tomberaient ne sont ni reportées ni comptées comme manquées.
 
 **BR-PLA-05** — Le superviseur peut **reprogrammer** un client à une date précise : le client s'ajoute aux clients du jour de cette date, sans que sa fréquence change.
 
@@ -171,7 +188,7 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 - Sa partie est calculée parmi les parties de ce secteur, même hors connexion.
 - S'il n'est dans aucune, il est « hors partie » : rattaché au secteur, mais sans partie. **(à confirmer)**
 
-**BR-CLI-03** — Un client créé par un vendeur est actif immédiatement : le vendeur peut le visiter et lui vendre, même s'il est hors partie. Il est marqué « **nouveau** » pour revue par le superviseur, qui peut le placer dans une autre partie ou un autre secteur. Le crédit n'est pas autorisé par défaut.
+**BR-CLI-03** — Un client créé par un vendeur est actif immédiatement : le vendeur peut le visiter et lui vendre, même s'il est hors partie. Il est marqué « **nouveau** » pour revue par le superviseur, qui peut le placer dans une autre partie ou un autre secteur. Le crédit n'est pas autorisé par défaut. L'entreprise peut limiter le nouveau client à la vente au comptant jusqu'à sa validation par le superviseur (P-09, BR-TEN-08).
 
 **BR-CLI-04** — Seuls le superviseur et l'admin modifient un client. Supprimer un client revient à le **désactiver** : son historique est conservé, mais il n'est plus planifié ni proposé à la vente.
 
@@ -205,26 +222,33 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 **BR-CAT-07** — Le bonus s'ajoute automatiquement à la commande, sur une ligne « GRATUIT » à prix 0 que le vendeur ne peut pas modifier. Il est accordé dans la limite du stock disponible de Y : celui du dépôt en prévente, celui du camion en cash van. S'il est réduit faute de stock, la ligne l'indique.
 
-**BR-CAT-08** — Les quantités offertes ne consomment pas de quota **(à confirmer)** et n'entrent pas dans le chiffre d'affaires des objectifs.
+**BR-CAT-08** — Les quantités offertes consomment ou non le quota selon le paramètre P-03 (par défaut, non ; BR-TEN-08). Elles n'entrent jamais dans le chiffre d'affaires des objectifs.
 
 **BR-CAT-09** — À la confirmation, la commande **fige** les prix, paliers et bonus en vigueur. Un changement de prix ultérieur ne la modifie pas.
 
-**BR-CAT-10** — Quand des quantités baissent (préparation ou livraison partielle), paliers et bonus sont **recalculés sur les quantités réelles**, avec la grille figée de la commande. **(à confirmer)**
+**BR-CAT-10** — Quand des quantités baissent (préparation ou livraison partielle), paliers et bonus sont **recalculés sur les quantités réelles**, avec la grille figée de la commande. L'entreprise peut choisir de conserver ceux de la commande (P-04, BR-TEN-08).
 
 **BR-CAT-11** — Hors visite, le vendeur consulte le catalogue **sans les prix**. En visite, il ne voit que les produits proposables à ce client (BR-CAT-04, BR-CMD-06, BR-CV-03), avec leurs prix.
 
 **BR-CAT-12** — **Parfums** : un produit peut avoir plusieurs parfums (ex. biscuit Bimo : chocolat, fraise, vanille). Chaque parfum a un nom, une référence propre et un statut actif ou inactif.
 - Le superviseur ou l'admin choisit librement : regrouper les parfums dans un même produit, ou créer un produit distinct pour chaque parfum. Les deux façons peuvent coexister dans le catalogue.
-- Le superviseur et l'admin créent, modifient et désactivent les produits et les parfums. Les prix, paliers et bonus restent gérés par l'admin. **(à confirmer)**
+- Le superviseur et l'admin créent, modifient et désactivent les produits et les parfums. Les prix, paliers et bonus sont gérés par l'admin ; l'entreprise peut aussi les confier au superviseur (P-10, BR-TEN-08).
 
 **BR-CAT-13** — **Article** : le stock, les quotas, les lignes de commande et de vente, les réservations, les préparations, les chargements, les déchargements, les inventaires, les ventes perdues et les demandes perdues sont tenus **par article**, c'est-à-dire par parfum, ou par produit s'il n'a pas de parfum. Les conditionnements et la gamme sont ceux du produit, communs à tous ses parfums.
 
 **BR-CAT-14** — **Prix d'un parfum** : par défaut, un parfum a le prix de son produit. Il peut avoir son **propre prix**, par type de client et par unité, qui remplace alors celui du produit.
 
-**BR-CAT-15** — **Paliers et bonus avec des parfums** :
-- le seuil d'un palier du produit se calcule sur le **total des parfums** qui suivent le prix du produit **(à confirmer)**. Un parfum qui a son propre prix peut avoir ses propres paliers, calculés sur sa seule quantité ;
-- dans une règle de bonus, l'article acheté X peut être un produit, tous parfums cumulés **(à confirmer)**, ou un parfum précis ;
-- l'article offert Y peut être un parfum précis. Si la règle désigne un produit qui a des parfums, le vendeur choisit le ou les parfums offerts parmi ceux en stock. **(à confirmer)**
+**BR-CAT-15** — **Paliers et bonus avec des parfums.** Ces choix se font sur chaque palier et chaque règle de bonus, pour qu'une même entreprise puisse traiter ses produits différemment :
+
+| Réglage | Choix possibles | Défaut |
+|---|---|---|
+| Seuil d'un palier | Total des parfums qui ont le prix du produit · Chaque parfum séparément | **Total des parfums** |
+| Achat X d'un bonus | Un produit, tous parfums cumulés · Un parfum précis | **Tous parfums cumulés** |
+| Parfum offert Y d'un bonus | Parfum fixé par la règle · Au choix du vendeur · Automatique : le parfum le plus en stock | **Automatique** |
+
+- Cumuler les parfums pousse le client à commander plus : 6 chocolat et 4 fraise atteignent un palier de 10 cartons.
+- Le parfum offert automatique écoule le stock le plus abondant et évite les ruptures sur les parfums qui se vendent le mieux. Le vendeur peut le changer pour un autre parfum en stock.
+- Un parfum qui a son propre prix peut avoir ses propres paliers, calculés sur sa seule quantité.
 
 **BR-CAT-16** — **Saisie** : pour un produit qui a des parfums, le vendeur choisit le produit et l'unité, puis saisit une quantité pour chaque parfum voulu. Chaque parfum saisi donne sa propre ligne.
 
@@ -234,7 +258,7 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 **BR-QUO-01** — Un quota est facultatif. Il porte sur un vendeur, un article (un parfum, ou un produit sans parfum), une date et une quantité. Le superviseur le saisit dans l'unité de son choix, et il est stocké en unité de base.
 
-**BR-QUO-02** — Le quota est consommé par les quantités **confirmées** du vendeur pour ce produit ce jour-là. Les bonus et les lignes en attente ne le consomment pas.
+**BR-QUO-02** — Le quota est consommé par les quantités **confirmées** du vendeur pour ce produit ce jour-là. Les lignes en attente ne le consomment pas ; les bonus, selon P-03 (BR-CAT-08).
 
 **BR-QUO-03** — **En prévente**, si la quantité demandée dépasse le reste du quota, la ligne est **scindée** : la partie couverte par le quota devient une ligne normale, l'excédent une ligne « **en attente** ». Quand le quota est épuisé, le produit reste visible, grisé avec la mention « quota atteint », et toute quantité saisie part en attente.
 
@@ -275,7 +299,7 @@ NOT_STARTED ──Démarrer──▶ IN_PROGRESS ──Clôturer──▶ CLOSED
                                      (superviseur)
 ```
 
-**BR-JOU-03** — La journée ne peut pas être démarrée un jour non travaillé ou férié. **(à confirmer)**
+**BR-JOU-03** — Un jour non travaillé ou férié, la journée ne peut être démarrée que si l'entreprise l'autorise (P-01, BR-TEN-08). Il n'y a alors pas de clients du jour : seulement des visites hors programme et des livraisons.
 
 **BR-JOU-04** — « Démarrer la journée » tente une synchronisation. Sans réseau, la journée démarre quand même avec les dernières données, et le superviseur voit « démarrée hors connexion ».
 
@@ -312,7 +336,7 @@ Après une réouverture, les commandes `LOCKED` du pré-vendeur redeviennent `CO
 
 **BR-VIS-06** — Une fois la visite terminée, le marqueur du client passe au vert. Si c'était un client du jour, le compteur x/N augmente.
 
-**BR-VIS-07** — Le vendeur peut visiter un client de son secteur qui n'est pas prévu ce jour-là. Ces visites hors programme sont comptées à part (« +k hors programme ») et n'entrent pas dans x/N. **(à confirmer)**
+**BR-VIS-07** — Le vendeur peut visiter un client de son secteur qui n'est pas prévu ce jour-là. Ces visites hors programme sont comptées à part (« +k hors programme ») et n'entrent pas dans x/N. L'entreprise peut les interdire (P-02, BR-TEN-08).
 
 **BR-VIS-08** — Un client peut être visité plusieurs fois le même jour, par exemple pour repasser après une absence. Il ne compte qu'une fois dans x/N.
 
@@ -345,7 +369,7 @@ Après une réouverture, les commandes `LOCKED` du pré-vendeur redeviennent `CO
 DRAFT → CONFIRMED → LOCKED → PREPARING → READY → OUT_FOR_DELIVERY → DELIVERED
             │          │                                          ├→ PARTIALLY_DELIVERED
             │          └→ CONFIRMED (réouverture de la journée)   └→ FAILED
-            └→ CANCELLED
+            └→ CANCELLED                                                    └→ LOCKED (reprogrammation, BR-LIV-06)
 ```
 
 **BR-CMD-03** — Le montant de la commande est la somme des lignes normales (quantité × prix figé). Les lignes bonus valent 0. Les lignes en attente ne comptent qu'une fois acceptées.
@@ -397,7 +421,9 @@ La commande prend le statut correspondant.
 
 **BR-LIV-05** — La marchandise non livrée (échecs, quantités refusées) reste dans le camion et revient au dépôt au déchargement (BR-STK-07).
 
-**BR-LIV-06** — Une commande échouée n'est pas reprogrammée automatiquement : le vendeur reprend une commande lors de sa visite suivante. **(à confirmer)**
+**BR-LIV-06** — **Livraison échouée**, selon le paramètre P-05 (BR-TEN-08) :
+- **reprogrammée** (par défaut) : si le motif est « client absent », « magasin fermé » ou « non livrée », la commande est reprogrammée **une seule fois** au jour ouvré suivant. Elle revient au statut `LOCKED` et entre dans la tournée suivante ; sa marchandise revient d'abord au dépôt au déchargement, puis est de nouveau réservée. Un deuxième échec, ou un « refus », est définitif ;
+- **non reprogrammée** : le vendeur reprend une commande lors de sa visite suivante.
 
 ---
 
@@ -408,7 +434,7 @@ La commande prend le statut correspondant.
 - Le magasinier valide les quantités réellement chargées : c'est un transfert du dépôt vers le camion.
 - Le vendeur confirme ensuite la réception.
 
-Il n'y a qu'un seul chargement par jour dans le MVP. **(à confirmer)**
+Selon le paramètre P-07 (BR-TEN-08), il y a un seul chargement par jour, ou plusieurs. Un **rechargement** suit le même circuit : saisi par le superviseur ou le magasinier, validé par le magasinier, réception confirmée par le vendeur.
 
 **BR-CV-02** — Le vendeur ne peut rien vendre avant d'avoir confirmé la réception du chargement.
 
@@ -418,7 +444,7 @@ Il n'y a qu'un seul chargement par jour dans le MVP. **(à confirmer)**
 
 **BR-CV-05** — Une vente confirmée est **définitive** : elle ne peut être ni modifiée ni annulée. Les avoirs et les retours sont hors MVP. **(à confirmer)**
 
-**BR-CV-06** — Après la clôture, le magasinier fait le **déchargement** (BR-STK-07) : tout le stock restant revient au dépôt chaque soir. **(à confirmer)**
+**BR-CV-06** — Après la clôture, le magasinier fait le **déchargement** (BR-STK-07). Selon le paramètre P-06 (BR-TEN-08), tout le stock restant revient au dépôt chaque soir (par défaut), ou il est compté et reste dans le camion pour le lendemain.
 
 **BR-CV-07** — Le vendeur cash van peut encaisser les dettes de ses clients (BR-PAY-05).
 
@@ -453,7 +479,7 @@ Il n'y a qu'un seul chargement par jour dans le MVP. **(à confirmer)**
 1. le magasinier compte le stock restant ;
 2. on calcule `théorique = chargé − livré ou vendu − offert` ;
 3. l'écart (théorique − compté) est enregistré en `ADJUSTMENT` et signalé au superviseur ;
-4. le stock compté retourne au dépôt (`TRANSFER`), et le camion revient à zéro.
+4. le stock compté retourne au dépôt (`TRANSFER`), et le camion revient à zéro. Si l'entreprise garde le stock dans le camion (P-06), il y reste, et le compté devient le stock de départ du lendemain.
 
 ---
 
@@ -469,9 +495,9 @@ Il n'y a qu'un seul chargement par jour dans le MVP. **(à confirmer)**
 
 Si le client ne peut pas payer le minimum, il peut réduire les quantités (livraison partielle). Sinon, la livraison est en échec avec le motif « refus ».
 
-**BR-PAY-04** — `Dette du client = somme des restes à crédit − somme des paiements de dette`. Elle ne peut pas devenir négative : il n'y a pas d'avance client dans le MVP.
+**BR-PAY-04** — `Dette du client = somme des restes à crédit − somme des paiements de dette`. Elle ne peut pas devenir négative : il n'y a pas d'avance client dans le MVP. Seule exception : si deux personnes ont encaissé la même dette hors connexion, l'excédent est accepté à la synchronisation, puisque l'argent a été remis. Il devient une avance du client, signalée au superviseur et déduite de son prochain bon.
 
-**BR-PAY-05** — **Encaissement de dette** : en espèces, pour un montant au plus égal à la dette. Il est fait par le pré-vendeur (en prévente) et par le vendeur cash van. Le livreur, lui, n'encaisse que le paiement des livraisons. Un reçu est imprimé si une imprimante est connectée. **(à confirmer)**
+**BR-PAY-05** — **Encaissement de dette** : en espèces, pour un montant au plus égal à la dette. Il est fait par le pré-vendeur (en prévente), par le vendeur cash van et, si l'entreprise l'autorise (P-08, BR-TEN-08), par le livreur. Un reçu est imprimé si une imprimante est connectée.
 
 **BR-PAY-06** — Hors connexion, la dette affichée et le contrôle du plafond reposent sur la dette connue à la dernière synchronisation, corrigée des opérations faites depuis sur le téléphone.
 

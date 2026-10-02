@@ -85,7 +85,8 @@ Définir précisément le fonctionnement du produit avant de coder.
 - [x] Définir le modèle SaaS : modes de vente ; plans et abonnements reportés après le MVP
 - [x] Définir les limites du MVP
 - [x] Trancher les points de l'Annexe B du README
-- [ ] Confirmer les 19 règles déduites (cahier des charges §10)
+- [x] Rendre réglables par entreprise les règles qui varient d'une entreprise à l'autre (BR-TEN-08, 2026-10-02)
+- [ ] Valider les valeurs par défaut des paramètres P-01 à P-10, et les 7 règles fixes (cahier des charges §10)
 - [x] Ajouter les parfums des produits : stock, quota et prix éventuellement propres (2026-10-02)
 
 ## Flux principaux
@@ -584,6 +585,7 @@ Cette phase distingue l'administration globale du SaaS de l'administration d'une
 
 - [ ] Code libre et unique par utilisateur (BR-USR-10)
 - [ ] Paramètres : types de clients, jours travaillés, jours fériés, motifs de non-commande et d'échec, distance hors zone, largeur du ticket, en-tête des bons
+- [ ] Règles réglables P-01 à P-10, avec leurs valeurs par défaut ; lues par le serveur et le mobile à chaque opération (BR-TEN-08)
 - [ ] Dépôts et camions
 - [ ] Rôle `COMPTABLE`
 
@@ -992,6 +994,7 @@ Après le MVP : IN_TRANSIT   ARRIVED   CANCELLED
 
 - [ ] Mise à jour de la commande selon la livraison : livrée, partielle (avec recalcul), échec (BR-LIV-02)
 - [ ] Livraisons non traitées en échec à la clôture (BR-LIV-04)
+- [ ] Reprogrammation d'une livraison échouée au jour ouvré suivant, selon P-05 (BR-LIV-06)
 - [ ] Marchandise non livrée rendue au dépôt au déchargement (BR-LIV-05)
 - [ ] Preuves : GPS et heure ; signature et photo *(après le MVP)*
 - [ ] Encaissement (`Payment`) : espèces, ou crédit dans la limite du plafond (BR-PAY-03)
@@ -1028,7 +1031,8 @@ Login · Tableau de bord · Réception du chargement · Ma tournée (liste / car
 - [ ] Vente définitive, sans modification ni annulation (BR-CV-05)
 - [ ] Quota épuisé → produit grisé et demande perdue (BR-QUO-04)
 - [ ] Encaissement des dettes (BR-CV-07)
-- [ ] Déchargement du soir : comptage, écart, retour au dépôt (BR-CV-06, BR-STK-07)
+- [ ] Déchargement du soir : comptage, écart, retour au dépôt ou stock gardé dans le camion selon P-06 (BR-CV-06, BR-STK-07)
+- [ ] Rechargement en cours de journée, selon P-07 (BR-CV-01)
 
 ## Impression Bluetooth (UC-34, UC-35)
 
@@ -1653,7 +1657,7 @@ docs/
 # Prochaine étape
 
 1. ~~Trancher les points de l'Annexe B du README_vf.~~ Fait en phase 0.
-2. Confirmer les **19 règles déduites** du [cahier des charges §10](docs/cahier-des-charges.md#10-règles-déduites-à-confirmer).
+2. Valider les **valeurs par défaut** des paramètres P-01 à P-10 et les **7 règles fixes** du [cahier des charges §10](docs/cahier-des-charges.md#10-règles-déduites-à-confirmer).
 3. **Phase 1** : trancher les points ouverts du cahier des charges §11, puis rédiger `docs/architecture.md`, `docs/database.md`, `docs/rbac.md` et `docs/modules.md`.
 4. Commencer l'implémentation par :
 
