@@ -6,7 +6,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=!@sellwasl/mobile",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -16,7 +16,8 @@
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @sellwasl/api prisma:migrate",
-    "db:generate": "pnpm --filter @sellwasl/api prisma:generate"
+    "db:generate": "pnpm --filter @sellwasl/api prisma:generate",
+    "dev:mobile": "pnpm --filter @sellwasl/mobile dev"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

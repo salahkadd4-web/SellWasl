@@ -36,7 +36,8 @@ L'application utilise des modules natifs (Bluetooth, carte) : elle tourne dans u
 ```bash
 cd apps/mobile
 npx eas build --profile development --platform android   # APK de développement (compte Expo requis)
-pnpm dev                                                 # serveur Metro
+cd ../..
+pnpm dev:mobile                                          # serveur Metro
 ```
 
 Ou, avec Android Studio installé : `pnpm android`.
@@ -46,7 +47,8 @@ L'écran **Tester l'imprimante** imprime un ticket de test sur une imprimante th
 
 | Commande | Effet |
 |---|---|
-| `pnpm dev` | Tout en mode développement |
+| `pnpm dev` | API, Web et paquets partagés en mode développement |
+| `pnpm dev:mobile` | Serveur Metro de l'application mobile |
 | `pnpm build` | Compile tous les paquets et applications |
 | `pnpm typecheck` | Vérifie les types partout |
 | `pnpm format` | Formate le code avec Prettier |

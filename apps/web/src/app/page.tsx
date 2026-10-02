@@ -4,7 +4,14 @@ import Link from 'next/link';
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-8 px-4">
-      <Image src="/logo.png" alt="SellWasl" width={220} height={220} priority />
+      <Image
+        src="/logo.png"
+        alt="SellWasl"
+        width={300}
+        height={200}
+        className="h-auto w-[300px]"
+        priority
+      />
       <p className="text-center text-muted">One Platform. Every Flow.</p>
       <nav className="flex w-full flex-col gap-3">
         <Link

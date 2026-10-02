@@ -2,3 +2,6 @@ pnpm-lock.yaml
 *.md
 .next
 dist
+apps/api/src/generated
+next-env.d.ts
+.expo

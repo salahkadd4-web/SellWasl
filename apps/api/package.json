@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "build": "pnpm prisma:generate && nest build",
-    "dev": "nest start --watch",
+    "dev": "prisma generate && nest start --watch",
     "start": "node dist/main.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "prisma generate && tsc --noEmit",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate dev && prisma generate",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio"
   },
