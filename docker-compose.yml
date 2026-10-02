@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: sellwasl
       POSTGRES_DB: sellwasl
     ports:
-      - '5432:5432'
+      - '5433:5432' # 5433 pour ne pas entrer en conflit avec un PostgreSQL installé sur le poste
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
