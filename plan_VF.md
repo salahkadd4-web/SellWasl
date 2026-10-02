@@ -194,27 +194,27 @@ sellwasl/
 ## Tâches
 
 - [x] Créer le repository GitHub
-- [ ] Créer le monorepo (Turborepo)
-- [ ] Configurer TypeScript
-- [ ] Configurer ESLint et Prettier
-- [ ] Créer l'application Web (Next.js, Tailwind, shadcn/ui)
-- [ ] Créer l'application mobile (Expo)
-- [ ] Créer l'API NestJS
-- [ ] Configurer PostgreSQL (Docker)
-- [ ] Configurer Prisma
-- [ ] Configurer Docker et `docker-compose.yml`
-- [ ] Créer `.env.example`
+- [x] Créer le monorepo (Turborepo + pnpm)
+- [x] Configurer TypeScript
+- [ ] Configurer ESLint et Prettier (Prettier fait ; ESLint à ajouter)
+- [x] Créer l'application Web (Next.js, Tailwind ; shadcn/ui à l'arrivée des premiers écrans)
+- [x] Créer l'application mobile (Expo, Expo Router)
+- [x] Créer l'API NestJS (endpoint `/api/v1/health`)
+- [x] Configurer PostgreSQL (Docker)
+- [x] Configurer Prisma (7, adaptateur `pg`, première migration)
+- [x] Configurer Docker et `docker-compose.yml` (PostgreSQL, MinIO)
+- [x] Créer `.env.example`
 - [ ] Configurer les environnements (development, staging, production)
-- [ ] Configurer les scripts de développement
-- [ ] Configurer les tests
-- [ ] Configurer la CI (lint, type check, tests, build)
-- [ ] Intégrer les tokens de couleurs SellWasl dans `packages/config`
+- [x] Configurer les scripts de développement
+- [ ] Configurer les tests (reporté : priorité au développement)
+- [x] Configurer la CI (format, build, type check ; tests et lint à ajouter)
+- [x] Intégrer les tokens de couleurs SellWasl dans `packages/config`
 
 **Ajouts phase 0**
 
-- [ ] Cibler Android uniquement pour le MVP
-- [ ] Mettre en place une version de développement compilée de l'application (EAS), à la place d'Expo Go : elle est nécessaire pour le module natif d'impression Bluetooth
-- [ ] Vérifier qu'une impression de test fonctionne sur une imprimante thermique réelle
+- [x] Cibler Android uniquement pour le MVP
+- [x] Mettre en place une version de développement compilée de l'application (EAS, `eas.json`), à la place d'Expo Go : elle est nécessaire pour le module natif d'impression Bluetooth
+- [ ] Vérifier qu'une impression de test fonctionne sur une imprimante thermique réelle (écran « Tester l'imprimante » prêt ; reste à l'essayer avec les imprimantes)
 
 ## Critère de validation
 

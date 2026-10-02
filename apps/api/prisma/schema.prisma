@@ -1,0 +1,40 @@
+// Schéma PostgreSQL de SellWasl — voir docs/database.md.
+// Phase 2 : socle minimal pour vérifier l'accès à la base.
+// Phase 3 : schéma complet du MVP.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SalesMode {
+  PRE_SALES
+  CASH_VAN
+  MIXED
+}
+
+enum CompanyStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  DELETED
+}
+
+model Company {
+  id        String        @id @db.Uuid
+  name      String
+  code      String        @unique
+  mode      SalesMode
+  status    CompanyStatus @default(TRIAL)
+  timezone  String        @default("Africa/Algiers")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("company")
+}

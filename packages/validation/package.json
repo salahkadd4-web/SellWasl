@@ -1,0 +1,23 @@
+{
+  "name": "@sellwasl/validation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Schémas Zod partagés par le Web, le mobile et l'API (architecture §3).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  },
+  "dependencies": {
+    "@sellwasl/business-rules": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@sellwasl/config": "workspace:*"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@sellwasl/business-rules",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Règles métier pures, partagées par l'API et le mobile (architecture §4).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  },
+  "devDependencies": {
+    "@sellwasl/config": "workspace:*"
+  }
+}

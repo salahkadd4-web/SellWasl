@@ -1,0 +1,33 @@
+{
+  "name": "@sellwasl/mobile",
+  "version": "0.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "expo": "~57.0.26",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "@sellwasl/business-rules": "workspace:*",
+    "@sellwasl/config": "workspace:*",
+    "@sellwasl/validation": "workspace:*",
+    "@point-of-sale/receipt-printer-encoder": "^4.0.1",
+    "react-native-bluetooth-classic": "1.73.0-rc.17",
+    "expo-router": "~57.0.24",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "expo-linking": "~57.0.11",
+    "expo-constants": "~57.0.20"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "dev": "expo start",
+    "start": "expo start",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor"
+  },
+  "private": true
+}

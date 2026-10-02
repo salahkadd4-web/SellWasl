@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+# Expo
+.expo/
+apps/mobile/android/
+apps/mobile/ios/
+*.apk
+*.aab

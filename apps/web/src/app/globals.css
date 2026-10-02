@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/* Tokens SellWasl : miroir de packages/config/src/theme.ts (architecture §20). */
+@theme {
+  --color-primary: #001850;
+  --color-text-dark: #00043c;
+  --color-accent: #00bcbc;
+  --color-deep-blue: #012e8e;
+  --color-surface: #f4f7fb;
+  --color-border: #d9e1ec;
+  --color-muted: #5b6b82;
+  --color-synced: #16a34a;
+  --color-pending: #f59e0b;
+  --color-error: #dc2626;
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-text-dark);
+}
