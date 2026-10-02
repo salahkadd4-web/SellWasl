@@ -202,7 +202,7 @@ sellwasl/
 - [x] Créer l'API NestJS (endpoint `/api/v1/health`)
 - [x] Configurer PostgreSQL (Docker)
 - [x] Configurer Prisma (7, adaptateur `pg`, première migration)
-- [x] Configurer Docker et `docker-compose.yml` (PostgreSQL, MinIO)
+- [x] Configurer Docker et `docker-compose.yml` (PostgreSQL ; stockage S3 ajouté plus tard)
 - [x] Créer `.env.example`
 - [ ] Configurer les environnements (development, staging, production)
 - [x] Configurer les scripts de développement

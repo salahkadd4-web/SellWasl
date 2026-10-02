@@ -20,7 +20,7 @@ Prérequis : Node.js 22, pnpm 10 (`corepack enable`), Docker.
 
 ```bash
 pnpm install
-pnpm db:up                                   # PostgreSQL + MinIO
+pnpm db:up                                   # PostgreSQL (Docker)
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 pnpm db:migrate                              # applique les migrations

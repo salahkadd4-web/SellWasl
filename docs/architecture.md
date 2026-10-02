@@ -129,7 +129,7 @@ sellwasl/
 │   └── ui/                   # composants Web partagés (si le besoin apparaît)
 ├── docs/
 ├── .github/workflows/
-├── docker-compose.yml        # PostgreSQL et MinIO pour le développement
+├── docker-compose.yml        # PostgreSQL pour le développement
 ├── .env.example
 ├── turbo.json
 └── pnpm-workspace.yaml
@@ -450,7 +450,7 @@ Le détail des tables sera dans `database.md`.
 
 ### 15.1 Fichiers
 
-- Stockage objet compatible S3 (MinIO en développement). Dans le MVP : fichiers CSV importés, exports, logo de l'entreprise pour l'en-tête des bons.
+- Stockage objet compatible S3. En développement, un service compatible S3 sera ajouté à docker-compose au moment où l'API en aura besoin (l'image Docker gratuite de MinIO n'est plus publiée). Dans le MVP : fichiers CSV importés, exports, logo de l'entreprise pour l'en-tête des bons.
 - Chaque fichier est rangé sous `companies/<company_id>/…`, et n'est accessible que par un lien signé, valable quelques minutes, délivré par l'API après le contrôle des droits.
 
 ### 15.2 Notifications

@@ -13,7 +13,7 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:up": "docker compose up -d postgres minio",
+    "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @sellwasl/api prisma:migrate",
     "db:generate": "pnpm --filter @sellwasl/api prisma:generate"

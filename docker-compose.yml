@@ -1,4 +1,5 @@
 # Services de développement (architecture §18.1).
+# Le stockage objet compatible S3 sera ajouté quand l'API en aura besoin (imports, exports, logos).
 services:
   postgres:
     image: postgres:16
@@ -15,18 +16,5 @@ services:
       interval: 5s
       retries: 10
 
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: sellwasl
-      MINIO_ROOT_PASSWORD: sellwasl-dev
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - minio-data:/data
-
 volumes:
   postgres-data:
-  minio-data:
