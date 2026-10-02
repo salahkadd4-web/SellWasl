@@ -1,6 +1,6 @@
 # Cas d'utilisation — SellWasl
 
-> **Phase 0 — validé le 2026-10-01.**
+> **Phase 0 — validé le 2026-10-01.** Mis à jour le 2026-10-02 : parfums des produits.
 > Chaque cas d'utilisation (`UC-xx`) renvoie aux [règles métier](business-rules.md) (`BR-XXX-nn`) qui le gouvernent. Le périmètre d'ensemble est décrit dans le [cahier des charges](cahier-des-charges.md).
 
 ## Lecture
@@ -63,7 +63,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 | UC-70 | Enregistrer un versement | Comptable | Web |
 | UC-71 | Consulter les dettes et les paiements | Comptable | Web |
 | UC-80 | Gérer les utilisateurs | Admin | Web |
-| UC-81 | Gérer le catalogue et les prix | Admin | Web |
+| UC-81 | Gérer le catalogue et les prix | Admin ; superviseur pour les produits et parfums | Web |
 | UC-82 | Paramétrer l'entreprise | Admin | Web |
 | UC-83 | Importer des clients et des produits | Admin | Web |
 | UC-90 | Créer une entreprise | Super Admin | Web |
@@ -230,18 +230,19 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 
 **Scénario**
 1. L'application affiche les produits proposables à ce client, avec les prix de son type.
-2. Le vendeur appuie sur un produit, choisit l'unité et saisit la quantité.
+2. Le vendeur appuie sur un produit, choisit l'unité et saisit la quantité. Si le produit a des parfums, il saisit une quantité pour chaque parfum voulu, et chaque parfum donne sa propre ligne.
 3. À la validation, le produit quitte la liste et entre dans le panier. Le palier éventuel s'applique, et les bonus s'ajoutent automatiquement.
 4. Il recommence pour les autres produits.
 5. Le panier affiche le total. Le vendeur peut encore modifier ou retirer une ligne.
 6. Il confirme. La commande passe `CONFIRMED`, la visite `COMPLETED`, le marqueur devient vert et le compteur augmente.
 
 **Variantes**
-- **Quota atteint ou dépassé** : la ligne est scindée, et l'excédent part en attente. Un produit dont le quota est épuisé reste visible, grisé « quota atteint », et sélectionnable.
+- **Quota atteint ou dépassé** : la ligne est scindée, et l'excédent part en attente. Un produit ou un parfum dont le quota est épuisé reste visible, grisé « quota atteint », et sélectionnable.
+- **Bonus qui offre un produit à parfums** : le vendeur choisit le ou les parfums offerts parmi ceux en stock.
 - **Stock insuffisant pour un bonus** : le bonus est réduit, et la ligne l'indique.
 - **Hors connexion** : tout fonctionne. La réservation se fait à la synchronisation, et une ligne peut alors être marquée « rupture ».
 
-**Règles** : BR-CAT-04 à 11, BR-QUO-02, BR-QUO-03, BR-CMD-01 à 07, BR-VIS-06, BR-VIS-09.
+**Règles** : BR-CAT-04 à 16, BR-QUO-02, BR-QUO-03, BR-CMD-01 à 07, BR-VIS-06, BR-VIS-09.
 
 ### UC-15 — Vendre et livrer depuis le camion (cash van)
 
@@ -249,7 +250,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 - **Préconditions** : visite en cours.
 
 **Scénario**
-1. L'application affiche les produits encore présents dans le camion, avec les prix du type du client.
+1. L'application affiche les produits et les parfums encore présents dans le camion, avec les prix du type du client.
 2. Le vendeur ajoute les produits au panier comme en UC-14. La quantité ne peut pas dépasser le stock du camion.
 3. Il confirme la vente. Elle passe directement `DELIVERED`, et le stock du camion baisse.
 4. Il enregistre le paiement, en espèces ou à crédit selon les droits du client.
@@ -260,7 +261,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 - **Crédit non autorisé** : le paiement total est exigé.
 - **Pas d'imprimante** : le bon reste imprimable plus tard.
 
-**Règles** : BR-CV-02 à 05, BR-QUO-04, BR-CAT-04 à 11, BR-PAY-03, BR-IMP-02 à 05.
+**Règles** : BR-CV-02 à 05, BR-QUO-04, BR-CAT-04 à 16, BR-PAY-03, BR-IMP-02 à 05.
 
 ### UC-16 — Clore une visite sans commande
 
@@ -295,7 +296,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 ### UC-18 — Enregistrer une demande perdue (cash van)
 
 - **Acteurs** : vendeur cash van.
-- **Préconditions** : visite en cours ; produit dont le quota est épuisé.
+- **Préconditions** : visite en cours ; produit ou parfum dont le quota est épuisé.
 
 **Scénario**
 1. Sur le produit grisé « quota atteint », le vendeur appuie sur « Demande perdue ».
@@ -331,7 +332,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 - **Acteurs** : pré-vendeur, vendeur cash van.
 
 **Scénario**
-1. Le vendeur parcourt les produits par gamme et par catégorie, **sans les prix**.
+1. Le vendeur parcourt les produits par gamme et par catégorie, avec leurs parfums, **sans les prix**.
 
 **Règles** : BR-CAT-11.
 
@@ -436,7 +437,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 
 **Scénario**
 1. Le magasinier ouvre la liste des tournées à préparer.
-2. Il consulte la liste de chargement (total par produit) et le détail par commande.
+2. Il consulte la liste de chargement (total par produit et par parfum) et le détail par commande.
 3. Il saisit les quantités préparées. En cas de rupture, il saisit une quantité inférieure.
 4. Il valide, et les commandes passent `READY`.
 
@@ -544,7 +545,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 - **Acteurs** : superviseur.
 
 **Scénario**
-1. Il choisit la date, un ou plusieurs vendeurs, le produit, l'unité et la quantité.
+1. Il choisit la date, un ou plusieurs vendeurs, le produit, le parfum s'il y en a, l'unité et la quantité.
 2. Il enregistre, et les vendeurs concernés sont notifiés.
 
 **Règles** : BR-QUO-01, BR-QUO-05.
@@ -688,14 +689,15 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 
 ### UC-81 — Gérer le catalogue et les prix
 
-- **Acteurs** : admin.
+- **Acteurs** : admin ; superviseur pour les produits et les parfums.
 
 **Scénario**
 1. Il gère les produits, gammes, catégories et conditionnements.
-2. Il saisit les prix par type de client et par unité.
-3. Il définit les paliers et les bonus.
+2. Il ajoute les parfums d'un produit, ou crée un produit distinct pour un parfum.
+3. Il saisit les prix par type de client et par unité, et le prix propre d'un parfum quand il est différent.
+4. Il définit les paliers et les bonus.
 
-**Règles** : BR-CAT-01 à 09.
+**Règles** : BR-CAT-01 à 09, BR-CAT-12 à 15.
 
 ### UC-82 — Paramétrer l'entreprise
 

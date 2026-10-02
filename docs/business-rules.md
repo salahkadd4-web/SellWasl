@@ -2,11 +2,13 @@
 
 > **Phase 0 — validé le 2026-10-01.**
 > Chaque règle porte un identifiant stable (`BR-XXX-nn`). Les [cas d'utilisation](use-cases.md) et, plus tard, les tests y font référence.
+> **Mis à jour le 2026-10-02** : parfums des produits (BR-CAT-12 à BR-CAT-16).
 > Les règles marquées **(à confirmer)** ont été déduites pendant la rédaction et n'ont pas encore été validées explicitement. Elles sont listées au [§10 du cahier des charges](cahier-des-charges.md#10-règles-déduites-à-confirmer).
 
 ## Conventions
 
 - **Unité de base** : la plus petite unité d'un produit (pièce, triplette…). Stocks, quotas et bonus sont calculés dans cette unité.
+- **Article** : un produit sans parfum, ou un parfum d'un produit (BR-CAT-13). Quand une règle parle du stock, du quota ou d'une ligne d'un « produit », il s'agit de l'article.
 - **Montants** : en dinars algériens (DA), toutes taxes comprises.
 - **Jour ouvré** : jour travaillé de la semaine selon l'entreprise, hors jours fériés.
 - **Vendeur** : pré-vendeur ou vendeur cash van.
@@ -80,7 +82,7 @@ Le socle commun est toujours actif.
 
 **BR-USR-02** — Les rôles terrain (`PRE_VENDEUR`, `LIVREUR`, `VENDEUR_CASH_VAN`, `MAGASINIER`) utilisent uniquement l'application mobile. Les rôles `COMPANY_ADMIN`, `SUPERVISEUR`, `COMPTABLE` et `SUPER_ADMIN` utilisent uniquement le Web.
 
-**BR-USR-03** — `COMPANY_ADMIN` a tous les droits du superviseur et du comptable. Il gère en plus les utilisateurs (superviseurs compris), le catalogue, les prix et les paramètres.
+**BR-USR-03** — `COMPANY_ADMIN` a tous les droits du superviseur et du comptable. Il gère en plus les utilisateurs (superviseurs compris), le catalogue, les prix et les paramètres. Le superviseur peut lui aussi créer et modifier les produits et leurs parfums (BR-CAT-12).
 
 **BR-USR-04** — Dans le MVP, un superviseur voit toute l'entreprise : il n'y a pas de découpage par équipe.
 
@@ -186,15 +188,16 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 - une référence, un nom, une **gamme** (ex. Bimo) et une catégorie ;
 - une unité de base ;
 - des **conditionnements**, chacun avec son nom et son nombre d'unités de base (ex. carton = 20 triplettes) ;
+- éventuellement des **parfums** (BR-CAT-12) ;
 - un statut actif ou inactif.
 
 **BR-CAT-02** — Le vendeur saisit une quantité dans l'unité de son choix (unité de base ou conditionnement). Elle est convertie en unité de base pour le stock, les quotas et les bonus.
 
 **BR-CAT-03** — L'entreprise définit ses **types de clients** (ex. Détail, Supérette, Gros). Chaque client a un type.
 
-**BR-CAT-04** — **Prix** : un prix TTC par produit, par type de client et par unité. Un produit sans prix pour le type d'un client n'est pas proposé à ce client.
+**BR-CAT-04** — **Prix** : un prix TTC par produit, par type de client et par unité. Un parfum peut avoir son propre prix (BR-CAT-14). Un article sans prix pour le type d'un client n'est pas proposé à ce client.
 
-**BR-CAT-05** — **Palier** : pour un produit, un type de client et une unité, « à partir de Q, le prix unitaire devient P ». Le palier s'applique aux lignes saisies dans son unité. Si plusieurs paliers sont atteints, c'est le plus élevé qui s'applique.
+**BR-CAT-05** — **Palier** : pour un produit, un type de client et une unité, « à partir de Q, le prix unitaire devient P ». Le palier s'applique aux lignes saisies dans son unité. Si plusieurs paliers sont atteints, c'est le plus élevé qui s'applique. Pour un produit qui a des parfums, voir BR-CAT-15.
 
 **BR-CAT-06** — **Bonus** : « pour Q (unité U) de X acheté, N (unité V) de Y offert ». La règle a des dates de validité et peut être limitée à certains types de clients. Y peut être X lui-même. Le bonus est **cumulatif** :
 
@@ -210,11 +213,26 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 **BR-CAT-11** — Hors visite, le vendeur consulte le catalogue **sans les prix**. En visite, il ne voit que les produits proposables à ce client (BR-CAT-04, BR-CMD-06, BR-CV-03), avec leurs prix.
 
+**BR-CAT-12** — **Parfums** : un produit peut avoir plusieurs parfums (ex. biscuit Bimo : chocolat, fraise, vanille). Chaque parfum a un nom, une référence propre et un statut actif ou inactif.
+- Le superviseur ou l'admin choisit librement : regrouper les parfums dans un même produit, ou créer un produit distinct pour chaque parfum. Les deux façons peuvent coexister dans le catalogue.
+- Le superviseur et l'admin créent, modifient et désactivent les produits et les parfums. Les prix, paliers et bonus restent gérés par l'admin. **(à confirmer)**
+
+**BR-CAT-13** — **Article** : le stock, les quotas, les lignes de commande et de vente, les réservations, les préparations, les chargements, les déchargements, les inventaires, les ventes perdues et les demandes perdues sont tenus **par article**, c'est-à-dire par parfum, ou par produit s'il n'a pas de parfum. Les conditionnements et la gamme sont ceux du produit, communs à tous ses parfums.
+
+**BR-CAT-14** — **Prix d'un parfum** : par défaut, un parfum a le prix de son produit. Il peut avoir son **propre prix**, par type de client et par unité, qui remplace alors celui du produit.
+
+**BR-CAT-15** — **Paliers et bonus avec des parfums** :
+- le seuil d'un palier du produit se calcule sur le **total des parfums** qui suivent le prix du produit **(à confirmer)**. Un parfum qui a son propre prix peut avoir ses propres paliers, calculés sur sa seule quantité ;
+- dans une règle de bonus, l'article acheté X peut être un produit, tous parfums cumulés **(à confirmer)**, ou un parfum précis ;
+- l'article offert Y peut être un parfum précis. Si la règle désigne un produit qui a des parfums, le vendeur choisit le ou les parfums offerts parmi ceux en stock. **(à confirmer)**
+
+**BR-CAT-16** — **Saisie** : pour un produit qui a des parfums, le vendeur choisit le produit et l'unité, puis saisit une quantité pour chaque parfum voulu. Chaque parfum saisi donne sa propre ligne.
+
 ---
 
 ## 7. Quotas — QUO
 
-**BR-QUO-01** — Un quota est facultatif. Il porte sur un vendeur, un produit, une date et une quantité. Le superviseur le saisit dans l'unité de son choix, et il est stocké en unité de base.
+**BR-QUO-01** — Un quota est facultatif. Il porte sur un vendeur, un article (un parfum, ou un produit sans parfum), une date et une quantité. Le superviseur le saisit dans l'unité de son choix, et il est stocké en unité de base.
 
 **BR-QUO-02** — Le quota est consommé par les quantités **confirmées** du vendeur pour ce produit ce jour-là. Les bonus et les lignes en attente ne le consomment pas.
 
@@ -306,7 +324,7 @@ Après une réouverture, les commandes `LOCKED` du pré-vendeur redeviennent `CO
 
 ## 11. Commandes de prévente — CMD
 
-**BR-CMD-01** — Une commande est liée à une visite, un client et un pré-vendeur. Sa source est `PRE_SALES` (visite sur place) ou `PHONE`. Pour chaque produit, elle a au plus une ligne normale et une ligne en attente ; s'y ajoutent les lignes bonus.
+**BR-CMD-01** — Une commande est liée à une visite, un client et un pré-vendeur. Sa source est `PRE_SALES` (visite sur place) ou `PHONE`. Pour chaque article, elle a au plus une ligne normale et une ligne en attente ; s'y ajoutent les lignes bonus.
 
 **BR-CMD-02** — Statuts d'une commande :
 
@@ -412,7 +430,7 @@ Il n'y a qu'un seul chargement par jour dans le MVP. **(à confirmer)**
 - le **dépôt** (`DEPOT`), un ou plusieurs ;
 - le **camion** (`TRUCK`), avec un code et une immatriculation, affecté à un livreur ou à un vendeur cash van. Cette affectation est modifiable.
 
-**BR-STK-02** — Le stock est tenu par produit et par entrepôt, en unité de base. Il distingue le stock physique, le stock réservé (au dépôt seulement) et le stock disponible : `disponible = physique − réservé`.
+**BR-STK-02** — Le stock est tenu par article (BR-CAT-13) et par entrepôt, en unité de base. Il distingue le stock physique, le stock réservé (au dépôt seulement) et le stock disponible : `disponible = physique − réservé`.
 
 **BR-STK-03** — Toute variation de stock passe par un **mouvement** daté, qui enregistre l'utilisateur, l'appareil et la cause.
 
@@ -501,7 +519,7 @@ Il s'imprime sur le téléphone et se consulte sur le Web.
 **BR-IMP-02** — Le **bon de livraison**, ou bon de vente, contient :
 - l'entreprise, le numéro du bon, la date et l'heure ;
 - le livreur ou le vendeur, et le client ;
-- les lignes (produit, unité, quantité, prix unitaire, montant) et les lignes « GRATUIT » ;
+- les lignes (produit et parfum, unité, quantité, prix unitaire, montant) et les lignes « GRATUIT » ;
 - le total, le montant payé, le reste à crédit et la nouvelle dette du client.
 
 **BR-IMP-03** — Un bon peut être réimprimé. La copie porte la mention « **DUPLICATA** », et chaque réimpression est tracée.
@@ -538,6 +556,7 @@ Il s'imprime sur le téléphone et se consulte sur le Web.
 **BR-AUD-01** — Sont audités, avec l'auteur, l'action, la date, l'appareil, l'ancienne et la nouvelle valeur :
 - les connexions, et les associations ou révocations d'appareils ;
 - le démarrage, la clôture et la réouverture des journées ;
+- la création, la modification et la désactivation des produits et des parfums ;
 - les modifications de prix, paliers, bonus, quotas et objectifs ;
 - la modification ou la désactivation d'un client, et le forçage de sa partie ;
 - les modifications des polygones et du planning ;
@@ -552,7 +571,7 @@ Il s'imprime sur le téléphone et se consulte sur le Web.
 
 **BR-IO-01** — **Import CSV des clients**, par l'admin. Un aperçu est affiché avant l'import. Les lignes valides sont importées, et les lignes en erreur sont listées avec la raison. La position est facultative : un client importé sans position reste hors partie jusqu'à ce que le superviseur le place.
 
-**BR-IO-02** — **Import CSV des produits**, par l'admin : produits, conditionnements et prix par type de client.
+**BR-IO-02** — **Import CSV des produits**, par l'admin : produits, parfums, conditionnements, et prix par type de client, y compris les prix propres des parfums.
 
 **BR-IO-03** — **Exports CSV**, selon les droits de chacun : ventes, visites, objectifs, dettes et versements, filtrés par période, secteur et vendeur.
 
@@ -575,6 +594,12 @@ Montants fictifs, qui illustrent les règles et serviront de base aux tests.
 **Bonus (BR-CAT-06)** — Règle : « pour 1 carton de thon tomate, 4 triplettes de thon à l'huile offertes ».
 - 3 cartons → 12 triplettes offertes
 - 50 triplettes de thon tomate, soit 2,5 cartons → partie entière 2 → 8 triplettes offertes
+
+**Parfums (BR-CAT-13 à 16)** — Biscuit Bimo, client Détail, 1 200 DA le carton, avec le palier « à partir de 10 cartons : 1 150 DA ». Le parfum pistache a son propre prix : 1 400 DA le carton, sans palier.
+- Le vendeur saisit 6 cartons chocolat, 5 cartons fraise et 2 cartons pistache → trois lignes.
+- Chocolat et fraise totalisent 11 cartons → palier atteint : 11 × 1 150 = 12 650 DA.
+- Pistache : 2 × 1 400 = 2 800 DA. Total : 15 450 DA.
+- Si le parfum fraise a un quota du jour de 4 cartons, sa ligne est scindée : 4 cartons en ligne normale et 1 carton en attente. Le chocolat n'a pas de quota. Les lignes normales chocolat et fraise totalisent 10 cartons, le palier reste atteint : 10 × 1 150 + 2 800 = 14 300 DA.
 
 **Quota (BR-QUO-03)** — Quota du jour de 10 cartons, dont 8 déjà vendus. Le client en veut 5 → 2 cartons en ligne normale et 3 cartons en attente.
 

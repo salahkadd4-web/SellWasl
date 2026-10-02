@@ -1,6 +1,7 @@
 # Cahier des charges — SellWasl
 
 > **Phase 0 — validé le 2026-10-01.**
+> **Mis à jour le 2026-10-02** : parfums des produits.
 > Ce document fixe le périmètre du **MVP**. Il complète [README_vf.md](../README_vf.md), qui décrit la vision d'ensemble. En cas de différence, les documents de `docs/` priment.
 >
 > Documents liés :
@@ -72,7 +73,7 @@ Ce cahier des charges s'appuie sur l'expérience directe du porteur du projet, a
 | | `VENDEUR_CASH_VAN` | Visite, vente et livraison immédiate depuis le camion, encaissement, impression |
 | | `MAGASINIER` | Entrées, préparation, chargement et déchargement des camions, inventaire |
 | **Web** (Chrome, PC ou téléphone) | `COMPANY_ADMIN` | Tout ce que fait le superviseur et le comptable, plus les utilisateurs (superviseurs compris), le catalogue, les prix et les paramètres |
-| | `SUPERVISEUR` | Secteurs, planning, clients, quotas, objectifs, suivi en temps réel, réouverture de journée, changement d'appareil, lignes en attente, lancement de la préparation, exports |
+| | `SUPERVISEUR` | Secteurs, planning, clients, produits et parfums, quotas, objectifs, suivi en temps réel, réouverture de journée, changement d'appareil, lignes en attente, lancement de la préparation, exports |
 | | `COMPTABLE` | Versements, écarts, dettes et paiements |
 | | `SUPER_ADMIN` | Crée une entreprise et son administrateur, et choisit son mode |
 
@@ -163,6 +164,8 @@ Jour ouvré suivant                              Soir
 ### 5.3 Catalogue et prix
 
 - Les produits sont classés par **gamme** et ont des **conditionnements** (1 carton = 20 triplettes).
+- Un produit peut avoir des **parfums**. Le superviseur ou l'admin choisit de les regrouper dans un même produit ou d'en faire des produits distincts. Stock, quotas et lignes de commande sont tenus **par parfum**.
+- Un parfum a le prix de son produit, ou **son propre prix** quand il est différent.
 - **Types de clients** configurables, avec un **prix par type de client et par unité**.
 - **Paliers de quantité.**
 - **Bonus cumulatifs** : pour Q de X acheté, N de Y offert.
@@ -173,7 +176,7 @@ Jour ouvré suivant                              Soir
 
 ### 5.4 Quotas et objectifs
 
-- **Quotas** facultatifs, par jour, par produit et par vendeur.
+- **Quotas** facultatifs, par jour, par article (parfum, ou produit sans parfum) et par vendeur.
   - En prévente, l'excédent devient une **ligne en attente**, que le superviseur accepte ou refuse avant la préparation.
   - En cash van, le produit est grisé, et le vendeur peut enregistrer une **demande perdue**.
 - **Objectifs** mensuels par vendeur et par gamme, calculés sur le chiffre d'affaires **livré**. La prime est proportionnelle, avec un **plafond réglable par objectif** (ex. 120 %).
@@ -364,6 +367,7 @@ Le MVP est réussi quand **deux entreprises isolées l'une de l'autre**, l'une e
 - **Statuts de commande** revus (BR-CMD-02) ; la livraison est simplifiée en livrée, partielle ou échec.
 - **Camion traité comme un entrepôt**, en prévente comme en cash van.
 - **Android uniquement** pour le MVP.
+- **Parfums des produits**, avec stock, quota et prix éventuellement propres à chaque parfum (ajout du 2026-10-02).
 
 ---
 
@@ -388,6 +392,10 @@ Ces règles ont été ajoutées pendant la rédaction pour que le document ne la
 | 13 | §6 | Prix saisis TTC, sans facturation fiscale dans le MVP |
 | 14 | BR-CLI-02 | Un client créé par un vendeur est rattaché au secteur de ce vendeur (seuls les types de clients de son secteur sont proposés) ; s'il est hors des parties, il reste visitable tout de suite |
 | 15 | BR-PRE-02 | La journée jamais démarrée d'un vendeur absent ne bloque pas le lancement de la préparation |
+| 16 | BR-CAT-12 | Le superviseur crée et modifie les produits et les parfums ; les prix, paliers et bonus restent à l'admin |
+| 17 | BR-CAT-15 | Le seuil d'un palier se calcule sur le total des parfums qui ont le prix du produit |
+| 18 | BR-CAT-15 | Un bonus sur un produit compte l'achat de tous ses parfums cumulés |
+| 19 | BR-CAT-15 | Si le bonus offre un produit qui a des parfums, le vendeur choisit les parfums offerts parmi ceux en stock |
 
 ---
 
@@ -410,6 +418,7 @@ Ces règles ont été ajoutées pendant la rédaction pour que le document ne la
 
 | Terme | Définition |
 |---|---|
+| **Article** | Ce qui a un stock, un quota et une ligne de commande : un parfum, ou un produit sans parfum |
 | **Bonus** | Quantité offerte selon une règle « pour Q de X acheté, N de Y offert » ; ligne « GRATUIT » à prix 0 |
 | **Cash van** | Vente au camion : le vendeur vend et livre immédiatement depuis le stock de son camion |
 | **Chargement** | Transfert de marchandise du dépôt vers un camion, confirmé par le livreur ou le vendeur |
@@ -424,6 +433,7 @@ Ces règles ont été ajoutées pendant la rédaction pour que le document ne la
 | **Journée de travail** | Période entre « Démarrer » et « Clôturer », pendant laquelle le terrain peut agir |
 | **Ligne en attente** | Quantité commandée au-delà du quota, soumise à l'accord du superviseur |
 | **Palier** | Prix unitaire réduit à partir d'une certaine quantité |
+| **Parfum** | Déclinaison d'un produit (ex. chocolat, fraise), avec son propre stock, son quota et, parfois, son propre prix |
 | **Partie** | Zone géographique d'un secteur (polygone), visitée un jour donné de la semaine |
 | **Quota** | Quantité maximale d'un produit qu'un vendeur peut vendre un jour donné |
 | **Récapitulatif de journée** | Résumé des bons, des encaissements et du montant attendu, à remettre au comptable |

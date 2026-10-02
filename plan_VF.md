@@ -85,7 +85,8 @@ Définir précisément le fonctionnement du produit avant de coder.
 - [x] Définir le modèle SaaS : modes de vente ; plans et abonnements reportés après le MVP
 - [x] Définir les limites du MVP
 - [x] Trancher les points de l'Annexe B du README
-- [ ] Confirmer les 15 règles déduites (cahier des charges §10)
+- [ ] Confirmer les 19 règles déduites (cahier des charges §10)
+- [x] Ajouter les parfums des produits : stock, quota et prix éventuellement propres (2026-10-02)
 
 ## Flux principaux
 
@@ -260,6 +261,7 @@ CustomerContact
 CustomerAddress
 Product
 ProductCategory
+ProductVariant     (parfum)
 ProductPrice
 Promotion
 VisitSchedule
@@ -288,7 +290,7 @@ BonusRule          WorkDay            Quota              LostDemand
 Objective          Load / Unload      Settlement
 ```
 
-Le camion est un `Warehouse` de type `TRUCK`. Les lignes en attente sont des `OrderItem` avec un statut particulier. Plusieurs entités de la liste ci-dessus ne serviront qu'après le MVP (`Zone`, `Promotion`, `WarehouseLocation`, `SubscriptionPlan`, `Subscription`…) : on ne les crée dans le schéma que si une phase du MVP en a besoin.
+Le camion est un `Warehouse` de type `TRUCK`. Le stock, les quotas et les lignes de commande pointent vers un article : un parfum (`ProductVariant`), ou un produit sans parfum (BR-CAT-13). Les lignes en attente sont des `OrderItem` avec un statut particulier. Plusieurs entités de la liste ci-dessus ne serviront qu'après le MVP (`Zone`, `Promotion`, `WarehouseLocation`, `SubscriptionPlan`, `Subscription`…) : on ne les crée dans le schéma que si une phase du MVP en a besoin.
 
 ## Règles
 
@@ -698,7 +700,15 @@ Promotion
 - [ ] Paliers de quantité (BR-CAT-05)
 - [ ] Règles de bonus cumulatives « pour Q de X, N de Y offert », avec dates de validité (BR-CAT-06, BR-CAT-07)
 - [ ] Calcul des prix, paliers et bonus dans `packages/business-rules`, testé avec les exemples de `docs/business-rules.md` §22
-- [ ] Import CSV des produits, conditionnements et prix (BR-IO-02)
+- [ ] Import CSV des produits, parfums, conditionnements et prix (BR-IO-02)
+
+**Ajouts du 2026-10-02** (parfums)
+
+- [ ] Parfums d'un produit, ou un produit distinct par parfum, au choix du superviseur ou de l'admin (BR-CAT-12)
+- [ ] Stock, quotas et lignes tenus par article : parfum, ou produit sans parfum (BR-CAT-13)
+- [ ] Prix propre d'un parfum, qui remplace le prix du produit (BR-CAT-14)
+- [ ] Paliers et bonus calculés sur le total des parfums ; choix du parfum offert (BR-CAT-15)
+- [ ] Saisie d'une quantité par parfum dans la commande et la vente (BR-CAT-16)
 
 ---
 
@@ -874,7 +884,7 @@ CANCELLED (avant la clôture) ; LOCKED → CONFIRMED si le superviseur rouvre la
 **Ajouts phase 0**
 
 - [ ] Commandes figées à la clôture de la journée (`LOCKED`) ; réouverture par le superviseur (BR-JOU-07, BR-JOU-08)
-- [ ] **Quotas** par jour, produit et vendeur ; saisie Web par le superviseur (BR-QUO-01, UC-55)
+- [ ] **Quotas** par jour, article (parfum ou produit) et vendeur ; saisie Web par le superviseur (BR-QUO-01, UC-55)
 - [ ] Ligne scindée et **ligne en attente** au-delà du quota ; produit grisé « quota atteint » (BR-QUO-03)
 - [ ] Excédent de quota transformé en « en attente » à la synchronisation (BR-QUO-05)
 - [ ] Traitement des lignes en attente par le superviseur ; refus = vente perdue (BR-QUO-06, UC-60)
@@ -1478,7 +1488,7 @@ Périmètre détaillé : [docs/cahier-des-charges.md](docs/cahier-des-charges.md
 ## Administrateur (Web)
 
 - [ ] Utilisateurs (tous les rôles, superviseurs compris)
-- [ ] Catalogue : produits, gammes, conditionnements, prix par type de client, paliers, bonus
+- [ ] Catalogue : produits, parfums, gammes, conditionnements, prix par type de client, paliers, bonus
 - [ ] Paramètres : types de clients, jours travaillés et fériés, motifs, distance hors zone, ticket, dépôts et camions
 - [ ] Import CSV des clients et des produits
 
@@ -1487,6 +1497,7 @@ Périmètre détaillé : [docs/cahier-des-charges.md](docs/cahier-des-charges.md
 - [ ] Secteurs et parties en polygones, carte, affectations
 - [ ] Planning et fréquences, reprogrammation
 - [ ] Clients et liste « à revoir »
+- [ ] Produits et parfums (sans les prix)
 - [ ] Quotas et objectifs
 - [ ] Suivi en temps réel : tableau du jour et carte
 - [ ] Réouverture de journée, changement d'appareil
@@ -1642,7 +1653,7 @@ docs/
 # Prochaine étape
 
 1. ~~Trancher les points de l'Annexe B du README_vf.~~ Fait en phase 0.
-2. Confirmer les **15 règles déduites** du [cahier des charges §10](docs/cahier-des-charges.md#10-règles-déduites-à-confirmer).
+2. Confirmer les **19 règles déduites** du [cahier des charges §10](docs/cahier-des-charges.md#10-règles-déduites-à-confirmer).
 3. **Phase 1** : trancher les points ouverts du cahier des charges §11, puis rédiger `docs/architecture.md`, `docs/database.md`, `docs/rbac.md` et `docs/modules.md`.
 4. Commencer l'implémentation par :
 
