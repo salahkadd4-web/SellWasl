@@ -157,7 +157,7 @@ Mobile Expo        │                      ├──→ Redis / BullMQ (optionn
 
 ## Livrables
 
-- [ ] `docs/architecture.md` (architecture globale et diagramme technique)
+- [ ] `docs/architecture.md` (architecture globale et diagramme technique) — proposition rédigée le 2026-10-02, à valider
 - [ ] Architecture des dossiers
 - [ ] `docs/api.md` (architecture API)
 - [ ] Stratégie de données
@@ -1611,7 +1611,7 @@ docs/
 ├── cahier-des-charges.md     ✅ phase 0
 ├── use-cases.md              ✅ phase 0
 ├── business-rules.md         ✅ phase 0
-├── architecture.md
+├── architecture.md          ⏳ phase 1, à valider
 ├── database.md
 ├── api.md
 ├── rbac.md
