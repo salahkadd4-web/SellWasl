@@ -116,6 +116,8 @@ Chargement du camion → Vendeur : réception → visite → vente + livraison +
 
 # PHASE 1 — Architecture technique
 
+> **Phase 1 terminée (2026-10-02).** Décisions dans [docs/architecture.md](docs/architecture.md) ; détails dans [database.md](docs/database.md), [api.md](docs/api.md), [rbac.md](docs/rbac.md) et [modules.md](docs/modules.md).
+
 ## Tâches
 
 - [x] Valider la stack (Next.js, Expo, NestJS, PostgreSQL, Prisma)
@@ -124,8 +126,8 @@ Chargement du camion → Vendeur : réception → visite → vente + livraison +
 - [x] Définir l'architecture Web (`/admin`, `/app`)
 - [x] Définir l'architecture mobile (application unique multi-rôles)
 - [x] Définir le système multi-tenant
-- [ ] Définir le système RBAC
-- [ ] Définir le système de modules (`CompanyModule`, `PlanModule`)
+- [x] Définir le système RBAC (`docs/rbac.md`)
+- [x] Définir le système de modules (`CompanyModule` ; `PlanModule` après le MVP) (`docs/modules.md`)
 - [x] Définir la stratégie offline et synchronisation
 - [x] Définir la stratégie cartographique (Leaflet ou MapLibre, fournisseur remplaçable)
 - [x] Définir le stockage des fichiers (stockage objet)
@@ -159,8 +161,8 @@ Mobile Expo        │                      ├──→ Redis / BullMQ (optionn
 
 - [x] `docs/architecture.md` (architecture globale et diagramme technique), validé le 2026-10-02
 - [x] Architecture des dossiers
-- [ ] `docs/api.md` (architecture API)
-- [ ] Stratégie de données
+- [x] `docs/api.md` (architecture API)
+- [x] Stratégie de données (`docs/database.md`)
 
 ---
 
@@ -308,7 +310,7 @@ Customer ≠ Visit ≠ Order
 - [ ] Ajouter les champs offline-ready sur les entités synchronisables
 - [ ] Créer les migrations
 - [ ] Créer un seed de développement : 2 entreprises minimum pour tester l'isolation, une en prévente et une en cash van, avec les données des exemples chiffrés de `docs/business-rules.md` §22
-- [ ] Rédiger `docs/database.md` avec le diagramme des entités
+- [x] Rédiger `docs/database.md` avec le diagramme des entités (phase 1, 2026-10-02)
 
 ## Critère de validation
 
@@ -427,12 +429,12 @@ platform.monitoring.read  platform.audit.read  platform.support
 
 - [ ] Rôles et permissions configurables (non codés en dur)
 - [ ] Guards NestJS d'autorisation
-- [ ] Matrice rôles × permissions
+- [x] Matrice rôles × permissions (`docs/rbac.md` §5)
 - [ ] Masquage des écrans selon les permissions (Web et mobile)
 
 ## Livrable
 
-- [ ] `docs/rbac.md`
+- [x] `docs/rbac.md`
 
 ## Critère de validation
 
@@ -470,7 +472,7 @@ Un module désactivé doit être :
 
 ## Livrable
 
-- [ ] `docs/modules.md`
+- [x] `docs/modules.md`
 
 ## Critère de validation
 
@@ -1438,7 +1440,7 @@ Réservé pour une version future : module `PRODUCTION`, avec matières premièr
 ```text
 MVP
  1. Cahier des charges                          ✅ phase 0 terminée
- 2. Architecture
+ 2. Architecture                               ✅ phase 1 terminée
  3. Monorepo + version Android compilée + test d'impression Bluetooth
  4. PostgreSQL / Prisma
  5. Authentification + association des appareils
@@ -1612,10 +1614,10 @@ docs/
 ├── use-cases.md              ✅ phase 0
 ├── business-rules.md         ✅ phase 0
 ├── architecture.md          ✅ phase 1
-├── database.md
-├── api.md
-├── rbac.md
-├── modules.md
+├── database.md              ✅ phase 1
+├── api.md                   ✅ phase 1
+├── rbac.md                  ✅ phase 1
+├── modules.md               ✅ phase 1
 ├── offline-sync.md
 ├── territories.md
 ├── super-admin.md
@@ -1658,8 +1660,9 @@ docs/
 
 1. ~~Trancher les points de l'Annexe B du README_vf.~~ Fait en phase 0.
 2. ~~Valider les valeurs par défaut des paramètres P-01 à P-10 et les 7 règles fixes.~~ Fait le 2026-10-02.
-3. **Phase 1** : ~~trancher les points ouverts du cahier des charges §11 et rédiger `docs/architecture.md`~~ (fait le 2026-10-02), puis rédiger `docs/database.md`, `docs/api.md`, `docs/rbac.md` et `docs/modules.md`.
-4. Commencer l'implémentation par :
+3. ~~**Phase 1** : trancher les points ouverts du cahier des charges §11, rédiger `docs/architecture.md`, `docs/database.md`, `docs/api.md`, `docs/rbac.md` et `docs/modules.md`.~~ Fait le 2026-10-02.
+4. **Avant la phase 2** : acheter une imprimante thermique 58 mm et une 80 mm (architecture §13.2).
+5. **Phase 2** : commencer l'implémentation par :
 
 **Monorepo (+ version Android compilée et test d'impression) → PostgreSQL / Prisma → Auth et appareils → Multi-tenant → RBAC → Modes et modules.**
 

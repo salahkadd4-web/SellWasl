@@ -8,7 +8,7 @@
 > - [business-rules.md](business-rules.md) : règles métier (`BR-XXX-nn`) ;
 > - [use-cases.md](use-cases.md) : cas d'utilisation (`UC-xx`).
 >
-> À venir dans la même phase : `database.md`, `api.md`, `rbac.md`, `modules.md`.
+> Détails dans la même phase : [database.md](database.md), [api.md](api.md), [rbac.md](rbac.md), [modules.md](modules.md).
 
 ## Sommaire
 
