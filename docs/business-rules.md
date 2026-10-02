@@ -3,7 +3,7 @@
 > **Phase 0 — validé le 2026-10-01.**
 > Chaque règle porte un identifiant stable (`BR-XXX-nn`). Les [cas d'utilisation](use-cases.md) et, plus tard, les tests y font référence.
 > **Mis à jour le 2026-10-02** : parfums des produits (BR-CAT-12 à BR-CAT-16) ; règles réglables par entreprise (BR-TEN-08).
-> Les règles marquées **(à confirmer)** ont été déduites pendant la rédaction et n'ont pas encore été validées explicitement. Elles sont listées au [§10 du cahier des charges](cahier-des-charges.md#10-règles-déduites-à-confirmer).
+> Les règles déduites pendant la rédaction ont été **validées le 2026-10-02**. Elles sont listées au [§10 du cahier des charges](cahier-des-charges.md#10-règles-déduites-validées).
 
 ## Conventions
 
@@ -95,7 +95,7 @@ Les choix propres à une règle de prix (cumul des parfums, parfum offert) se r�
 
 ## 2. Utilisateurs et appareils — USR
 
-**BR-USR-01** — Un utilisateur a un seul rôle. **(à confirmer)**
+**BR-USR-01** — Un utilisateur a un seul rôle.
 
 **BR-USR-02** — Les rôles terrain (`PRE_VENDEUR`, `LIVREUR`, `VENDEUR_CASH_VAN`, `MAGASINIER`) utilisent uniquement l'application mobile. Les rôles `COMPANY_ADMIN`, `SUPERVISEUR`, `COMPTABLE` et `SUPER_ADMIN` utilisent uniquement le Web.
 
@@ -109,7 +109,7 @@ Les choix propres à une règle de prix (cumul des parfums, parfum offert) se r�
 - révoquer une session ;
 - bloquer un appareil.
 
-**BR-USR-06** — Un utilisateur terrain a au plus **un appareil actif**. **(à confirmer)**
+**BR-USR-06** — Un utilisateur terrain a au plus **un appareil actif**.
 
 **BR-USR-07** — Seuls le superviseur et l'admin associent un profil à un appareil. L'association d'un nouvel appareil révoque le précédent. Le mécanisme (par exemple un code d'activation à usage unique saisi sur le téléphone) sera défini en phase 1.
 
@@ -127,7 +127,7 @@ Les choix propres à une règle de prix (cumul des parfums, parfum offert) se r�
 
 **BR-ORG-02** — Un secteur est découpé en **N parties**, N étant réglable. Chaque partie est un polygone dessiné sur la carte par le superviseur ou l'admin. Les parties d'un même secteur ne se chevauchent pas.
 
-**BR-ORG-03** — Des secteurs qui servent des types de clients différents peuvent se superposer. Exemple : un secteur « Supérette » couvre toute la ville, par-dessus les secteurs 3101 à 3110 qui servent le détail. En revanche, deux secteurs qui servent un même type de clients ne doivent pas se superposer, et l'application signale tout chevauchement. **(à confirmer)**
+**BR-ORG-03** — Des secteurs qui servent des types de clients différents peuvent se superposer. Exemple : un secteur « Supérette » couvre toute la ville, par-dessus les secteurs 3101 à 3110 qui servent le détail. En revanche, deux secteurs qui servent un même type de clients ne doivent pas se superposer, et l'application signale tout chevauchement.
 
 **BR-ORG-04** — **Affectation automatique d'un client** : parmi les secteurs qui servent le type du client, on retient la partie dont le polygone contient sa position.
 - Si plusieurs parties conviennent, le superviseur choisit.
@@ -186,7 +186,7 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 **BR-CLI-02** — Un vendeur peut créer un client. Sont obligatoires : le nom, le type, la position (prise par le bouton GPS du formulaire) et la fréquence. Le vendeur ne peut choisir qu'un type de client servi par son secteur.
 - Le client est rattaché au **secteur du vendeur**.
 - Sa partie est calculée parmi les parties de ce secteur, même hors connexion.
-- S'il n'est dans aucune, il est « hors partie » : rattaché au secteur, mais sans partie. **(à confirmer)**
+- S'il n'est dans aucune, il est « hors partie » : rattaché au secteur, mais sans partie.
 
 **BR-CLI-03** — Un client créé par un vendeur est actif immédiatement : le vendeur peut le visiter et lui vendre, même s'il est hors partie. Il est marqué « **nouveau** » pour revue par le superviseur, qui peut le placer dans une autre partie ou un autre secteur. Le crédit n'est pas autorisé par défaut. L'entreprise peut limiter le nouveau client à la vente au comptant jusqu'à sa validation par le superviseur (P-09, BR-TEN-08).
 
@@ -391,7 +391,7 @@ DRAFT → CONFIRMED → LOCKED → PREPARING → READY → OUT_FOR_DELIVERY → 
 **BR-PRE-01** — Une **tournée** regroupe les commandes `LOCKED` des secteurs affectés à un livreur, pour une date de livraison. Avant le lancement, le superviseur peut changer le livreur d'un secteur, par exemple en cas d'absence.
 
 **BR-PRE-02** — Le superviseur **lance la préparation** d'une tournée, à deux conditions :
-1. aucune journée des secteurs concernés n'est encore en cours ou en attente de synchronisation. Une journée jamais démarrée, par exemple celle d'un vendeur absent, ne bloque pas **(à confirmer)** ;
+1. aucune journée des secteurs concernés n'est encore en cours ou en attente de synchronisation. Une journée jamais démarrée, par exemple celle d'un vendeur absent, ne bloque pas ;
 2. il ne reste aucune ligne en attente à traiter sur ces commandes.
 
 Les commandes passent alors au statut `PREPARING`.
@@ -442,7 +442,7 @@ Selon le paramètre P-07 (BR-TEN-08), il y a un seul chargement par jour, ou plu
 
 **BR-CV-04** — **Vente = livraison** : la vente (source `CASH_VAN`) est créée directement au statut `DELIVERED`, et le stock du camion baisse aussitôt. Viennent ensuite le paiement (BR-PAY-03) et l'impression du bon.
 
-**BR-CV-05** — Une vente confirmée est **définitive** : elle ne peut être ni modifiée ni annulée. Les avoirs et les retours sont hors MVP. **(à confirmer)**
+**BR-CV-05** — Une vente confirmée est **définitive** : elle ne peut être ni modifiée ni annulée. Les avoirs et les retours sont hors MVP.
 
 **BR-CV-06** — Après la clôture, le magasinier fait le **déchargement** (BR-STK-07). Selon le paramètre P-06 (BR-TEN-08), tout le stock restant revient au dépôt chaque soir (par défaut), ou il est compté et reste dans le camion pour le lendemain.
 

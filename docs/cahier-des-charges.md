@@ -1,7 +1,7 @@
 # Cahier des charges — SellWasl
 
 > **Phase 0 — validé le 2026-10-01.**
-> **Mis à jour le 2026-10-02** : parfums des produits ; règles réglables par entreprise.
+> **Mis à jour le 2026-10-02** : parfums des produits ; règles réglables par entreprise ; règles déduites validées.
 > Ce document fixe le périmètre du **MVP**. Il complète [README_vf.md](../README_vf.md), qui décrit la vision d'ensemble. En cas de différence, les documents de `docs/` priment.
 >
 > Documents liés :
@@ -19,7 +19,7 @@
 7. [Exigences non fonctionnelles](#7-exigences-non-fonctionnelles)
 8. [Critères de réussite](#8-critères-de-réussite)
 9. [Décisions de la phase 0](#9-décisions-de-la-phase-0)
-10. [Règles déduites à confirmer](#10-règles-déduites-à-confirmer)
+10. [Règles déduites validées](#10-règles-déduites-validées)
 11. [Points ouverts pour les phases suivantes](#11-points-ouverts-pour-les-phases-suivantes)
 12. [Glossaire](#12-glossaire)
 
@@ -372,9 +372,9 @@ Le MVP est réussi quand **deux entreprises isolées l'une de l'autre**, l'une e
 
 ---
 
-## 10. Règles déduites à confirmer
+## 10. Règles déduites validées
 
-Ces règles ont été ajoutées pendant la rédaction pour que le document ne laisse aucun cas ambigu.
+Ces règles ont été ajoutées pendant la rédaction pour que le document ne laisse aucun cas ambigu. Elles ont été **validées le 2026-10-02**, avec les valeurs par défaut ci-dessous.
 
 ### Règles devenues réglables par entreprise
 
@@ -398,7 +398,7 @@ Pour que chaque entreprise garde ses propres règles, la plupart sont devenues d
 
 ### Règles fixes, communes à toutes les entreprises
 
-Ces règles restent identiques partout, parce qu'elles protègent la fiabilité des données ou parce que les rendre réglables compliquerait le MVP sans gain réel. Elles restent à confirmer.
+Ces règles restent identiques partout, parce qu'elles protègent la fiabilité des données ou parce que les rendre réglables compliquerait le MVP sans gain réel.
 
 | # | Règle | Choix retenu | Pourquoi elle est fixe |
 |---|---|---|---|

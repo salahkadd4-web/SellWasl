@@ -4,7 +4,7 @@
 
 Version finale consolidée de `plan.md` (V1), `plan_v2.md` (V2) et `plan_v3.md` (V3). La spécification fonctionnelle complète se trouve dans [README_vf.md](README_vf.md). Les arbitrages entre versions sont dans son **Annexe A**.
 
-> **Phase 0 terminée (2026-10-01).** Le périmètre du MVP est fixé dans [docs/cahier-des-charges.md](docs/cahier-des-charges.md), avec les [cas d'utilisation](docs/use-cases.md) et les [règles métier](docs/business-rules.md). Les tâches ajoutées par la phase 0 sont regroupées sous « **Ajouts phase 0** » dans chaque phase. Les tâches marquées « *(après le MVP)* » ne font pas partie du MVP.
+> **Phase 0 terminée (2026-10-01), complétée le 2026-10-02** : parfums des produits, règles réglables par entreprise, règles déduites validées. Le périmètre du MVP est fixé dans [docs/cahier-des-charges.md](docs/cahier-des-charges.md), avec les [cas d'utilisation](docs/use-cases.md) et les [règles métier](docs/business-rules.md). Les tâches ajoutées par la phase 0 sont regroupées sous « **Ajouts phase 0** » dans chaque phase. Les tâches marquées « *(après le MVP)* » ne font pas partie du MVP.
 
 ---
 
@@ -86,7 +86,7 @@ Définir précisément le fonctionnement du produit avant de coder.
 - [x] Définir les limites du MVP
 - [x] Trancher les points de l'Annexe B du README
 - [x] Rendre réglables par entreprise les règles qui varient d'une entreprise à l'autre (BR-TEN-08, 2026-10-02)
-- [ ] Valider les valeurs par défaut des paramètres P-01 à P-10, et les 7 règles fixes (cahier des charges §10)
+- [x] Valider les valeurs par défaut des paramètres P-01 à P-10, et les 7 règles fixes (cahier des charges §10, 2026-10-02)
 - [x] Ajouter les parfums des produits : stock, quota et prix éventuellement propres (2026-10-02)
 
 ## Flux principaux
@@ -1657,7 +1657,7 @@ docs/
 # Prochaine étape
 
 1. ~~Trancher les points de l'Annexe B du README_vf.~~ Fait en phase 0.
-2. Valider les **valeurs par défaut** des paramètres P-01 à P-10 et les **7 règles fixes** du [cahier des charges §10](docs/cahier-des-charges.md#10-règles-déduites-à-confirmer).
+2. ~~Valider les valeurs par défaut des paramètres P-01 à P-10 et les 7 règles fixes.~~ Fait le 2026-10-02.
 3. **Phase 1** : trancher les points ouverts du cahier des charges §11, puis rédiger `docs/architecture.md`, `docs/database.md`, `docs/rbac.md` et `docs/modules.md`.
 4. Commencer l'implémentation par :
 
