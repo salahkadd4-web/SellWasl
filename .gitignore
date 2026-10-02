@@ -14,3 +14,7 @@ apps/mobile/android/
 apps/mobile/ios/
 *.apk
 *.aab
+
+# Fichiers générés par les outils
+/AGENTS.md
+next-env.d.ts
