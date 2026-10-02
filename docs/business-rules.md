@@ -2,14 +2,14 @@
 
 > **Phase 0 — validé le 2026-10-01.**
 > Chaque règle porte un identifiant stable (`BR-XXX-nn`). Les [cas d'utilisation](use-cases.md) et, plus tard, les tests y font référence.
-> **Mis à jour le 2026-10-02** : parfums des produits (BR-CAT-12 à BR-CAT-16) ; règles réglables par entreprise (BR-TEN-08).
+> **Mis à jour le 2026-10-02** : parfums des produits (BR-CAT-12 à BR-CAT-16) ; règles réglables par entreprise (BR-TEN-08) ; décisions de l'[architecture](architecture.md) (BR-JOU-10, BR-JOU-11, BR-USR-11).
 > Les règles déduites pendant la rédaction ont été **validées le 2026-10-02**. Elles sont listées au [§10 du cahier des charges](cahier-des-charges.md#10-règles-déduites-validées).
 
 ## Conventions
 
 - **Unité de base** : la plus petite unité d'un produit (pièce, triplette…). Stocks, quotas et bonus sont calculés dans cette unité.
 - **Article** : un produit sans parfum, ou un parfum d'un produit (BR-CAT-13). Quand une règle parle du stock, du quota ou d'une ligne d'un « produit », il s'agit de l'article.
-- **Montants** : en dinars algériens (DA), toutes taxes comprises.
+- **Montants** : en dinars algériens (DA) entiers, sans centimes, toutes taxes comprises.
 - **Jour ouvré** : jour travaillé de la semaine selon l'entreprise, hors jours fériés.
 - **Vendeur** : pré-vendeur ou vendeur cash van.
 - **Terrain** : pré-vendeur, livreur, vendeur cash van, magasinier.
@@ -74,7 +74,7 @@ Le socle commun est toujours actif.
 | Motifs d'échec de livraison | voir BR-LIV-02 |
 | Types de clients | Détail |
 
-**BR-TEN-08** — **Règles réglables par entreprise.** Chaque entreprise adapte ces règles à sa façon de travailler, sans développement spécifique. L'admin les règle sur le Web ; chaque changement est audité et s'applique aux opérations suivantes, jamais aux opérations passées. Les valeurs par défaut favorisent les ventes et protègent la marge.
+**BR-TEN-08** — **Règles réglables par entreprise.** Chaque entreprise adapte ces règles à sa façon de travailler, sans développement spécifique. L'admin les règle sur le Web ; chaque changement est audité. Il prend effet au **prochain démarrage de journée** de chaque utilisateur, jamais en cours de journée ni sur des opérations passées : ainsi, le téléphone hors connexion et le serveur appliquent toujours la même version. Les valeurs par défaut favorisent les ventes et protègent la marge.
 
 | Code | Paramètre | Choix possibles | Défaut | Pourquoi ce défaut | Règle |
 |---|---|---|---|---|---|
@@ -105,19 +105,22 @@ Les choix propres à une règle de prix (cumul des parfums, parfum offert) se r�
 
 **BR-USR-05** — Le superviseur et le comptable ne créent, ne modifient et ne suppriment jamais une commande, une vente, une visite, une livraison ou un paiement. Les actions du superviseur sur les équipes se limitent à :
 - rouvrir une journée ;
+- clôturer d'office une journée (BR-JOU-10) ;
 - associer un profil à un appareil ;
 - révoquer une session ;
 - bloquer un appareil.
 
 **BR-USR-06** — Un utilisateur terrain a au plus **un appareil actif**.
 
-**BR-USR-07** — Seuls le superviseur et l'admin associent un profil à un appareil. L'association d'un nouvel appareil révoque le précédent. Le mécanisme (par exemple un code d'activation à usage unique saisi sur le téléphone) sera défini en phase 1.
+**BR-USR-07** — Seuls le superviseur et l'admin associent un profil à un appareil. L'association d'un nouvel appareil révoque le précédent. Le superviseur affiche sur le Web un **QR code**, que le téléphone scanne, ou un **code de secours** de 8 caractères à saisir. Le code est à usage unique et valable 10 minutes.
 
 **BR-USR-08** — Si l'ancien appareil avait signalé des opérations non synchronisées lors de son dernier contact, le superviseur en est averti avant de confirmer le changement.
 
 **BR-USR-09** — Chaque opération enregistre l'utilisateur **et** l'appareil qui l'a faite. On sait ainsi quel téléphone a travaillé pendant un remplacement.
 
 **BR-USR-10** — Les codes (vendeur, secteur, camion) sont libres, sans format imposé, et uniques dans l'entreprise.
+
+**BR-USR-11** — Un appareil révoqué ne peut plus rien faire de nouveau, mais il peut encore **envoyer ses opérations en attente**, créées avant la révocation. Il efface ensuite ses données locales. Les données locales du téléphone sont chiffrées.
 
 ---
 
@@ -280,7 +283,7 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 **BR-OBJ-03** — Calcul :
 - `taux = réalisé ÷ cible`
-- `prime due = prime × min(taux, plafond)`
+- `prime due = prime × min(taux, plafond)`, arrondie au dinar le plus proche
 
 **BR-OBJ-04** — Dans l'application, le vendeur voit pour chaque gamme la cible, le réalisé, le taux et la prime estimée, à la date de la dernière synchronisation.
 
@@ -294,9 +297,11 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 ```text
 NOT_STARTED ──Démarrer──▶ IN_PROGRESS ──Clôturer──▶ CLOSED
-                               ▲                      │
-                               └───── Réouverture ────┘
-                                     (superviseur)
+                               │  ▲                   ▲  │
+                               │  └── Réouverture ────┼──┘
+                               │      (superviseur)   │
+                               └── Clôture d'office ──┘
+                                   (superviseur, BR-JOU-10)
 ```
 
 **BR-JOU-03** — Un jour non travaillé ou férié, la journée ne peut être démarrée que si l'entreprise l'autorise (P-01, BR-TEN-08). Il n'y a alors pas de clients du jour : seulement des visites hors programme et des livraisons.
@@ -319,6 +324,12 @@ NOT_STARTED ──Démarrer──▶ IN_PROGRESS ──Clôturer──▶ CLOSED
 Après une réouverture, les commandes `LOCKED` du pré-vendeur redeviennent `CONFIRMED`.
 
 **BR-JOU-09** — La position de l'utilisateur n'est enregistrée que pendant une journée `IN_PROGRESS` : à chaque action, et toutes les 5 minutes tant que l'application est ouverte. Chaque envoi indique aussi le niveau de batterie et le nombre d'opérations en attente de synchronisation. Il n'y a pas de suivi en arrière-plan dans le MVP.
+
+**BR-JOU-10** — **Clôture d'office** par le superviseur, quand une journée reste ouverte parce que le téléphone est perdu, cassé ou inutilisable. Le motif est obligatoire, et l'action est auditée.
+- La journée passe `CLOSED`, avec les mêmes effets qu'une clôture normale (BR-JOU-07), calculés sur les opérations déjà reçues.
+- Si des opérations de l'ancien téléphone arrivent ensuite (BR-USR-11), elles sont acceptées, puisqu'elles ont réellement eu lieu, et signalées au superviseur. Le récapitulatif et le montant attendu sont recalculés, et le comptable est prévenu si le versement est déjà enregistré.
+
+**BR-JOU-11** — La date d'une journée est celle du téléphone au démarrage. Le serveur enregistre aussi l'heure de réception de chaque opération, et signale au superviseur un écart de plus d'une heure entre l'heure du téléphone et la sienne.
 
 ---
 
@@ -382,7 +393,7 @@ DRAFT → CONFIRMED → LOCKED → PREPARING → READY → OUT_FOR_DELIVERY → 
 
 **BR-CMD-06** — Pendant une visite de prévente, un produit est proposé s'il a un prix pour le type du client et si son stock disponible au dépôt était positif à la dernière synchronisation. Les quantités en stock ne sont pas affichées.
 
-**BR-CMD-07** — Le numéro de commande est généré par le téléphone, même hors connexion : code du vendeur suivi d'un numéro séquentiel. Il est unique dans l'entreprise.
+**BR-CMD-07** — Le numéro de commande est généré par le téléphone, même hors connexion. Il est unique dans l'entreprise. Format : code de l'utilisateur, **série de l'appareil** (une lettre, qui change à chaque nouvelle association d'appareil) et numéro séquentiel, par exemple `V07-B0042`. Deux téléphones ne peuvent ainsi jamais produire le même numéro, même pendant un remplacement.
 
 ---
 
@@ -550,7 +561,7 @@ Il s'imprime sur le téléphone et se consulte sur le Web.
 
 **BR-IMP-03** — Un bon peut être réimprimé. La copie porte la mention « **DUPLICATA** », et chaque réimpression est tracée.
 
-**BR-IMP-04** — Le numéro du bon est généré par le téléphone, même hors connexion : code de l'utilisateur suivi d'un numéro séquentiel. Il est unique dans l'entreprise.
+**BR-IMP-04** — Le numéro du bon est généré par le téléphone, même hors connexion, au même format que celui des commandes (BR-CMD-07). Il est unique dans l'entreprise.
 
 **BR-IMP-05** — L'absence d'imprimante ne bloque ni la livraison ni la vente : le bon reste imprimable plus tard.
 
@@ -581,7 +592,7 @@ Il s'imprime sur le téléphone et se consulte sur le Web.
 
 **BR-AUD-01** — Sont audités, avec l'auteur, l'action, la date, l'appareil, l'ancienne et la nouvelle valeur :
 - les connexions, et les associations ou révocations d'appareils ;
-- le démarrage, la clôture et la réouverture des journées ;
+- le démarrage, la clôture, la clôture d'office et la réouverture des journées ;
 - la création, la modification et la désactivation des produits et des parfums ;
 - les modifications de prix, paliers, bonus, quotas et objectifs ;
 - la modification ou la désactivation d'un client, et le forçage de sa partie ;

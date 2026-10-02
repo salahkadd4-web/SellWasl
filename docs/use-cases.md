@@ -1,6 +1,6 @@
 # Cas d'utilisation — SellWasl
 
-> **Phase 0 — validé le 2026-10-01.** Mis à jour le 2026-10-02 : parfums des produits ; règles réglables par entreprise.
+> **Phase 0 — validé le 2026-10-01.** Mis à jour le 2026-10-02 : parfums des produits ; règles réglables par entreprise ; décisions de l'architecture (UC-64).
 > Chaque cas d'utilisation (`UC-xx`) renvoie aux [règles métier](business-rules.md) (`BR-XXX-nn`) qui le gouvernent. Le périmètre d'ensemble est décrit dans le [cahier des charges](cahier-des-charges.md).
 
 ## Lecture
@@ -60,6 +60,7 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 | UC-61 | Lancer la préparation d'une tournée | Superviseur | Web |
 | UC-62 | Préparer le chargement d'un vendeur cash van | Superviseur | Web |
 | UC-63 | Exporter en CSV | Superviseur, admin, comptable | Web |
+| UC-64 | Clôturer d'office une journée | Superviseur | Web |
 | UC-70 | Enregistrer un versement | Comptable | Web |
 | UC-71 | Consulter les dettes et les paiements | Comptable | Web |
 | UC-80 | Gérer les utilisateurs | Admin | Web |
@@ -80,16 +81,17 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 - **Préconditions** : l'admin a créé l'utilisateur (UC-80).
 
 **Scénario**
-1. Depuis le Web, le superviseur associe le profil au téléphone. Le mécanisme, par exemple un code d'activation, sera défini en phase 1.
+1. Depuis le Web, le superviseur associe le profil au téléphone : il affiche un QR code, que l'utilisateur scanne, ou un code de secours de 8 caractères, à saisir. Le code est à usage unique et valable 10 minutes.
 2. L'utilisateur se connecte sur ce téléphone.
 3. La première synchronisation télécharge les données de son rôle.
 4. L'application affiche le tableau de bord de son rôle (UC-02).
 
 **Variantes**
 - **Remplacement** : le superviseur associe le profil à un autre téléphone, et l'ancien est révoqué (UC-59).
-- **Appareil révoqué ou bloqué** : la connexion est refusée avec le message « Appareil révoqué, contactez votre superviseur ».
+- **Appareil révoqué ou bloqué** : la connexion est refusée avec le message « Appareil révoqué, contactez votre superviseur ». Les opérations en attente sont quand même envoyées, puis les données locales sont effacées.
+- **Code expiré ou déjà utilisé** : le superviseur en génère un nouveau.
 
-**Règles** : BR-USR-02, BR-USR-06 à 09, BR-SYN-04.
+**Règles** : BR-USR-02, BR-USR-06 à 09, BR-USR-11, BR-SYN-04.
 
 ### UC-02 — Consulter son tableau de bord
 
@@ -598,9 +600,10 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 2. Il associe un nouvel appareil (l'ancien est alors révoqué), révoque une session ou bloque un appareil.
 
 **Variantes**
-- **L'ancien appareil a des opérations non synchronisées** : un avertissement s'affiche avant la confirmation.
+- **L'ancien appareil a des opérations non synchronisées** : un avertissement s'affiche avant la confirmation. Si l'ancien téléphone est retrouvé, il pourra encore les envoyer.
+- **La journée de l'ancien appareil est restée ouverte** : le superviseur la clôture d'office (UC-64).
 
-**Règles** : BR-USR-06 à 09.
+**Règles** : BR-USR-06 à 09, BR-USR-11.
 
 ### UC-60 — Traiter les lignes en attente
 
@@ -647,6 +650,21 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 2. Il télécharge le fichier CSV.
 
 **Règles** : BR-IO-03.
+
+### UC-64 — Clôturer d'office une journée
+
+- **Acteurs** : superviseur.
+- **Préconditions** : journée `IN_PROGRESS` d'un utilisateur dont le téléphone est perdu, cassé ou inutilisable.
+
+**Scénario**
+1. Il choisit la journée et saisit le motif.
+2. L'application affiche les opérations déjà reçues et le dernier contact du téléphone.
+3. Il confirme. La journée passe `CLOSED`, avec les effets d'une clôture normale, calculés sur les opérations reçues.
+
+**Variantes**
+- **Des opérations de l'ancien téléphone arrivent ensuite** : elles sont acceptées et signalées. Le récapitulatif et le montant attendu sont recalculés, et le comptable est prévenu si le versement est déjà enregistré.
+
+**Règles** : BR-JOU-07, BR-JOU-10, BR-USR-11.
 
 ---
 

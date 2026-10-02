@@ -68,7 +68,7 @@ Définir précisément le fonctionnement du produit avant de coder.
 
 - [x] Définir les acteurs et utilisateurs
 - [x] Définir les rôles plateforme et entreprise (+ `VENDEUR_CASH_VAN`, `COMPTABLE`)
-- [x] Définir les cas d'utilisation (49 cas, UC-01 à UC-90)
+- [x] Définir les cas d'utilisation (49 cas, UC-01 à UC-90 ; 50 avec UC-64, ajouté en phase 1)
 - [x] Définir les modules et le socle commun (+ `CASH_VAN` ; `COMMERCIAL` reporté)
 - [x] Définir les workflows : prévente et cash van
 - [x] Définir le cycle de commande (journée de travail, statut `LOCKED`)
@@ -118,33 +118,33 @@ Chargement du camion → Vendeur : réception → visite → vente + livraison +
 
 ## Tâches
 
-- [ ] Valider la stack (Next.js, Expo, NestJS, PostgreSQL, Prisma)
-- [ ] Définir l'architecture monorepo
-- [ ] Définir l'architecture backend (modules NestJS)
-- [ ] Définir l'architecture Web (`/admin`, `/app`)
-- [ ] Définir l'architecture mobile (application unique multi-rôles)
-- [ ] Définir le système multi-tenant
+- [x] Valider la stack (Next.js, Expo, NestJS, PostgreSQL, Prisma)
+- [x] Définir l'architecture monorepo
+- [x] Définir l'architecture backend (modules NestJS)
+- [x] Définir l'architecture Web (`/admin`, `/app`)
+- [x] Définir l'architecture mobile (application unique multi-rôles)
+- [x] Définir le système multi-tenant
 - [ ] Définir le système RBAC
 - [ ] Définir le système de modules (`CompanyModule`, `PlanModule`)
-- [ ] Définir la stratégie offline et synchronisation
-- [ ] Définir la stratégie cartographique (Leaflet ou MapLibre, fournisseur remplaçable)
-- [ ] Définir le stockage des fichiers (stockage objet)
-- [ ] Définir les notifications (fournisseurs remplaçables)
-- [ ] Définir le monitoring
-- [ ] Définir la stratégie de sécurité
-- [ ] Définir le CI/CD et les environnements
-- [ ] Définir les conventions de code
-- [ ] Définir les tokens de thème à partir de l'identité visuelle (README §2)
+- [x] Définir la stratégie offline et synchronisation
+- [x] Définir la stratégie cartographique (Leaflet ou MapLibre, fournisseur remplaçable)
+- [x] Définir le stockage des fichiers (stockage objet)
+- [x] Définir les notifications (fournisseurs remplaçables)
+- [x] Définir le monitoring
+- [x] Définir la stratégie de sécurité
+- [x] Définir le CI/CD et les environnements
+- [x] Définir les conventions de code
+- [x] Définir les tokens de thème à partir de l'identité visuelle (README §2)
 
 **Ajouts phase 0** (points ouverts du cahier des charges §11)
 
-- [ ] Choisir le mécanisme d'association d'un appareil à un profil (code d'activation, QR code…)
-- [ ] Fixer la version minimale d'Android et les modèles d'imprimantes thermiques à tester
-- [ ] Choisir la bibliothèque d'impression ESC/POS en Bluetooth pour Expo
-- [ ] Fixer les objectifs chiffrés de performance sur le terrain
-- [ ] Fixer la précision des montants (centimes ou dinar entier)
-- [ ] Valider le stockage des polygones en GeoJSON, avec Turf dans `packages/business-rules`
-- [ ] Prévoir le cas du téléphone perdu avec des opérations non synchronisées
+- [x] Choisir le mécanisme d'association d'un appareil à un profil : QR code ou code de secours (ARC-04)
+- [x] Fixer la version minimale d'Android (ARC-07) ; imprimantes à acheter en phase 2
+- [x] Choisir la bibliothèque d'impression ESC/POS en Bluetooth pour Expo (ARC-06)
+- [x] Fixer les objectifs chiffrés de performance sur le terrain (ARC-08)
+- [x] Fixer la précision des montants : dinars entiers (ARC-05)
+- [x] Valider le stockage des polygones en GeoJSON, avec Turf dans `packages/business-rules` (ARC-09)
+- [x] Prévoir le cas du téléphone perdu avec des opérations non synchronisées (ARC-10, BR-JOU-10, BR-USR-11)
 
 ## Architecture cible
 
@@ -157,8 +157,8 @@ Mobile Expo        │                      ├──→ Redis / BullMQ (optionn
 
 ## Livrables
 
-- [ ] `docs/architecture.md` (architecture globale et diagramme technique) — proposition rédigée le 2026-10-02, à valider
-- [ ] Architecture des dossiers
+- [x] `docs/architecture.md` (architecture globale et diagramme technique), validé le 2026-10-02
+- [x] Architecture des dossiers
 - [ ] `docs/api.md` (architecture API)
 - [ ] Stratégie de données
 
@@ -191,7 +191,7 @@ sellwasl/
 
 ## Tâches
 
-- [ ] Créer le repository GitHub
+- [x] Créer le repository GitHub
 - [ ] Créer le monorepo (Turborepo)
 - [ ] Configurer TypeScript
 - [ ] Configurer ESLint et Prettier
@@ -1611,7 +1611,7 @@ docs/
 ├── cahier-des-charges.md     ✅ phase 0
 ├── use-cases.md              ✅ phase 0
 ├── business-rules.md         ✅ phase 0
-├── architecture.md          ⏳ phase 1, à valider
+├── architecture.md          ✅ phase 1
 ├── database.md
 ├── api.md
 ├── rbac.md
@@ -1658,7 +1658,7 @@ docs/
 
 1. ~~Trancher les points de l'Annexe B du README_vf.~~ Fait en phase 0.
 2. ~~Valider les valeurs par défaut des paramètres P-01 à P-10 et les 7 règles fixes.~~ Fait le 2026-10-02.
-3. **Phase 1** : trancher les points ouverts du cahier des charges §11, puis rédiger `docs/architecture.md`, `docs/database.md`, `docs/rbac.md` et `docs/modules.md`.
+3. **Phase 1** : ~~trancher les points ouverts du cahier des charges §11 et rédiger `docs/architecture.md`~~ (fait le 2026-10-02), puis rédiger `docs/database.md`, `docs/api.md`, `docs/rbac.md` et `docs/modules.md`.
 4. Commencer l'implémentation par :
 
 **Monorepo (+ version Android compilée et test d'impression) → PostgreSQL / Prisma → Auth et appareils → Multi-tenant → RBAC → Modes et modules.**

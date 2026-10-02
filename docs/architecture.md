@@ -1,6 +1,6 @@
 # Architecture technique — SellWasl
 
-> **Phase 1 — proposition du 2026-10-02, à valider.**
+> **Phase 1 — validé le 2026-10-02.**
 > Ce document fixe les choix techniques du MVP et tranche les points ouverts du [cahier des charges §11](cahier-des-charges.md#11-points-ouverts-pour-les-phases-suivantes). Chaque décision porte un identifiant stable (`ARC-nn`), auquel les phases suivantes font référence.
 >
 > Documents liés :
@@ -69,13 +69,15 @@ Trois principes guident tous les choix :
 
 ## 2. Synthèse des décisions
 
+Toutes ces décisions ont été validées le 2026-10-02.
+
 | ID | Sujet | Décision proposée | Point du §11 |
 |---|---|---|---|
 | ARC-01 | Stack | Next.js, Expo, NestJS, PostgreSQL, Prisma, Turborepo, pnpm, tout en TypeScript | — |
 | ARC-02 | Isolation des entreprises | Base et schéma partagés, colonne `company_id`, filtre automatique par une extension Prisma | — |
 | ARC-03 | Synchronisation | Le téléphone envoie des **opérations métier** idempotentes et reçoit les **changements** depuis un curseur | — |
 | ARC-04 | Association d'un appareil | **QR code** affiché sur le Web, avec un **code de secours** à saisir ; usage unique, valable 10 minutes | Oui |
-| ARC-05 | Montants | Entiers en **centimes** (`BIGINT`) ; affichage en DA | Oui |
+| ARC-05 | Montants | **Dinars entiers** (`BIGINT`), sans centimes | Oui |
 | ARC-06 | Impression | Bluetooth classique (SPP) avec `react-native-bluetooth-classic`, et génération ESC/POS en TypeScript | Oui |
 | ARC-07 | Android | Minimum imposé par la version d'Expo retenue (aujourd'hui Android 7.0) ; téléphone de référence : Android 10, 2 Go de RAM | Oui |
 | ARC-08 | Performance terrain | Objectifs chiffrés au §9.4 | Oui |
@@ -432,7 +434,7 @@ Pourquoi cette séparation : les bibliothèques qui font tout en un sont souvent
 |---|---|
 | Identifiants | UUID v7, générés par le téléphone ou le serveur. Ils sont ordonnés dans le temps, ce qui garde les index compacts. |
 | Champs des données synchronisées | `id`, `company_id`, `created_at`, `updated_at`, `deleted_at`, `version`, `change_seq`, `created_by_user_id`, `created_by_device_id` (BR-USR-09) |
-| **Montants (ARC-05)** | Entiers en **centimes**, type `BIGINT`. Pas de nombres à virgule : `0,1 + 0,2` doit faire exactement `0,3`. L'affichage se fait en DA, sans centimes s'ils sont nuls. Les centimes servent surtout aux prix unitaires et, plus tard, à la TVA. |
+| **Montants (ARC-05)** | Entiers en **dinars**, type `BIGINT`, sans centimes. Chaque unité de vente a son propre prix en DA (BR-CAT-04) : un montant est toujours une quantité entière multipliée par un prix entier, donc toujours un nombre entier de dinars. Le seul calcul qui peut donner une fraction, la prime d'objectif (BR-OBJ-03), est arrondi au dinar le plus proche. La TVA, après le MVP, demandera ses propres règles d'arrondi. |
 | Quantités | Entiers en **unité de base** (BR-CAT-02). La conversion depuis les conditionnements se fait dans `business-rules`. |
 | Dates et heures | Instants en UTC (`timestamptz`). Dates métier (journée, livraison, quota) en type `date`, dans le fuseau de l'entreprise (`Africa/Algiers` par défaut). |
 | Stock | Le stock est un cumul de mouvements (BR-STK-03) : la table `Stock` est mise à jour dans la même transaction que chaque mouvement, et une vérification peut toujours la recalculer à partir des mouvements. Verrou de ligne (`SELECT … FOR UPDATE`) sur le stock concerné, pour que deux réservations simultanées ne vendent pas la même marchandise. |
@@ -561,17 +563,17 @@ export const colors = {
 
 ## 21. Impacts sur les règles métier
 
-Une fois ce document validé, ces décisions seront reportées dans `business-rules.md` et `use-cases.md` :
+Ces décisions ont été reportées le 2026-10-02 dans `business-rules.md` et `use-cases.md` :
 
 | Décision | Règle ou cas concerné | Changement |
 |---|---|---|
 | ARC-04 | BR-USR-07, UC-01, UC-59 | Association par QR code ou code de secours, à usage unique et valable 10 minutes |
-| ARC-10 | BR-JOU, UC-58 | Nouvelle action du superviseur : **clôture d'office** d'une journée, avec un motif, auditée ; opérations tardives acceptées et signalées |
+| ARC-10 | BR-JOU-10, BR-USR-11, UC-64 | Nouvelle action du superviseur : **clôture d'office** d'une journée, avec un motif, auditée ; opérations tardives acceptées et signalées |
 | ARC-10 | BR-USR-05 | Ajout de la clôture d'office à la liste des actions du superviseur sur les équipes |
 | ARC-11 | BR-CMD-07, BR-IMP-04 | Numéro = code de l'utilisateur + série de l'appareil + séquence |
 | ARC-12 | BR-TEN-08 | Un changement de paramètre prend effet au prochain démarrage de journée |
-| ARC-05 | Conventions de `business-rules.md` | Montants enregistrés en centimes, affichés en DA |
-| §10.5 | BR-JOU | Écart d'horloge de plus d'une heure signalé au superviseur |
+| ARC-05 | Conventions, BR-OBJ-03 | Montants en dinars entiers ; prime d'objectif arrondie au dinar |
+| §10.5 | BR-JOU-11 | Écart d'horloge de plus d'une heure signalé au superviseur |
 
 ---
 

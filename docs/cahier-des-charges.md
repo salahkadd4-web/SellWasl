@@ -1,7 +1,7 @@
 # Cahier des charges — SellWasl
 
 > **Phase 0 — validé le 2026-10-01.**
-> **Mis à jour le 2026-10-02** : parfums des produits ; règles réglables par entreprise ; règles déduites validées.
+> **Mis à jour le 2026-10-02** : parfums des produits ; règles réglables par entreprise ; règles déduites validées ; points ouverts tranchés par l'[architecture](architecture.md).
 > Ce document fixe le périmètre du **MVP**. Il complète [README_vf.md](../README_vf.md), qui décrit la vision d'ensemble. En cas de différence, les documents de `docs/` priment.
 >
 > Documents liés :
@@ -73,7 +73,7 @@ Ce cahier des charges s'appuie sur l'expérience directe du porteur du projet, a
 | | `VENDEUR_CASH_VAN` | Visite, vente et livraison immédiate depuis le camion, encaissement, impression |
 | | `MAGASINIER` | Entrées, préparation, chargement et déchargement des camions, inventaire |
 | **Web** (Chrome, PC ou téléphone) | `COMPANY_ADMIN` | Tout ce que fait le superviseur et le comptable, plus les utilisateurs (superviseurs compris), le catalogue, les prix et les paramètres |
-| | `SUPERVISEUR` | Secteurs, planning, clients, produits et parfums, quotas, objectifs, suivi en temps réel, réouverture de journée, changement d'appareil, lignes en attente, lancement de la préparation, exports |
+| | `SUPERVISEUR` | Secteurs, planning, clients, produits et parfums, quotas, objectifs, suivi en temps réel, réouverture et clôture d'office de journée, changement d'appareil, lignes en attente, lancement de la préparation, exports |
 | | `COMPTABLE` | Versements, écarts, dettes et paiements |
 | | `SUPER_ADMIN` | Crée une entreprise et son administrateur, et choisit son mode |
 
@@ -435,16 +435,17 @@ Ces règles restent identiques partout, parce qu'elles protègent la fiabilité 
 
 ## 11. Points ouverts pour les phases suivantes
 
-| Point | Phase |
-|---|---|
-| Mécanisme d'association d'un appareil (code d'activation, QR code…) | 1 et 4 |
-| Version minimale d'Android ; modèles d'imprimantes testés | 1 |
-| Objectifs chiffrés de performance sur le terrain | 1 |
-| Précision des montants (centimes ou dinar entier) | 1 et 3 |
-| Téléphone perdu ou cassé avec des opérations non synchronisées, journée impossible à clôturer | 4 et 23 |
-| Stockage des polygones : GeoJSON avec Turf dans le MVP, PostGIS si besoin | 1 et 13 |
-| Facturation fiscale : TVA, factures légales | Après le MVP |
-| Fournisseur de paiement pour les abonnements | Après le MVP |
+| Point | Phase | Décision |
+|---|---|---|
+| Mécanisme d'association d'un appareil | 1 et 4 | Tranché : QR code ou code de secours (ARC-04) |
+| Version minimale d'Android ; modèles d'imprimantes testés | 1 | Tranché : ARC-07 ; imprimantes à acheter en phase 2 (une 58 mm, une 80 mm) |
+| Objectifs chiffrés de performance sur le terrain | 1 | Tranché : ARC-08 |
+| Précision des montants | 1 et 3 | Tranché : dinars entiers (ARC-05) |
+| Téléphone perdu ou cassé avec des opérations non synchronisées, journée impossible à clôturer | 4 et 23 | Tranché : clôture d'office (BR-JOU-10) et envoi après révocation (BR-USR-11) |
+| Stockage des polygones | 1 et 13 | Tranché : GeoJSON avec Turf (ARC-09) |
+| Hébergement en Europe ou en Algérie (loi 18-07) | Avant le déploiement | Ouvert |
+| Facturation fiscale : TVA, factures légales | Après le MVP | Ouvert |
+| Fournisseur de paiement pour les abonnements | Après le MVP | Ouvert |
 
 ---
 
