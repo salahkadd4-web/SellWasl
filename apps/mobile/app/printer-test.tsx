@@ -2,7 +2,12 @@ import { colors } from '@sellwasl/config';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BluetoothDevice } from 'react-native-bluetooth-classic';
-import { ensureBluetoothPermissions, listPairedPrinters, printBytes } from '@/printing/bluetooth';
+import {
+  ensureBluetoothPermissions,
+  isBluetoothPrintingAvailable,
+  listPairedPrinters,
+  printBytes,
+} from '@/printing/bluetooth';
 import { encodeTestTicket, type TicketWidth } from '@/printing/receipt';
 
 /** Test d'impression sur imprimante réelle (plan, phase 2 ; architecture §13.2). */
@@ -41,6 +46,17 @@ export default function PrinterTestScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!isBluetoothPrintingAvailable()) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>
+          L'impression Bluetooth n'est pas disponible dans Expo Go. Elle fonctionne dans la version
+          compilée de l'application (voir le README).
+        </Text>
+      </View>
+    );
   }
 
   return (

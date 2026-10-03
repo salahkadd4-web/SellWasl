@@ -44,6 +44,10 @@ Pour parcourir les données : `pnpm db:studio`. Pour tout effacer et recommencer
 
 ## Mobile (Android)
 
+**Aperçu rapide, sans compte** : installez **Expo Go** depuis le Play Store, lancez `pnpm dev:mobile`, puis scannez le QR code affiché (même Wi-Fi que le PC). Tout fonctionne sauf l'impression Bluetooth.
+
+**Version complète** (impression comprise) :
+
 L'application utilise des modules natifs (Bluetooth, carte) : elle tourne dans une **version de développement compilée**, pas dans Expo Go.
 
 ```bash
