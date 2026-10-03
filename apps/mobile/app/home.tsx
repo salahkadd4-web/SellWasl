@@ -1,16 +1,16 @@
 import { colors } from '@sellwasl/config';
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fetchHealth } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
-import { syncCatalogPhotos, usePhotoSyncState } from '@/catalog/photos';
+import { cachedPhotoUris, syncCatalogPhotos, usePhotoSyncState } from '@/catalog/photos';
 
 type ApiState =
   { kind: 'loading' } | { kind: 'ok'; time: string } | { kind: 'error'; message: string };
 
 export default function HomeScreen() {
-  const { me, profile, logout } = useAuth();
+  const { me, profile, offline, notice, logout } = useAuth();
   const [api, setApi] = useState<ApiState>({ kind: 'loading' });
   const photos = usePhotoSyncState();
 
@@ -29,12 +29,13 @@ export default function HomeScreen() {
   }, [check]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Bonjour {me?.user.firstName}</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Bonjour {me?.user.firstName ?? profile?.firstName}</Text>
       <Text style={styles.slogan}>
-        {me?.role.name} · {me?.company.name}
+        {me?.role.name ?? profile?.roleName} · {me?.company.name ?? profile?.companyName}
         {profile ? ` · téléphone ${profile.series}` : ''}
       </Text>
+      {offline ? <Text style={styles.offline}>{notice}</Text> : null}
 
       <View style={styles.card}>
         <Text style={styles.label}>Serveur</Text>
@@ -55,6 +56,15 @@ export default function HomeScreen() {
               : 'Aucune photo dans le catalogue'
             : `${photos.ready} / ${photos.total} gardées sur le téléphone${photos.running ? ' · téléchargement…' : ''}`}
         </Text>
+        {photos.ready > 0 ? (
+          <View style={styles.photos}>
+            {cachedPhotoUris()
+              .slice(0, 8)
+              .map((uri) => (
+                <Image key={uri} source={{ uri }} style={styles.photo} />
+              ))}
+          </View>
+        ) : null}
         {photos.lastError ? (
           <Text style={{ color: colors.status.pending }}>{photos.lastError}</Text>
         ) : null}
@@ -76,12 +86,22 @@ export default function HomeScreen() {
       <Pressable style={styles.outline} onPress={() => void logout()}>
         <Text style={styles.outlineText}>Déconnexion</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 16, justifyContent: 'center' },
+  container: { flexGrow: 1, padding: 16, gap: 16, justifyContent: 'center' },
+  offline: {
+    backgroundColor: colors.status.pending,
+    color: colors.textDark,
+    padding: 12,
+    borderRadius: 10,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  photos: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  photo: { width: 64, height: 64, borderRadius: 8, backgroundColor: colors.border },
   title: { fontSize: 32, fontWeight: '700', color: colors.primary, textAlign: 'center' },
   slogan: { color: colors.muted, textAlign: 'center' },
   card: {

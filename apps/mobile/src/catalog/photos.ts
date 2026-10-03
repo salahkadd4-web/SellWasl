@@ -1,7 +1,7 @@
 import type { PhotoManifest } from '@sellwasl/validation';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useEffect, useSyncExternalStore } from 'react';
-import { API_URL, request } from '@/api/client';
+import { API_URL, ApiClientError, request } from '@/api/client';
 
 /**
  * Photos du catalogue gardées sur le téléphone, pour un affichage hors connexion.
@@ -76,14 +76,21 @@ export async function syncCatalogPhotos(): Promise<void> {
     );
 
     manifest = next;
+    // La liste est relue au prochain démarrage, même sans réseau
+    if (!indexFile.exists) indexFile.create();
     indexFile.write(JSON.stringify(next));
     setState({
       lastError:
         failures > 0 ? `${failures} photo(s) non téléchargée(s), nouvel essai plus tard` : null,
     });
-  } catch {
+  } catch (error) {
     // Hors connexion : les photos déjà gardées restent affichées
-    setState({ lastError: 'Photos non mises à jour : pas de connexion' });
+    setState({
+      lastError:
+        error instanceof ApiClientError && error.code === 'NETWORK'
+          ? 'Photos non mises à jour : pas de connexion'
+          : `Photos non mises à jour : ${error instanceof Error ? error.message : String(error)}`,
+    });
   } finally {
     setState({ running: false });
   }
@@ -96,6 +103,15 @@ export function photoUri(productId: string, variantId?: string | null): string |
   if (!photo) return null;
   const file = new File(folder, photo.file);
   return file.exists ? file.uri : null;
+}
+
+/** Photos gardées sur le téléphone, une par fichier (aperçu, vérification hors connexion). */
+export function cachedPhotoUris(): string[] {
+  const files = [...new Set(manifest.map((p) => p.file))];
+  return files
+    .map((f) => new File(folder, f))
+    .filter((f) => f.exists)
+    .map((f) => f.uri);
 }
 
 /** Efface toutes les photos (appareil dissocié). */
