@@ -3,6 +3,8 @@
 services:
   postgres:
     image: postgres:16
+    # Redémarre avec Docker Desktop, sans avoir à relancer pnpm db:up.
+    restart: unless-stopped
     environment:
       POSTGRES_USER: sellwasl
       POSTGRES_PASSWORD: sellwasl
