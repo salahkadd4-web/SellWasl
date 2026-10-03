@@ -83,7 +83,7 @@ describe('couverture des routes', () => {
         if (entry.isDirectory()) {
           if (entry.name !== 'generated') walk(path);
         } else if (path.endsWith('.ts')) {
-          const rel = path.slice(root.length + 1);
+          const rel = path.slice(root.length + 1).replace(/\\/g, '/'); // chemins Windows
           if (readFileSync(path, 'utf8').includes('PrismaService') && !allowed.has(rel))
             offenders.push(rel);
         }
