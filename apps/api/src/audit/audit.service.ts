@@ -17,12 +17,17 @@ export interface AuditEntry {
   userAgent?: string;
 }
 
+export interface AuditWriter {
+  auditLog: { create(args: { data: Prisma.AuditLogUncheckedCreateInput }): Promise<unknown> };
+}
+
 /** Journal d'audit de l'entreprise, en ajout seul (BR-AUD-01). */
 @Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async write(entry: AuditEntry, tx: Prisma.TransactionClient = this.prisma): Promise<void> {
+  /** tx : client de transaction, filtré par entreprise ou non. */
+  async write(entry: AuditEntry, tx: AuditWriter = this.prisma): Promise<void> {
     await tx.auditLog.create({ data: { id: uuidv7(), ...entry } });
   }
 }

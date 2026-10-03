@@ -271,3 +271,62 @@ export function rolePermissions(role: RoleCode, rules: PermissionRules): string[
   }
   return [...result];
 }
+
+const PERMISSION_BY_CODE = new Map(PERMISSIONS.map((p) => [p.code, p]));
+
+export function permissionDefinition(code: string): PermissionDefinition | undefined {
+  return PERMISSION_BY_CODE.get(code);
+}
+
+/** Module requis par une permission ; inconnue = refusée (docs/modules.md §7). */
+export function isPermissionModuleActive(
+  code: string,
+  activeModules: readonly ModuleCode[],
+): boolean {
+  const definition = PERMISSION_BY_CODE.get(code);
+  if (!definition) return false;
+  switch (definition.module) {
+    case 'CORE':
+      return true;
+    case 'FIELD':
+      return activeModules.includes('PRE_SALES') || activeModules.includes('CASH_VAN');
+    default:
+      return activeModules.includes(definition.module);
+  }
+}
+
+const WEB_ROLES: readonly RoleCode[] = ['COMPANY_ADMIN', 'SUPERVISEUR', 'COMPTABLE'];
+
+/**
+ * Interdits absolus (docs/rbac.md §8) : ces permissions ne sont jamais accordées à ces rôles,
+ * quels que soient les paramètres. Renvoie les permissions fautives.
+ */
+export function forbiddenPermissionsFor(role: RoleCode, permissions: readonly string[]): string[] {
+  return permissions.filter((code) => {
+    const definition = PERMISSION_BY_CODE.get(code);
+    if (!definition || definition.scope === 'PLATFORM') return true;
+    if (WEB_ROLES.includes(role)) {
+      return code.endsWith('.own') || code.startsWith('payments.collect_');
+    }
+    return (
+      code === 'settings.update' ||
+      code.startsWith('users.') ||
+      code === 'prices.update' ||
+      code === 'price_tiers.update' ||
+      code === 'bonuses.update' ||
+      code === 'customers.update' ||
+      code === 'customers.disable' ||
+      code === 'workdays.reopen' ||
+      code === 'workdays.force_close'
+    );
+  });
+}
+
+export function assertAllowedPermissions(role: RoleCode, permissions: readonly string[]): void {
+  const forbidden = forbiddenPermissionsFor(role, permissions);
+  if (forbidden.length > 0) {
+    throw new Error(
+      `Permissions interdites pour ${role} : ${forbidden.join(', ')} (docs/rbac.md §8)`,
+    );
+  }
+}

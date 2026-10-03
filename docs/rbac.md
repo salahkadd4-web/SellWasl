@@ -24,7 +24,7 @@
 
 1. **Le serveur décide.** Le Web et le mobile masquent ce qui n'est pas permis, mais seul le serveur accorde ou refuse (plan, règles de développement 3 et 4).
 2. **Un utilisateur a un seul rôle** (BR-USR-01).
-3. **Refus par défaut.** Un endpoint qui ne déclare aucune permission est refusé, et un test le détecte (architecture §5.3).
+3. **Refus par défaut.** Un endpoint qui ne déclare aucune permission est refusé, et un test le détecte (architecture §5.3). Les routes ouvertes à tout utilisateur connecté (son profil, sa déconnexion) portent `@AnyAuthenticated()`.
 4. **Permissions stockées en base**, par entreprise (`Role`, `RolePermission`), et non codées en dur dans le Web ou le mobile. À la création d'une entreprise, chaque rôle reçoit les permissions de la matrice du §5.
 5. **Pas d'éditeur de rôles dans le MVP.** Les permissions d'un rôle ne changent que par un paramètre de l'entreprise (§7). Les rôles personnalisés viendront après le MVP.
 

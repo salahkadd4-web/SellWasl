@@ -370,10 +370,10 @@ User → Company → Permission → Module → Resource
 
 ## Tâches
 
-- [ ] Déduire `company_id` du contexte authentifié, **jamais du client**
-- [ ] Filtrage tenant systématique dans les services et requêtes Prisma
-- [ ] Protection IDOR (accès par id d'une autre entreprise)
-- [ ] Isolation des fichiers et du stockage par entreprise
+- [x] Déduire `company_id` du contexte authentifié, **jamais du client**
+- [x] Filtrage tenant systématique dans les services et requêtes Prisma (client filtré `TENANT_PRISMA`)
+- [x] Protection IDOR (accès par id d'une autre entreprise)
+- [ ] Isolation des fichiers et du stockage par entreprise (avec le stockage objet)
 
 ## Test critique
 
@@ -384,7 +384,7 @@ Company A → accès aux données de Company B
 
 ## Critère de validation
 
-- [ ] Tests automatisés d'isolation multi-tenant sur toutes les ressources
+- [x] Tests automatisés d'isolation multi-tenant (client filtré et API ; à compléter avec chaque nouvelle ressource)
 
 ---
 
@@ -427,10 +427,10 @@ platform.monitoring.read  platform.audit.read  platform.support
 
 ## Tâches
 
-- [ ] Rôles et permissions configurables (non codés en dur)
-- [ ] Guards NestJS d'autorisation
+- [x] Rôles et permissions configurables (non codés en dur)
+- [x] Guards NestJS d'autorisation (refus par défaut, interdits absolus, P-08 et P-10)
 - [x] Matrice rôles × permissions (`docs/rbac.md` §5)
-- [ ] Masquage des écrans selon les permissions (Web et mobile)
+- [x] Masquage des écrans selon les permissions (Web et mobile)
 
 ## Livrable
 
@@ -438,7 +438,7 @@ platform.monitoring.read  platform.audit.read  platform.support
 
 ## Critère de validation
 
-- [ ] Tests RBAC : chaque rôle n'accède qu'à ses permissions
+- [x] Tests RBAC : chaque rôle n'accède qu'à ses permissions
 
 ---
 
@@ -453,13 +453,13 @@ Après le MVP : Plan SaaS → Modules autorisés (PlanModule) → CompanyModule 
 
 ## Tâches
 
-- [ ] Table `CompanyModule` (id, company_id, module_code, status, activated_at, config, created_at, updated_at)
-- [ ] Modes Prévente, Cash van et Mixte, et modules qui en découlent (BR-TEN-03)
-- [ ] Fonctions communes à `PRE_SALES` et `CASH_VAN` (secteurs, planning, journée, visites) actives dès que l'un des deux l'est (BR-TEN-05)
-- [ ] Guard backend « module actif » sur chaque endpoint de module
-- [ ] Masquage des menus et routes Web des modules inactifs
-- [ ] Masquage des écrans mobiles des modules inactifs
-- [ ] Audit de l'activation et de la désactivation
+- [x] Table `CompanyModule` (id, company_id, module_code, status, activated_at, config, created_at, updated_at)
+- [x] Modes Prévente, Cash van et Mixte, et modules qui en découlent (BR-TEN-03)
+- [x] Fonctions communes à `PRE_SALES` et `CASH_VAN` (secteurs, planning, journée, visites) actives dès que l'un des deux l'est (BR-TEN-05)
+- [x] Guard backend « module actif » sur chaque endpoint de module (module déduit de la permission)
+- [ ] Masquage des menus et routes Web des modules inactifs (avec les premiers écrans de module)
+- [ ] Masquage des écrans mobiles des modules inactifs (avec les premiers écrans de module)
+- [x] Audit de l'activation et de la désactivation (changement de mode)
 - [x] Définir précisément le périmètre du socle commun et du module `COMMERCIAL` (phase 0)
 - [ ] Table `PlanModule` et écran `/app/modules` *(après le MVP)*
 
@@ -467,8 +467,8 @@ Un module désactivé doit être :
 
 - [ ] masqué dans l'UI ;
 - [ ] inaccessible par les routes ;
-- [ ] inaccessible par l'API ;
-- [ ] refusé par les guards backend.
+- [x] inaccessible par l'API ;
+- [x] refusé par les guards backend.
 
 ## Livrable
 
@@ -476,8 +476,8 @@ Un module désactivé doit être :
 
 ## Critère de validation
 
-- [ ] Appel API direct à un module désactivé → refusé
-- [ ] Un rôle ne donne jamais accès à un module désactivé
+- [x] Appel API direct à un module désactivé → refusé
+- [x] Un rôle ne donne jamais accès à un module désactivé
 
 ---
 

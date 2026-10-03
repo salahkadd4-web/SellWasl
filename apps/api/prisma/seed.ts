@@ -10,6 +10,7 @@ import 'dotenv/config';
 import { hash } from '@node-rs/argon2';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
+  assertAllowedPermissions,
   modulesForMode,
   PERMISSIONS,
   ROLE_CHANNEL,
@@ -389,8 +390,10 @@ async function seedCompany(spec: CompanySpec, passwordHash: string): Promise<voi
             channel: ROLE_CHANNEL[code],
           },
         });
+        const permissions = rolePermissions(code, settings.rules);
+        assertAllowedPermissions(code, permissions);
         await tx.rolePermission.createMany({
-          data: rolePermissions(code, settings.rules).map((permissionCode) => ({
+          data: permissions.map((permissionCode) => ({
             roleId: roleIds[code],
             permissionCode,
           })),

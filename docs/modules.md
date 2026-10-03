@@ -117,7 +117,7 @@ Chaque paramètre réglable ne s'affiche que si le module qu'il concerne est act
 
 | Couche | Comportement |
 |---|---|
-| **API** | Guard `ModuleGuard` : chaque contrôleur ou endpoint de module porte `@RequireModule('CASH_VAN')`. Module inactif → `403 MODULE_DISABLED`, même pour un appel direct (BR-TEN-04). Les modules actifs sont lus dans le contexte de la requête, mis en cache 60 secondes par entreprise, et le cache est vidé à chaque changement de mode |
+| **API** | Le garde d'authentification déduit le module de la permission requise (catalogue de `packages/business-rules`) ; une route sans permission peut porter `@RequireModule('CASH_VAN')`. Module inactif → `403 MODULE_DISABLED`, même pour un appel direct (BR-TEN-04). Les modules actifs sont mis en cache 60 secondes par entreprise, et le cache est vidé à chaque changement de mode |
 | **Synchronisation** | Une opération d'un module inactif est refusée (`REJECTED`, code `MODULE_DISABLED`). Le serveur n'envoie pas au téléphone les données d'un module inactif |
 | **Web** | Les menus, pages et widgets d'un module inactif n'apparaissent pas. Une URL tapée à la main affiche « Fonction non disponible pour votre entreprise » |
 | **Mobile** | Les écrans d'un module inactif n'existent pas dans la navigation. Les modules actifs arrivent avec chaque synchronisation |

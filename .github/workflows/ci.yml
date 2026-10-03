@@ -8,6 +8,21 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sellwasl
+          POSTGRES_PASSWORD: sellwasl
+          POSTGRES_DB: sellwasl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sellwasl"
+          --health-interval 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://sellwasl:sellwasl@localhost:5432/sellwasl
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -19,3 +34,5 @@ jobs:
       - run: pnpm format:check
       - run: pnpm build --filter=!@sellwasl/mobile
       - run: pnpm typecheck
+      # Tests unitaires (business-rules) et d'intégration de l'API sur une base de test jetable
+      - run: pnpm test

@@ -72,6 +72,7 @@ L'écran **Tester l'imprimante** imprime un ticket de test sur une imprimante th
 | `pnpm dev:mobile` | Serveur Metro de l'application mobile |
 | `pnpm build` | Compile tous les paquets et applications |
 | `pnpm typecheck` | Vérifie les types partout |
+| `pnpm test` | Tests unitaires et d'intégration (base `sellwasl_test` recréée à chaque lancement) |
 | `pnpm format` | Formate le code avec Prettier |
 | `pnpm db:migrate` | Crée et applique une migration Prisma |
 | `pnpm db:seed` | Charge les données de démonstration |

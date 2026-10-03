@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   ACTIVATION_CODE_ALPHABET,
   activationQrPayload,
@@ -10,7 +10,7 @@ import { hashActivationCode } from '../auth/auth.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
-import { PrismaService } from '../prisma/prisma.service';
+import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 
 /** Validité d'un code d'association (ARC-04). */
 const ACTIVATION_CODE_TTL_MS = 10 * 60 * 1000;
@@ -33,14 +33,14 @@ export interface FieldUserDevice {
 @Injectable()
 export class DevicesService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly audit: AuditService,
   ) {}
 
   /** Utilisateurs terrain de l'entreprise et leur appareil actif (UC-59). */
-  async listFieldUsers(companyId: string): Promise<FieldUserDevice[]> {
-    const users = await this.prisma.user.findMany({
-      where: { companyId, deletedAt: null, role: { channel: 'MOBILE' } },
+  async listFieldUsers(): Promise<FieldUserDevice[]> {
+    const users = await this.db.user.findMany({
+      where: { deletedAt: null, role: { channel: 'MOBILE' } },
       include: { role: true, devices: { where: { status: { in: ['ACTIVE', 'BLOCKED'] } } } },
       orderBy: { code: 'asc' },
     });
@@ -67,8 +67,8 @@ export class DevicesService {
 
   /** Code d'association à usage unique, valable 10 minutes (ARC-04, BR-USR-07, BR-USR-08). */
   async createActivationCode(actor: AuthUser, userId: string): Promise<ActivationCodeResponse> {
-    const user = await this.prisma.user.findFirst({
-      where: { id: userId, companyId: actor.companyId, deletedAt: null },
+    const user = await this.db.user.findFirst({
+      where: { id: userId, deletedAt: null },
       include: { role: true, devices: { where: { status: 'ACTIVE' } } },
     });
     if (!user) throw notFound('Utilisateur introuvable.');
@@ -93,7 +93,7 @@ export class DevicesService {
       () => ACTIVATION_CODE_ALPHABET[randomInt(ACTIVATION_CODE_ALPHABET.length)],
     ).join('');
     const expiresAt = new Date(Date.now() + ACTIVATION_CODE_TTL_MS);
-    await this.prisma.$transaction(async (tx) => {
+    await this.db.$transaction(async (tx) => {
       // Un seul code valable à la fois par utilisateur
       await tx.deviceActivationCode.updateMany({
         where: { userId, usedAt: null, expiresAt: { gt: new Date() } },
@@ -102,7 +102,7 @@ export class DevicesService {
       await tx.deviceActivationCode.create({
         data: {
           id: uuidv7(),
-          companyId: actor.companyId,
+          companyId: actor.companyId, // vérifié par le client filtré
           userId,
           codeHash: hashActivationCode(code),
           expiresAt,
@@ -131,11 +131,9 @@ export class DevicesService {
 
   /** Révocation d'un appareil et de ses sessions (UC-59). */
   async revoke(actor: AuthUser, deviceId: string): Promise<void> {
-    const device = await this.prisma.device.findFirst({
-      where: { id: deviceId, companyId: actor.companyId },
-    });
+    const device = await this.db.device.findFirst({ where: { id: deviceId } });
     if (!device) throw notFound('Appareil introuvable.');
-    await this.prisma.$transaction(async (tx) => {
+    await this.db.$transaction(async (tx) => {
       await tx.device.update({
         where: { id: deviceId },
         data: { status: 'REVOKED', revokedAt: new Date() },

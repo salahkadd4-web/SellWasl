@@ -9,8 +9,8 @@ export class DevicesController {
 
   @RequirePermission('devices.read')
   @Get('devices')
-  list(@CurrentUser() user: AuthUser): Promise<FieldUserDevice[]> {
-    return this.devices.listFieldUsers(user.companyId);
+  list(): Promise<FieldUserDevice[]> {
+    return this.devices.listFieldUsers();
   }
 
   @RequirePermission('devices.associate')

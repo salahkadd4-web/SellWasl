@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { isRoleAvailable, type RoleCode } from '@sellwasl/business-rules';
 import type {
   AuthTokens,
   ChangePasswordInput,
@@ -14,7 +15,8 @@ import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { ACTIVE_COMPANY_STATUSES } from './auth.guard';
+import { ModulesService } from '../modules/modules.service';
+import { ACTIVE_COMPANY_STATUSES, moduleDisabled } from './auth.guard';
 import { hashPassword, verifyPassword } from './passwords';
 import { TokensService } from './tokens.service';
 
@@ -49,6 +51,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
+    private readonly modules: ModulesService,
   ) {}
 
   /** Connexion Web : rôles Web uniquement (BR-USR-02). */
@@ -76,6 +79,7 @@ export class AuthService {
     if (user.role.channel !== 'WEB') {
       throw forbidden('WRONG_CHANNEL', "Ce compte s'utilise sur l'application mobile.");
     }
+    await this.assertRoleAvailable(company.id, user.role.code);
 
     const tokens = await this.tokens.openSession({
       companyId: company.id,
@@ -322,6 +326,11 @@ export class AuthService {
       device: device ? { id: device.id, series: device.series } : null,
       mustChangePassword: user.mustChangePassword,
     };
+  }
+
+  /** Un rôle dont le module est inactif ne peut pas se connecter (docs/modules.md §5). */
+  private async assertRoleAvailable(companyId: string, role: RoleCode): Promise<void> {
+    if (!isRoleAvailable(role, await this.modules.activeModules(companyId))) throw moduleDisabled();
   }
 
   private assertCompanyActive(status: string): void {

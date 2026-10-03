@@ -1,23 +1,39 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Request } from 'express';
 import {
+  isPermissionModuleActive,
+  isRoleAvailable,
+  type ModuleCode,
+  type RoleCode,
+} from '@sellwasl/business-rules';
+import type { Request } from 'express';
+import { ClsService } from 'nestjs-cls';
+import { forbidden, unauthorized } from '../common/api-error';
+import {
+  ANY_AUTHENTICATED,
   type AuthUser,
   IS_PLATFORM,
   IS_PUBLIC,
+  MODULE,
   PERMISSION,
   type PlatformPrincipal,
   type Principal,
 } from '../common/auth-context';
-import { forbidden, unauthorized } from '../common/api-error';
+import { ModulesService } from '../modules/modules.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TENANT_KEY } from '../tenancy/tenant-prisma';
 import { TokensService } from './tokens.service';
 
 export const ACTIVE_COMPANY_STATUSES = ['ACTIVE', 'TRIAL'] as const;
 
+export const moduleDisabled = () =>
+  forbidden('MODULE_DISABLED', "Cette fonction n'est pas disponible pour votre entreprise.");
+
 /**
- * Contrôles de chaque requête (docs/rbac.md §3) : session valide, canal, appareil actif,
- * entreprise active, permission. Refus par défaut : toute route non marquée @Public exige une session.
+ * Contrôles de chaque requête (docs/rbac.md §3), dans l'ordre : session, canal, appareil,
+ * entreprise, rôle disponible, permission, module. Refus par défaut : une route doit être
+ * @Public, @PlatformOnly, @AnyAuthenticated ou porter une @RequirePermission.
+ * L'entreprise de l'utilisateur est placée dans le contexte de la requête (phase 5).
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -25,6 +41,8 @@ export class AuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly tokens: TokensService,
     private readonly prisma: PrismaService,
+    private readonly modules: ModulesService,
+    private readonly cls: ClsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -52,9 +70,24 @@ export class AuthGuard implements CanActivate {
     );
     if (user.channel !== payload.ch)
       throw forbidden('WRONG_CHANNEL', "Ce compte n'utilise pas cet outil.");
+    if (!isRoleAvailable(user.roleCode as RoleCode, user.modules)) throw moduleDisabled();
+
     const permission = this.reflector.getAllAndOverride<string | undefined>(PERMISSION, targets);
+    const requiredModule = this.reflector.getAllAndOverride<ModuleCode | undefined>(
+      MODULE,
+      targets,
+    );
+    const anyAuthenticated =
+      this.reflector.getAllAndOverride<boolean>(ANY_AUTHENTICATED, targets) ?? false;
+    if (!permission && !requiredModule && !anyAuthenticated) {
+      throw forbidden('FORBIDDEN', 'Route sans permission déclarée.');
+    }
     if (permission && !user.permissions.has(permission)) throw forbidden();
+    if (permission && !isPermissionModuleActive(permission, user.modules)) throw moduleDisabled();
+    if (requiredModule && !user.modules.includes(requiredModule)) throw moduleDisabled();
+
     req.principal = user;
+    this.cls.set(TENANT_KEY, user.companyId);
     return true;
   }
 
@@ -80,7 +113,8 @@ export class AuthGuard implements CanActivate {
     ) {
       throw unauthorized('SESSION_EXPIRED', 'Session expirée. Reconnectez-vous.');
     }
-    if (session.companyId !== companyId) throw unauthorized();
+    if (session.companyId !== companyId || session.user.companyId !== companyId)
+      throw unauthorized();
     if (!ACTIVE_COMPANY_STATUSES.includes(session.company.status as never)) {
       throw forbidden('COMPANY_SUSPENDED', "L'accès de votre entreprise est suspendu.");
     }
@@ -88,10 +122,12 @@ export class AuthGuard implements CanActivate {
       throw forbidden('ACCOUNT_DISABLED', 'Ce compte est désactivé.');
     if (session.user.role.channel === 'MOBILE') {
       if (!session.device || session.device.id !== deviceId) throw unauthorized();
-      if (session.device.status === 'BLOCKED')
+      if (session.device.status === 'BLOCKED') {
         throw forbidden('DEVICE_BLOCKED', 'Appareil bloqué. Contactez votre superviseur.');
-      if (session.device.status !== 'ACTIVE')
+      }
+      if (session.device.status !== 'ACTIVE') {
         throw forbidden('DEVICE_REVOKED', 'Appareil révoqué. Contactez votre superviseur.');
+      }
     }
     return {
       kind: 'company',
@@ -102,6 +138,7 @@ export class AuthGuard implements CanActivate {
       channel: session.user.role.channel,
       roleCode: session.user.role.code,
       permissions: new Set(session.user.role.rolePermissions.map((p) => p.permissionCode)),
+      modules: await this.modules.activeModules(companyId),
     };
   }
 

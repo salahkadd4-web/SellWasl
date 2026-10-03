@@ -11,7 +11,7 @@ import {
 } from '@sellwasl/validation';
 import type { Request, Response } from 'express';
 import { unauthorized } from '../common/api-error';
-import { type AuthUser, CurrentUser, Public } from '../common/auth-context';
+import { AnyAuthenticated, type AuthUser, CurrentUser, Public } from '../common/auth-context';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { AuthService } from './auth.service';
 import {
@@ -71,6 +71,7 @@ export class AuthController {
     }
   }
 
+  @AnyAuthenticated()
   @Post('auth/logout')
   @HttpCode(204)
   async logout(
@@ -82,6 +83,7 @@ export class AuthController {
     clearRefreshCookie(res, COMPANY_REFRESH_COOKIE);
   }
 
+  @AnyAuthenticated()
   @Post('auth/password')
   @HttpCode(204)
   async changePassword(
@@ -119,6 +121,7 @@ export class AuthController {
   }
 
   /** Utilisateur, rôle, permissions effectives et modules actifs (docs/rbac.md §9). */
+  @AnyAuthenticated()
   @Get('me')
   me(@CurrentUser() user: AuthUser): Promise<MeResponse> {
     return this.auth.buildMe(user.userId, user.deviceId);
