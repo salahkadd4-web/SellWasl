@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { ApiClientError, request, setAccessToken, setRefreshHandler } from '@/api/client';
+import { useHeartbeat } from '@/device/heartbeat';
 import { type DeviceProfile, secureStorage } from './storage';
 
 /**
@@ -28,7 +29,10 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
-const DEVICE_LOST = ['DEVICE_REVOKED', 'DEVICE_BLOCKED', 'DEVICE_UNKNOWN'];
+/** Le téléphone n'est plus associé : ses données locales sont effacées (BR-USR-11). */
+const DEVICE_LOST = ['DEVICE_REVOKED', 'DEVICE_UNKNOWN'];
+/** Le compte ou le téléphone est suspendu : retour à la connexion, association conservée. */
+const ACCESS_PAUSED = ['DEVICE_BLOCKED', 'ACCOUNT_DISABLED', 'COMPANY_SUSPENDED'];
 
 function profileFrom(me: MeResponse, series: string): DeviceProfile {
   return {
@@ -56,6 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('needsActivation');
   }, []);
 
+  const sessionClosed = useCallback(async (message: string | null) => {
+    await secureStorage.clearRefreshToken();
+    setAccessToken(null);
+    setMe(null);
+    setNotice(message);
+    setStatus('loggedOut');
+  }, []);
+
   const openSession = useCallback(async (tokens: AuthTokens) => {
     setAccessToken(tokens.accessToken);
     if (tokens.refreshToken) await secureStorage.setRefreshToken(tokens.refreshToken);
@@ -81,16 +93,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         if (error instanceof ApiClientError && DEVICE_LOST.includes(error.code))
           await deviceLost(error.message);
-        else if (!(error instanceof ApiClientError && error.code === 'NETWORK')) {
-          await secureStorage.clearRefreshToken();
-          setAccessToken(null);
-          setStatus('loggedOut');
-        }
+        else if (error instanceof ApiClientError && ACCESS_PAUSED.includes(error.code))
+          await sessionClosed(error.message);
+        else if (!(error instanceof ApiClientError && error.code === 'NETWORK'))
+          await sessionClosed('Votre session a été fermée. Reconnectez-vous.');
         return false;
       }
     });
     return () => setRefreshHandler(null);
-  }, [deviceLost]);
+  }, [deviceLost, sessionClosed]);
+
+  // Signal de vie tant qu'une session est ouverte ; il révèle aussi un blocage ou une révocation.
+  useHeartbeat(status === 'loggedIn' || status === 'mustChangePassword', (error) => {
+    if (DEVICE_LOST.includes(error.code)) void deviceLost(error.message);
+    else if (ACCESS_PAUSED.includes(error.code)) void sessionClosed(error.message);
+  });
 
   // Au démarrage : reprendre la session si le jeton de rafraîchissement est encore valable.
   useEffect(() => {
@@ -113,12 +130,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         if (error instanceof ApiClientError && DEVICE_LOST.includes(error.code))
           return deviceLost(error.message);
-        if (error instanceof ApiClientError && error.code === 'NETWORK') setNotice(error.message);
-        else await secureStorage.clearRefreshToken();
-        setStatus('loggedOut');
+        if (error instanceof ApiClientError && error.code === 'NETWORK') {
+          setNotice(error.message);
+          setStatus('loggedOut');
+        } else {
+          await sessionClosed(
+            error instanceof ApiClientError && ACCESS_PAUSED.includes(error.code)
+              ? error.message
+              : null,
+          );
+        }
       }
     })();
-  }, [openSession, deviceLost]);
+  }, [openSession, deviceLost, sessionClosed]);
 
   const activate = useCallback(
     async (code: string, password: string) => {
@@ -174,11 +198,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await request('/auth/logout', { method: 'POST' }).catch(() => undefined);
-    await secureStorage.clearRefreshToken();
-    setAccessToken(null);
-    setMe(null);
-    setStatus('loggedOut');
-  }, []);
+    await sessionClosed(null);
+  }, [sessionClosed]);
 
   const forgetDevice = useCallback(async () => {
     await request('/auth/logout', { method: 'POST' }).catch(() => undefined);

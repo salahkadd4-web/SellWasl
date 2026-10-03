@@ -92,18 +92,18 @@ Le mot de passe oublié d'un utilisateur d'entreprise est réinitialisé par l'a
 | `POST` | `/auth/device/activate` | Code d'association (QR ou code de secours, ARC-04), informations de l'appareil, mot de passe → appareil enregistré, `deviceId`, série, jetons |
 | `POST` | `/auth/device/login` | `deviceId` et mot de passe → jetons : l'utilisateur est celui de l'appareil. Refusé si l'appareil n'est plus actif |
 | `POST` | `/auth/refresh` | Comme sur le Web ; le jeton de rafraîchissement est lié à l'appareil |
-| `POST` | `/devices/heartbeat` | Signal de vie : batterie, opérations en attente, position, version de l'application (architecture §11.3). Positions refusées hors journée en cours (BR-JOU-09) |
+| `POST` | `/devices/heartbeat` | Signal de vie : batterie, opérations en attente, position, version de l'application (architecture §11.3). Position ignorée hors journée en cours (BR-JOU-09) ; la réponse donne `positionRecorded` et l'intervalle d'envoi `intervalMin` (paramètres de l'entreprise) |
 | `PUT` | `/devices/push-token` | Enregistrer le jeton de notification push |
 
 ### 3.3 Appareils, côté Web
 
 | Méthode | Chemin | Permission |
 |---|---|---|
-| `GET` | `/devices`, `/users/{id}/devices` | `devices.read` |
+| `GET` | `/devices`, `/users/{id}/devices` | `devices.read` — utilisateurs terrain et téléphone en service (batterie, opérations en attente, dernier signal) ; historique des téléphones et sessions ouvertes d'un utilisateur |
 | `POST` | `/users/{id}/activation-codes` | `devices.associate` — renvoie le code et le contenu du QR ; avertit si l'ancien appareil a des opérations en attente (BR-USR-08) |
 | `POST` | `/devices/{id}/revoke` | `devices.revoke` |
-| `POST` | `/devices/{id}/block`, `/devices/{id}/unblock` | `devices.revoke` |
-| `POST` | `/sessions/{id}/revoke` | `devices.revoke` |
+| `POST` | `/devices/{id}/block`, `/devices/{id}/unblock` | `devices.revoke` — le blocage ferme les sessions mais garde l'association ; après le déblocage, l'utilisateur se reconnecte avec son mot de passe |
+| `POST` | `/sessions/{id}/revoke`, `/users/{id}/sessions/revoke` | `devices.revoke` — ferme une session, ou toutes celles d'un utilisateur terrain : il doit ressaisir son mot de passe. Les sessions Web se ferment en désactivant le compte ou en réinitialisant le mot de passe |
 
 ---
 

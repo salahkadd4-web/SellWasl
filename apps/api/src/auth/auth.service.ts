@@ -132,7 +132,10 @@ export class AuthService {
           'Code déjà utilisé.',
         );
       }
-      const previous = await tx.device.findMany({ where: { userId: user.id, status: 'ACTIVE' } });
+      // L'appareil en service, actif ou bloqué, est remplacé (BR-USR-07)
+      const previous = await tx.device.findMany({
+        where: { userId: user.id, status: { in: ['ACTIVE', 'BLOCKED'] } },
+      });
       if (previous.length > 0) {
         await tx.device.updateMany({
           where: { id: { in: previous.map((d) => d.id) } },

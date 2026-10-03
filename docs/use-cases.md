@@ -88,7 +88,8 @@ Sauf mention contraire, les cas mobiles fonctionnent **hors connexion** (BR-SYN-
 
 **Variantes**
 - **Remplacement** : le superviseur associe le profil à un autre téléphone, et l'ancien est révoqué (UC-59).
-- **Appareil révoqué ou bloqué** : la connexion est refusée avec le message « Appareil révoqué, contactez votre superviseur ». Les opérations en attente sont quand même envoyées, puis les données locales sont effacées.
+- **Appareil révoqué** : la connexion est refusée avec le message « Appareil révoqué, contactez votre superviseur ». Les opérations en attente sont quand même envoyées, puis les données locales sont effacées.
+- **Appareil bloqué** (blocage temporaire, UC-59) : les sessions sont fermées et la connexion est refusée avec le message « Appareil bloqué, contactez votre superviseur ». Le téléphone reste associé et garde ses données ; après le déblocage, l'utilisateur se reconnecte avec son mot de passe.
 - **Code expiré ou déjà utilisé** : le superviseur en génère un nouveau.
 
 **Règles** : BR-USR-02, BR-USR-06 à 09, BR-USR-11, BR-SYN-04.

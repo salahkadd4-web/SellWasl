@@ -618,19 +618,19 @@ Device
 
 ## Fonctionnalités
 
-- [ ] Enregistrer un appareil
-- [ ] Associer et désassocier appareil / utilisateur
-- [ ] Voir les appareils actifs
-- [ ] Voir la dernière connexion et la dernière synchronisation
-- [ ] Révoquer une session
-- [ ] Bloquer et réactiver un appareil
-- [ ] Forcer une nouvelle authentification
+- [x] Enregistrer un appareil (association par QR code ou code de secours, phase 4)
+- [x] Associer et désassocier appareil / utilisateur
+- [x] Voir les appareils actifs, avec batterie, version et opérations en attente
+- [x] Voir la dernière connexion et la dernière synchronisation *(la date de synchronisation sera remplie par la phase de synchronisation)*
+- [x] Révoquer une session
+- [x] Bloquer et réactiver un appareil
+- [x] Forcer une nouvelle authentification
 - [ ] Vue plateforme des appareils (`/admin/devices`) *(après le MVP)*
 
 **Ajouts phase 0** (UC-59)
 
-- [ ] Changer l'appareil d'un profil (remplacement d'un vendeur), avec un avertissement si l'ancien appareil a des opérations non synchronisées
-- [ ] Envoi régulier, pendant la journée, de la batterie et du nombre d'opérations en attente (BR-JOU-09)
+- [x] Changer l'appareil d'un profil (remplacement d'un vendeur), avec un avertissement si l'ancien appareil a des opérations non synchronisées
+- [x] Envoi régulier, pendant la journée, de la batterie et du nombre d'opérations en attente (BR-JOU-09) ; la position sera envoyée par le téléphone avec la journée de travail
 
 Limite : ce n'est pas un MDM. Cette fonction contrôle l'accès à l'application, pas le téléphone.
 
