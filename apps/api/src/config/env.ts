@@ -10,6 +10,14 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32).optional(),
   /** Dossier des fichiers (imports CSV) en attendant le stockage objet S3 (architecture §13). */
   STORAGE_DIR: z.string().default('storage'),
+  /**
+   * Photos des produits sur Cloudinary : cloudinary://<clé>:<secret>@<cloud>. Absent : les photos
+   * sont gardées dans STORAGE_DIR, sans redimensionnement (développement, tests).
+   */
+  CLOUDINARY_URL: z
+    .string()
+    .regex(/^cloudinary:\/\/[^:]+:[^@]+@[\w-]+$/, 'Format : cloudinary://<clé>:<secret>@<cloud>')
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema> & { JWT_ACCESS_SECRET: string };

@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { ApiClientError, request, setAccessToken, setRefreshHandler } from '@/api/client';
+import { clearCatalogPhotos, useCatalogPhotoSync } from '@/catalog/photos';
 import { useHeartbeat } from '@/device/heartbeat';
 import { type DeviceProfile, secureStorage } from './storage';
 
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deviceLost = useCallback(async (message: string) => {
     await secureStorage.clearAll();
+    clearCatalogPhotos();
     setAccessToken(null);
     setProfile(null);
     setMe(null);
@@ -102,6 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => setRefreshHandler(null);
   }, [deviceLost, sessionClosed]);
+
+  // Photos du catalogue gardées sur le téléphone, mises à jour à chaque session
+  useCatalogPhotoSync(status === 'loggedIn');
 
   // Signal de vie tant qu'une session est ouverte ; il révèle aussi un blocage ou une révocation.
   useHeartbeat(status === 'loggedIn' || status === 'mustChangePassword', (error) => {

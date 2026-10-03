@@ -6,6 +6,7 @@ import type {
   ProductCategoryDto,
   ProductDto,
   ProductRangeDto,
+  PhotoDto,
   ProductVariantDto,
 } from '@sellwasl/validation';
 import Link from 'next/link';
@@ -67,6 +68,7 @@ export default function ProductPage() {
       <CatalogTabs />
       {error && <Alert>{error}</Alert>}
 
+      <Photos product={product} writable={writable} onChanged={setProduct} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Units product={product} writable={writable} onChanged={setProduct} />
         <Flavors product={product} writable={writable} onChanged={setProduct} />
@@ -635,6 +637,122 @@ function Tiers({ product, editable }: { product: ProductDto; editable: boolean }
           <Button type="submit">Ajouter</Button>
         </form>
       )}
+    </Card>
+  );
+}
+
+/** Photos du produit et de ses parfums ; un parfum sans photo affiche celle du produit. */
+function Photos({
+  product,
+  writable,
+  onChanged,
+}: {
+  product: ProductDto;
+  writable: boolean;
+  onChanged: (p: ProductDto) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const flavors = product.variants.filter((v) => !v.isDefault);
+  const items: { key: string; label: string; path: string; photo: PhotoDto | null }[] = [
+    {
+      key: 'product',
+      label: flavors.length > 0 ? 'Produit (par défaut)' : product.name,
+      path: `/products/${product.id}/photo`,
+      photo: product.photo,
+    },
+    ...flavors.map((v) => ({
+      key: v.id,
+      label: v.name,
+      path: `/products/${product.id}/variants/${v.id}/photo`,
+      photo: v.photo,
+    })),
+  ];
+
+  async function upload(path: string, key: string, file: File | undefined) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return setError('Photo trop lourde : 5 Mo au plus.');
+    setError(null);
+    setBusy(key);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      onChanged(await api<ProductDto>('company', path, { method: 'PUT', body: form }));
+    } catch (err) {
+      setError(errorMessage(err, "La photo n'a pas pu être enregistrée."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function remove(path: string, key: string) {
+    if (!confirm('Retirer cette photo ?')) return;
+    setBusy(key);
+    try {
+      onChanged(await api<ProductDto>('company', path, { method: 'DELETE' }));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <h2 className="font-semibold text-text-dark">Photos</h2>
+      <p className="text-xs text-muted">
+        JPEG, PNG ou WebP, 5 Mo au plus. Les téléphones les gardent pour les afficher hors
+        connexion.{flavors.length > 0 && ' Un parfum sans photo affiche celle du produit.'}
+      </p>
+      {error && <Alert>{error}</Alert>}
+      <div className="flex flex-wrap gap-4">
+        {items.map((item) => {
+          const shown = item.photo ?? (item.key !== 'product' ? product.photo : null);
+          return (
+            <div key={item.key} className="flex w-36 flex-col items-center gap-1.5 text-center">
+              <div className="flex size-32 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface">
+                {shown ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={shown.url}
+                    alt={item.label}
+                    className={`size-full object-contain ${item.photo ? '' : 'opacity-40'}`}
+                  />
+                ) : (
+                  <span className="px-2 text-xs text-muted">Pas de photo</span>
+                )}
+              </div>
+              <span className="text-sm text-text-dark">{item.label}</span>
+              {writable && (
+                <span className="flex flex-col gap-1">
+                  <label className="cursor-pointer text-sm font-semibold text-deep-blue">
+                    {busy === item.key ? 'Envoi…' : item.photo ? 'Changer' : 'Ajouter une photo'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={busy !== null}
+                      onChange={(e) => {
+                        void upload(item.path, item.key, e.target.files?.[0]);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {item.photo && (
+                    <button
+                      className="text-sm text-error"
+                      disabled={busy !== null}
+                      onClick={() => void remove(item.path, item.key)}
+                    >
+                      Retirer
+                    </button>
+                  )}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </Card>
   );
 }

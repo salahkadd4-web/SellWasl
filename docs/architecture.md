@@ -450,6 +450,7 @@ Le détail des tables sera dans `database.md`.
 
 ### 15.1 Fichiers
 
+- Photos des produits : **Cloudinary** (`CLOUDINARY_URL`), qui redimensionne et convertit les images à la volée (miniature 160 px, Web 800 px, téléphone 400 px en WebP). Sans cette variable, en développement, les photos sont gardées dans `STORAGE_DIR` et servies par l'API (`/api/v1/media/...`). Le téléphone télécharge toutes les photos du catalogue d'un coup après la connexion et les garde pour les afficher hors connexion.
 - Stockage objet compatible S3. En développement, un service compatible S3 sera ajouté à docker-compose au moment où l'API en aura besoin (l'image Docker gratuite de MinIO n'est plus publiée). Dans le MVP : fichiers CSV importés, exports, logo de l'entreprise pour l'en-tête des bons.
 - Chaque fichier est rangé sous `companies/<company_id>/…`, et n'est accessible que par un lien signé, valable quelques minutes, délivré par l'API après le contrôle des droits.
 

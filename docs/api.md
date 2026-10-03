@@ -156,6 +156,8 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `GET`, `PATCH` | `/products/{id}` | `products.read`, `products.write` |
 | `POST` | `/products/{id}/variants` (parfums), `/products/{id}/units` (conditionnements) | `products.write` — le premier parfum d'un produit qui n'en avait pas reprend son article, avec son stock et son historique ; le nombre d'unités de base d'un conditionnement ne change plus ensuite |
 | `PATCH` | `/products/{id}/variants/{variantId}`, `/products/{id}/units/{unitId}` | `products.write` — nom, référence, activation ; l'unité de base et le dernier parfum actif ne se désactivent pas |
+| `PUT`, `DELETE` | `/products/{id}/photo`, `/products/{id}/variants/{variantId}/photo` | `products.write` — formulaire `file` (JPEG, PNG ou WebP, 5 Mo au plus, type vérifié sur le contenu). `photo` du produit et des parfums : `{ url, thumbUrl }` |
+| `GET` | `/catalog/photos` | `products.read` — toutes les photos du catalogue actif (`productId`, `variantId`, `file`, `url` en 400 px), que le téléphone télécharge d'un coup après la connexion et garde hors connexion ; un fichier modifié change de nom |
 | `GET`, `PUT` | `/products/{id}/prices` | `prices.read`, `prices.update` — grille complète : types de clients × unités × (produit ou parfum à prix propre). Un prix retiré est marqué supprimé, pour que les téléphones le retirent |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/price-tiers` | `prices.read`, `price_tiers.update` — `?productId=` ; seuil sur le total des parfums ou par parfum (BR-CAT-15) |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/bonus-rules` | `prices.read`, `bonuses.update` |

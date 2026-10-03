@@ -1,6 +1,7 @@
 import type {
   BonusRuleDto,
   ImportPreview,
+  PhotoManifest,
   PriceGrid,
   PriceTierDto,
   ProductDto,
@@ -363,5 +364,66 @@ describe('catalogue et prix', () => {
       { variantId: variant(chips, 'Paprika'), unitId: unit(chips, 'carton'), qty: 1 },
     ]);
     expect(sel.body.total).toBe(2 * 900 + 950);
+  });
+
+  it('enregistre la photo d’un produit et d’un parfum, refuse un faux fichier image', async () => {
+    const bimo = product('BIMO');
+    const host = t.url.replace(/\/api\/v1$/, '');
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      'base64',
+    );
+    const send = (path: string, content: Buffer, token = sup) => {
+      const form = new FormData();
+      form.append('file', new Blob([new Uint8Array(content)], { type: 'image/png' }), 'photo.png');
+      return fetch(`${t.url}${path}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+    };
+
+    const fake = await send(
+      `/products/${bimo.id}/photo`,
+      Buffer.from('<html>pas une image</html>'),
+    );
+    expect(fake.status).toBe(422);
+
+    const saved = (await (await send(`/products/${bimo.id}/photo`, png)).json()) as ProductDto;
+    expect(saved.photo?.url).toMatch(/^\/api\/v1\/media\/[0-9a-f-]+\/products\/[0-9a-f-]+\.png$/);
+    // Adresse publique, comme une adresse Cloudinary
+    const image = await fetch(`${host}${saved.photo!.url}`);
+    expect(image.status).toBe(200);
+    expect(image.headers.get('content-type')).toBe('image/png');
+
+    const chocolat = variant(bimo, 'Chocolat');
+    const withFlavor = (await (
+      await send(`/products/${bimo.id}/variants/${chocolat}/photo`, png)
+    ).json()) as ProductDto;
+    expect(withFlavor.variants.find((v) => v.id === chocolat)?.photo).not.toBeNull();
+    expect(withFlavor.variants.find((v) => v.name === 'Fraise')?.photo).toBeNull();
+
+    // Remplacer puis retirer : l'ancien fichier disparaît
+    const replaced = (await (await send(`/products/${bimo.id}/photo`, png)).json()) as ProductDto;
+    expect(replaced.photo!.url).not.toBe(saved.photo!.url);
+    expect((await fetch(`${host}${saved.photo!.url}`)).status).toBe(404);
+    const removed = await call<ProductDto>(t.url, 'DELETE', `/products/${bimo.id}/photo`, {
+      token: sup,
+    });
+    expect(removed.body.photo).toBeNull();
+    expect((await fetch(`${host}${replaced.photo!.url}`)).status).toBe(404);
+
+    const accountant = await webLogin(t.url, 'DISTRI-ORAN', 'A-CPT');
+    expect((await send(`/products/${bimo.id}/photo`, png, accountant)).status).toBe(403);
+
+    // Liste pour le téléphone : la photo du parfum chocolat reste
+    const manifest = await call<PhotoManifest>(t.url, 'GET', '/catalog/photos', { token: sup });
+    expect(manifest.body.photos).toEqual([
+      expect.objectContaining({
+        productId: bimo.id,
+        variantId: chocolat,
+        file: expect.stringMatching(/^[0-9a-f]{20}\.png$/),
+      }),
+    ]);
   });
 });

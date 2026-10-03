@@ -95,6 +95,11 @@ export interface ProductUnitDto {
   isBase: boolean;
   isActive: boolean;
 }
+/** Photo : taille d'affichage et miniature. */
+export interface PhotoDto {
+  url: string;
+  thumbUrl: string;
+}
 export interface ProductVariantDto {
   id: string;
   reference: string;
@@ -102,6 +107,8 @@ export interface ProductVariantDto {
   isDefault: boolean;
   isActive: boolean;
   sortOrder: number;
+  /** Photo propre du parfum ; absente : celle du produit. */
+  photo: PhotoDto | null;
 }
 export interface ProductDto {
   id: string;
@@ -114,6 +121,7 @@ export interface ProductDto {
   /** Tous les articles ; un produit sans parfum n'a que son article par défaut. */
   variants: ProductVariantDto[];
   hasFlavors: boolean;
+  photo: PhotoDto | null;
 }
 
 /** Grille de prix d'un produit : types de clients × unités × (produit ou parfum). */
@@ -252,4 +260,19 @@ export interface SimulatedCart {
   }[];
   unpriced: { productName: string; variantName: string | null; unitName: string; reason: string }[];
   total: number;
+}
+
+/**
+ * Photos du catalogue, à garder sur le téléphone pour un affichage hors connexion.
+ * `file` change quand la photo change : le téléphone ne télécharge que les nouveaux fichiers.
+ */
+export interface PhotoManifest {
+  photos: {
+    productId: string;
+    /** null : photo du produit, utilisée par les parfums qui n'ont pas la leur. */
+    variantId: string | null;
+    file: string;
+    /** Adresse absolue, ou chemin à compléter par l'adresse de l'API (`/api/v1/media/...`). */
+    url: string;
+  }[];
 }

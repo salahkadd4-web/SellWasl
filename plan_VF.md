@@ -697,6 +697,7 @@ Promotion
 - [ ] Promotions complexes (module `COMMERCIAL`) *(après le MVP)*
 - [ ] Disponibilité *(le stock vient avec la phase 17 ; un article sans prix pour un type de client ne lui est pas proposé)*
 - [x] Activation et désactivation (produits, parfums, conditionnements, gammes, catégories)
+- [x] Photos des produits et des parfums (Cloudinary), gardées sur le téléphone pour un affichage hors connexion (ajout du 2026-10-04)
 
 **Ajouts phase 0** (UC-81, UC-83)
 

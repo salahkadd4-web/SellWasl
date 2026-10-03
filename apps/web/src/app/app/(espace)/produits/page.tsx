@@ -146,15 +146,25 @@ export default function ProductsPage() {
               href={`/app/produits/${p.id}`}
               className="flex flex-col gap-1 border-b border-border px-4 py-3 last:border-b-0 hover:bg-surface sm:flex-row sm:items-center sm:justify-between"
             >
-              <span className="flex flex-col">
-                <span className="font-semibold text-text-dark">
-                  {p.name}{' '}
-                  <span className="font-mono text-sm font-normal text-muted">{p.reference}</span>
+              <span className="flex items-center gap-3">
+                <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface">
+                  {p.photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.photo.thumbUrl} alt="" className="size-full object-cover" />
+                  ) : (
+                    <span className="text-lg text-muted">📦</span>
+                  )}
                 </span>
-                <span className="text-sm text-muted">
-                  {p.range.name}
-                  {p.category ? ` · ${p.category.name}` : ''} · {base?.name}
-                  {packagings.map((u) => ` · ${u.name} de ${u.baseQty}`).join('')}
+                <span className="flex flex-col">
+                  <span className="font-semibold text-text-dark">
+                    {p.name}{' '}
+                    <span className="font-mono text-sm font-normal text-muted">{p.reference}</span>
+                  </span>
+                  <span className="text-sm text-muted">
+                    {p.range.name}
+                    {p.category ? ` · ${p.category.name}` : ''} · {base?.name}
+                    {packagings.map((u) => ` · ${u.name} de ${u.baseQty}`).join('')}
+                  </span>
                 </span>
               </span>
               <span className="flex flex-wrap items-center gap-1.5">

@@ -799,6 +799,7 @@ model Product {
   id                      String           @id @db.Uuid
   reference               String
   name                    String
+  photoKey                String?          @map("photo_key")
   isActive                Boolean          @default(true) @map("is_active")
   companyId               String           @map("company_id") @db.Uuid
   rangeId                 String           @map("range_id") @db.Uuid
@@ -832,6 +833,7 @@ model ProductVariant {
   reference               String
   name                    String
   isDefault               Boolean              @default(false) @map("is_default")
+  photoKey                String?              @map("photo_key")
   isActive                Boolean              @default(true) @map("is_active")
   sortOrder               Int                  @default(0) @map("sort_order")
   companyId               String               @map("company_id") @db.Uuid

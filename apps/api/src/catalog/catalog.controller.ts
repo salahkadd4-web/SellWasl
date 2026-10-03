@@ -10,13 +10,17 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   type BonusRuleDto,
   bonusRuleSchema,
   createProductSchema,
   createUnitSchema,
   createVariantSchema,
+  type PhotoManifest,
   type PriceGrid,
   priceGridSchema,
   type PriceTierDto,
@@ -38,6 +42,7 @@ import {
 import { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { MAX_IMAGE_BYTES, type UploadedImage } from '../files/image-storage.service';
 import { CatalogService } from './catalog.service';
 import { PricingService } from './pricing.service';
 
@@ -182,6 +187,54 @@ export class CatalogController {
     @Body(new ZodValidationPipe(updateVariantSchema)) body: Out<typeof updateVariantSchema>,
   ): Promise<ProductDto> {
     return this.catalog.updateVariant(user, id, variantId, body);
+  }
+
+  // Photos (Cloudinary ou disque)
+
+  /** Liste des photos à garder sur le téléphone (hors connexion). */
+  @RequirePermission('products.read')
+  @Get('catalog/photos')
+  photoManifest(): Promise<PhotoManifest> {
+    return this.catalog.photoManifest();
+  }
+
+  @RequirePermission('products.write')
+  @Put('products/:id/photo')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } }))
+  setPhoto(
+    @CurrentUser() user: AuthUser,
+    @Param('id', uuid) id: string,
+    @UploadedFile() file: UploadedImage | undefined,
+  ): Promise<ProductDto> {
+    return this.catalog.setPhoto(user, id, null, file);
+  }
+
+  @RequirePermission('products.write')
+  @Delete('products/:id/photo')
+  removePhoto(@CurrentUser() user: AuthUser, @Param('id', uuid) id: string): Promise<ProductDto> {
+    return this.catalog.setPhoto(user, id, null, null);
+  }
+
+  @RequirePermission('products.write')
+  @Put('products/:id/variants/:variantId/photo')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES, files: 1 } }))
+  setVariantPhoto(
+    @CurrentUser() user: AuthUser,
+    @Param('id', uuid) id: string,
+    @Param('variantId', uuid) variantId: string,
+    @UploadedFile() file: UploadedImage | undefined,
+  ): Promise<ProductDto> {
+    return this.catalog.setPhoto(user, id, variantId, file);
+  }
+
+  @RequirePermission('products.write')
+  @Delete('products/:id/variants/:variantId/photo')
+  removeVariantPhoto(
+    @CurrentUser() user: AuthUser,
+    @Param('id', uuid) id: string,
+    @Param('variantId', uuid) variantId: string,
+  ): Promise<ProductDto> {
+    return this.catalog.setPhoto(user, id, variantId, null);
   }
 
   // Prix, paliers, bonus

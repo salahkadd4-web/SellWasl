@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchHealth } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { syncCatalogPhotos, usePhotoSyncState } from '@/catalog/photos';
 
 type ApiState =
   { kind: 'loading' } | { kind: 'ok'; time: string } | { kind: 'error'; message: string };
@@ -11,6 +12,7 @@ type ApiState =
 export default function HomeScreen() {
   const { me, profile, logout } = useAuth();
   const [api, setApi] = useState<ApiState>({ kind: 'loading' });
+  const photos = usePhotoSyncState();
 
   const check = useCallback(async () => {
     setApi({ kind: 'loading' });
@@ -41,6 +43,27 @@ export default function HomeScreen() {
         {api.kind === 'error' && <Text style={{ color: colors.status.error }}>{api.message}</Text>}
         <Pressable style={styles.secondary} onPress={() => void check()}>
           <Text style={styles.secondaryText}>Réessayer</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Photos du catalogue</Text>
+        <Text style={styles.muted}>
+          {photos.total === 0
+            ? photos.running
+              ? 'Recherche des photos…'
+              : 'Aucune photo dans le catalogue'
+            : `${photos.ready} / ${photos.total} gardées sur le téléphone${photos.running ? ' · téléchargement…' : ''}`}
+        </Text>
+        {photos.lastError ? (
+          <Text style={{ color: colors.status.pending }}>{photos.lastError}</Text>
+        ) : null}
+        <Pressable
+          style={styles.secondary}
+          disabled={photos.running}
+          onPress={() => void syncCatalogPhotos()}
+        >
+          <Text style={styles.secondaryText}>Mettre à jour les photos</Text>
         </Pressable>
       </View>
 

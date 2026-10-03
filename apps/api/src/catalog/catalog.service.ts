@@ -1,5 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type {
+  PhotoManifest,
+  PhotoDto,
   createProductSchema,
   createUnitSchema,
   createVariantSchema,
@@ -14,7 +16,9 @@ import type {
   updateVariantSchema,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
+import { createHash } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
+import { ImageStorageService, type UploadedImage } from '../files/image-storage.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
@@ -39,7 +43,10 @@ const rule = (message: string, details?: Record<string, unknown>) =>
 const duplicate = (field: string, message: string) =>
   new ApiError(HttpStatus.CONFLICT, 'DUPLICATE', message, { field });
 
-export function toProductDto(p: ProductRow): ProductDto {
+export function toProductDto(
+  p: ProductRow,
+  photo: (key: string | null) => PhotoDto | null = () => null,
+): ProductDto {
   return {
     id: p.id,
     reference: p.reference,
@@ -61,8 +68,10 @@ export function toProductDto(p: ProductRow): ProductDto {
       isDefault: v.isDefault,
       isActive: v.isActive,
       sortOrder: v.sortOrder,
+      photo: photo(v.photoKey),
     })),
     hasFlavors: p.productVariants.some((v) => !v.isDefault),
+    photo: photo(p.photoKey),
   };
 }
 
@@ -72,7 +81,12 @@ export class CatalogService {
   constructor(
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly audit: AuditService,
+    private readonly images: ImageStorageService,
   ) {}
+
+  private dto(p: ProductRow): ProductDto {
+    return toProductDto(p, (key) => this.images.urls(key));
+  }
 
   private log(actor: AuthUser, action: string, entity: string, entityId: string, after?: unknown) {
     return this.audit.write({
@@ -182,7 +196,7 @@ export class CatalogService {
       include: productInclude,
       orderBy: { name: 'asc' },
     });
-    return rows.map(toProductDto);
+    return rows.map((p) => this.dto(p));
   }
 
   async find(id: string): Promise<ProductRow> {
@@ -195,7 +209,7 @@ export class CatalogService {
   }
 
   async get(id: string): Promise<ProductDto> {
-    return toProductDto(await this.find(id));
+    return this.dto(await this.find(id));
   }
 
   /** Une référence identifie un seul produit ou parfum dans l'entreprise. */
@@ -473,6 +487,61 @@ export class CatalogService {
       data: { ...input, version: { increment: 1 } },
     });
     await this.log(actor, 'product_variant.update', 'ProductVariant', variantId, input);
+    return this.get(productId);
+  }
+
+  /** Photos des produits et parfums actifs, pour le téléchargement en bloc du téléphone. */
+  async photoManifest(): Promise<PhotoManifest> {
+    const products = await this.db.product.findMany({
+      where: { deletedAt: null, isActive: true },
+      include: { productVariants: { where: { deletedAt: null, isActive: true } } },
+    });
+    const entry = (productId: string, variantId: string | null, key: string | null) => {
+      const urls = this.images.urls(key);
+      if (!key || !urls) return [];
+      // Cloudinary livre du WebP ; une photo locale garde son format
+      const ext = key.startsWith('local:') ? key.slice(key.lastIndexOf('.') + 1) : 'webp';
+      const file = `${createHash('sha1').update(key).digest('hex').slice(0, 20)}.${ext}`;
+      return [{ productId, variantId, file, url: urls.mobileUrl }];
+    };
+    return {
+      photos: products.flatMap((p) => [
+        ...entry(p.id, null, p.photoKey),
+        ...p.productVariants.flatMap((v) => entry(p.id, v.id, v.photoKey)),
+      ]),
+    };
+  }
+
+  // Photos ---------------------------------------------------------------------------------------
+
+  /**
+   * Photo du produit, ou d'un parfum (`variantId`). L'ancienne photo est supprimée après
+   * l'enregistrement de la nouvelle ; `file` absent : la photo est retirée.
+   */
+  async setPhoto(
+    actor: AuthUser,
+    productId: string,
+    variantId: string | null,
+    file: UploadedImage | undefined | null,
+  ): Promise<ProductDto> {
+    const product = await this.find(productId);
+    const variant = variantId ? product.productVariants.find((v) => v.id === variantId) : null;
+    if (variantId && (!variant || variant.isDefault)) throw notFound('Parfum introuvable.');
+    const previous = variant ? variant.photoKey : product.photoKey;
+    const photoKey =
+      file === null
+        ? null
+        : await this.images.save(actor.companyId, variant ? 'flavors' : 'products', file);
+    const data = { photoKey, version: { increment: 1 } };
+    if (variant) await this.db.productVariant.update({ where: { id: variant.id }, data });
+    else await this.db.product.update({ where: { id: productId }, data });
+    await this.log(
+      actor,
+      photoKey ? 'product.photo.set' : 'product.photo.remove',
+      variant ? 'ProductVariant' : 'Product',
+      variant?.id ?? productId,
+    );
+    await this.images.remove(previous);
     return this.get(productId);
   }
 }
