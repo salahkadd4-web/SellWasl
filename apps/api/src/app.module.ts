@@ -11,6 +11,7 @@ import { HttpExceptionFilter } from './common/http-exception.filter';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
 import { ModulesModule } from './modules/modules.module';
+import { CatalogModule } from './catalog/catalog.module';
 import { CustomersModule } from './customers/customers.module';
 import { AdminModule } from './settings/admin.module';
 import { TenancyModule } from './tenancy/tenancy.module';
@@ -51,6 +52,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     AdminModule,
     CustomersModule,
+    CatalogModule,
     HealthModule,
   ],
   providers: [

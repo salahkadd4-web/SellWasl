@@ -310,11 +310,10 @@ describe('clients', () => {
     const preview = (await upload.json()) as ImportPreview;
     expect(preview).toMatchObject({ status: 'PREVIEW', totalRows: 5, validRows: 2 });
     expect(preview.errors.map((e) => e.line)).toEqual([4, 5, 6]);
-    expect(preview.sample[0]).toMatchObject({
-      name: 'Alimentation Import',
-      placement: '3101 · Partie 1',
-    });
-    expect(preview.sample[1]!.name).toBe('Supérette "Le Phare"');
+    expect(preview.columns).toEqual(['Nom', 'Code', 'Type', 'Position', 'Partie']);
+    expect(preview.sample[0]!.values[0]).toBe('Alimentation Import');
+    expect(preview.sample[0]!.values[4]).toBe('3101 · Partie 1');
+    expect(preview.sample[1]!.values[0]).toBe('Supérette "Le Phare"');
 
     // Rien n'est importé avant la confirmation
     const before = await call<Page<CustomerDto>>(t.url, 'GET', '/customers?q=IMP-', {

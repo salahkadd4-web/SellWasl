@@ -1,206 +1,28 @@
 'use client';
 
-import type { ImportPreview } from '@sellwasl/validation';
-import Link from 'next/link';
-import { useState } from 'react';
-import { Alert, Badge, Button, Card, PageTitle } from '@/components/ui';
-import { api, errorMessage, getAccessToken } from '@/lib/api';
+import { ImportPanel } from '@/components/import-panel';
 
-/** Import CSV des clients (UC-83, BR-IO-01) : aperçu, erreurs, puis confirmation. */
+const Col = ({ children }: { children: string }) => <span className="font-mono">{children}</span>;
+
+/** Import CSV des clients (UC-83, BR-IO-01). */
 export default function CustomerImportPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function upload() {
-    if (!file) return;
-    setError(null);
-    setBusy(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      setPreview(await api<ImportPreview>('company', '/imports', { method: 'POST', body: form }));
-    } catch (err) {
-      setError(errorMessage(err, 'Lecture du fichier impossible.'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirmImport() {
-    if (!preview) return;
-    setError(null);
-    setBusy(true);
-    try {
-      setPreview(
-        await api<ImportPreview>('company', `/imports/${preview.id}/confirm`, { method: 'POST' }),
-      );
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function downloadTemplate() {
-    // Le modèle demande une session : téléchargement par l'API, puis enregistrement local
-    const response = await fetch('/api/v1/imports/templates/customers', {
-      headers: { Authorization: `Bearer ${getAccessToken('company') ?? ''}` },
-    });
-    if (!response.ok) {
-      setError('Téléchargement du modèle impossible.');
-      return;
-    }
-    const url = URL.createObjectURL(await response.blob());
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'modele-clients.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  const imported = preview?.status === 'IMPORTED';
-
   return (
-    <div className="flex flex-col gap-4">
-      <PageTitle
-        title="Importer des clients"
-        subtitle="Fichier CSV exporté d'Excel, séparateur « ; » ou « , », 5 Mo et 10 000 lignes au plus."
-        action={
-          <Link href="/app/clients" className="font-semibold text-deep-blue">
-            ← Retour aux clients
-          </Link>
-        }
-      />
-
-      <Card className="flex flex-col gap-3">
-        <p className="text-sm text-text-dark">
-          Colonnes : <span className="font-mono">nom</span> et{' '}
-          <span className="font-mono">type</span> (obligatoires),{' '}
-          <span className="font-mono">code</span>, <span className="font-mono">telephone</span>,{' '}
-          <span className="font-mono">adresse</span>, <span className="font-mono">latitude</span>,{' '}
-          <span className="font-mono">longitude</span>, <span className="font-mono">frequence</span>{' '}
-          (1, 2 ou 4 semaines), <span className="font-mono">credit_autorise</span> (oui ou non),{' '}
-          <span className="font-mono">plafond_credit</span> (DA). Un client sans position, ou dont
-          la position n'est dans aucune partie, est importé « hors partie » et apparaît dans les
-          clients à revoir.
+    <ImportPanel
+      kind="CUSTOMERS"
+      title="Importer des clients"
+      backHref="/app/clients"
+      backLabel="Retour aux clients"
+      templateName="modele-clients.csv"
+      unit="client(s)"
+      help={
+        <p>
+          Colonnes : <Col>nom</Col> et <Col>type</Col> (obligatoires), <Col>code</Col>,{' '}
+          <Col>telephone</Col>, <Col>adresse</Col>, <Col>latitude</Col>, <Col>longitude</Col>,{' '}
+          <Col>frequence</Col> (1, 2 ou 4 semaines), <Col>credit_autorise</Col> (oui ou non),{' '}
+          <Col>plafond_credit</Col> (DA). Un client sans position, ou dont la position n'est dans
+          aucune partie, est importé « hors partie » et apparaît dans les clients à revoir.
         </p>
-        <div>
-          <Button variant="secondary" onClick={() => void downloadTemplate()}>
-            Télécharger le modèle
-          </Button>
-        </div>
-        {!imported && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              aria-label="Fichier CSV"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setPreview(null);
-              }}
-              className="text-sm file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-surface file:px-4 file:font-semibold file:text-primary"
-            />
-            <Button onClick={() => void upload()} disabled={!file || busy}>
-              {busy && !preview ? 'Lecture…' : 'Vérifier le fichier'}
-            </Button>
-          </div>
-        )}
-      </Card>
-
-      {error && <Alert>{error}</Alert>}
-
-      {preview && (
-        <Card className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-text-dark">{preview.filename}</span>
-            <Badge>{preview.totalRows} ligne(s)</Badge>
-            <Badge tone="success">{preview.validRows} valide(s)</Badge>
-            {preview.errors.length > 0 && (
-              <Badge tone="danger">{preview.errors.length} en erreur</Badge>
-            )}
-          </div>
-
-          {imported ? (
-            <p className="rounded-xl border border-synced/30 bg-synced/10 p-3 text-sm text-synced">
-              {preview.importedRows} client(s) importé(s).{' '}
-              <Link href="/app/clients" className="font-semibold underline">
-                Voir les clients
-              </Link>
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted">
-                Rien n'est encore importé. Seules les lignes valides le seront ; corrigez les autres
-                dans le fichier pour les importer ensuite.
-              </p>
-              <div>
-                <Button
-                  onClick={() => void confirmImport()}
-                  disabled={busy || preview.validRows === 0}
-                >
-                  {busy ? 'Import…' : `Importer ${preview.validRows} client(s)`}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {preview.errors.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <h2 className="font-semibold text-text-dark">Lignes en erreur</h2>
-              <div className="max-h-72 overflow-y-auto rounded-xl border border-border">
-                {preview.errors.map((e) => (
-                  <p
-                    key={e.line}
-                    className="border-b border-border px-3 py-2 text-sm last:border-0"
-                  >
-                    <span className="font-mono text-muted">Ligne {e.line}</span> · {e.message}
-                  </p>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {preview.sample.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <h2 className="font-semibold text-text-dark">
-                Aperçu{' '}
-                {preview.validRows > preview.sample.length
-                  ? `(${preview.sample.length} premières lignes)`
-                  : ''}
-              </h2>
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-surface text-muted">
-                    <tr>
-                      <th className="px-3 py-2 font-medium">Ligne</th>
-                      <th className="px-3 py-2 font-medium">Nom</th>
-                      <th className="px-3 py-2 font-medium">Type</th>
-                      <th className="px-3 py-2 font-medium">Position</th>
-                      <th className="px-3 py-2 font-medium">Partie</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.sample.map((r) => (
-                      <tr key={r.line} className="border-t border-border">
-                        <td className="px-3 py-2 font-mono text-muted">{r.line}</td>
-                        <td className="px-3 py-2">
-                          {r.name} {r.code && <span className="text-muted">({r.code})</span>}
-                        </td>
-                        <td className="px-3 py-2">{r.customerType}</td>
-                        <td className="px-3 py-2">{r.position ?? '—'}</td>
-                        <td className="px-3 py-2">{r.placement}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-        </Card>
-      )}
-    </div>
+      }
+    />
   );
 }

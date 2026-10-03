@@ -690,31 +690,31 @@ Promotion
 
 ## Tâches
 
-- [ ] Catalogue (CRUD)
-- [ ] Catégories
-- [ ] Références et unités
-- [ ] Prix TTC ; taxes et facturation fiscale *(après le MVP)*
+- [x] Catalogue (CRUD) ; supprimer = désactiver
+- [x] Catégories
+- [x] Références et unités
+- [x] Prix TTC (DA) ; taxes et facturation fiscale *(après le MVP)*
 - [ ] Promotions complexes (module `COMMERCIAL`) *(après le MVP)*
-- [ ] Disponibilité
-- [ ] Activation et désactivation
+- [ ] Disponibilité *(le stock vient avec la phase 17 ; un article sans prix pour un type de client ne lui est pas proposé)*
+- [x] Activation et désactivation (produits, parfums, conditionnements, gammes, catégories)
 
 **Ajouts phase 0** (UC-81, UC-83)
 
-- [ ] Gammes (ex. Bimo), qui servent de base aux objectifs (BR-CAT-01)
-- [ ] Unité de base et conditionnements convertibles : 1 carton = 20 triplettes (BR-CAT-01, BR-CAT-02)
-- [ ] Types de clients, et prix par type de client et par unité (BR-CAT-03, BR-CAT-04)
-- [ ] Paliers de quantité (BR-CAT-05)
-- [ ] Règles de bonus cumulatives « pour Q de X, N de Y offert », avec dates de validité (BR-CAT-06, BR-CAT-07)
-- [ ] Calcul des prix, paliers et bonus dans `packages/business-rules`, testé avec les exemples de `docs/business-rules.md` §22
-- [ ] Import CSV des produits, parfums, conditionnements et prix (BR-IO-02)
+- [x] Gammes (ex. Bimo), qui servent de base aux objectifs (BR-CAT-01)
+- [x] Unité de base et conditionnements convertibles : 1 carton = 20 triplettes (BR-CAT-01, BR-CAT-02)
+- [x] Types de clients, et prix par type de client et par unité (BR-CAT-03, BR-CAT-04)
+- [x] Paliers de quantité (BR-CAT-05)
+- [x] Règles de bonus cumulatives « pour Q de X, N de Y offert », avec dates de validité (BR-CAT-06, BR-CAT-07)
+- [x] Calcul des prix, paliers et bonus dans `packages/business-rules`, testé avec les exemples de `docs/business-rules.md` §22
+- [x] Import CSV des produits, parfums, conditionnements et prix (BR-IO-02)
 
 **Ajouts du 2026-10-02** (parfums)
 
-- [ ] Parfums d'un produit, ou un produit distinct par parfum, au choix du superviseur ou de l'admin (BR-CAT-12)
-- [ ] Stock, quotas et lignes tenus par article : parfum, ou produit sans parfum (BR-CAT-13)
-- [ ] Prix propre d'un parfum, qui remplace le prix du produit (BR-CAT-14)
-- [ ] Paliers et bonus calculés sur le total des parfums ; choix du parfum offert (BR-CAT-15)
-- [ ] Saisie d'une quantité par parfum dans la commande et la vente (BR-CAT-16)
+- [x] Parfums d'un produit, ou un produit distinct par parfum, au choix du superviseur ou de l'admin (BR-CAT-12)
+- [x] Stock, quotas et lignes tenus par article : parfum, ou produit sans parfum (BR-CAT-13)
+- [x] Prix propre d'un parfum, qui remplace le prix du produit (BR-CAT-14)
+- [x] Paliers et bonus calculés sur le total des parfums ; choix du parfum offert (BR-CAT-15) — et simulateur de panier sur le Web
+- [ ] Saisie d'une quantité par parfum dans la commande et la vente (BR-CAT-16) *(écran de commande, phases 15 et 16 ; le calcul est prêt)*
 
 ---
 

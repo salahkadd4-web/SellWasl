@@ -10,10 +10,12 @@ import { FileStorageService } from '../files/file-storage.service';
 import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { decodeCsv, parseCsv } from './csv';
+import { type CheckedImport, MAX_ROWS, SAMPLE_SIZE } from './import-types';
+import { ProductImportService } from './product-import.service';
+
+export type ImportKindValue = 'CUSTOMERS' | 'PRODUCTS';
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
-const MAX_ROWS = 10_000;
-const SAMPLE_SIZE = 20;
 
 /** Colonnes du modèle d'import des clients (BR-IO-01). */
 export const CUSTOMER_COLUMNS = [
@@ -94,6 +96,7 @@ export class ImportsService {
     private readonly audit: AuditService,
     private readonly files: FileStorageService,
     private readonly placement: PlacementService,
+    private readonly products: ProductImportService,
   ) {}
 
   /** Lit et vérifie chaque ligne ; les lignes en erreur sont listées avec leur motif. */
@@ -234,7 +237,7 @@ export class ImportsService {
 
   private toPreview(
     job: Prisma.ImportJobGetPayload<{ include: { file: true } }>,
-    checked: Checked | null,
+    checked: CheckedImport | null,
   ): ImportPreview {
     const stored = (job.errors ?? []) as { line: number; message: string }[];
     return {
@@ -243,27 +246,72 @@ export class ImportsService {
       status: job.status,
       filename: job.file.filename,
       totalRows: job.totalRows,
-      validRows: checked ? checked.valid.length : job.totalRows - stored.length,
+      validRows: checked ? checked.validRows : job.totalRows - stored.length,
       importedRows: job.importedRows,
       errors: stored,
-      sample: (checked?.valid ?? []).slice(0, SAMPLE_SIZE).map((r) => ({
+      columns: checked?.columns ?? [],
+      sample: checked?.sample ?? [],
+    };
+  }
+
+  /** Vérification d'un fichier selon son type. */
+  private async checkFile(kind: ImportKindValue, content: Buffer): Promise<CheckedImport> {
+    if (kind === 'PRODUCTS') return this.products.check(content);
+    const checked = await this.check(content);
+    return {
+      totalRows: checked.totalRows,
+      validRows: checked.valid.length,
+      errors: checked.errors,
+      columns: ['Nom', 'Code', 'Type', 'Position', 'Partie'],
+      sample: checked.valid.slice(0, SAMPLE_SIZE).map((r) => ({
         line: r.line,
-        name: r.name,
-        code: r.code,
-        customerType: r.customerTypeName,
-        position:
-          r.latitude !== null && r.longitude !== null ? `${r.latitude}, ${r.longitude}` : null,
-        placement: r.placement,
+        values: [
+          r.name,
+          r.code ?? '',
+          r.customerTypeName,
+          r.latitude !== null && r.longitude !== null ? `${r.latitude}, ${r.longitude}` : '—',
+          r.placement,
+        ],
       })),
+      apply: async (tx, actor) => {
+        const calendar = await this.placement.calendar();
+        for (let i = 0; i < checked.valid.length; i += 1000) {
+          await tx.customer.createMany({
+            data: checked.valid.slice(i, i + 1000).map((r) => ({
+              id: uuidv7(),
+              companyId: actor.companyId,
+              code: r.code,
+              name: r.name,
+              phone: r.phone,
+              address: r.address,
+              latitude: r.latitude,
+              longitude: r.longitude,
+              customerTypeId: r.customerTypeId,
+              territoryId: r.territoryId,
+              partId: r.partId,
+              frequency: r.frequency,
+              referenceDate: this.placement.referenceDate(calendar, r.partId),
+              isCreditAllowed: r.isCreditAllowed,
+              creditLimitAmount: BigInt(r.creditLimitAmount),
+              createdByUserId: actor.userId,
+            })),
+          });
+        }
+        return checked.valid.length;
+      },
     };
   }
 
   /** Étape 1 : dépôt du fichier et aperçu, sans rien importer. */
-  async preview(actor: AuthUser, file: UploadedCsv | undefined): Promise<ImportPreview> {
+  async preview(
+    actor: AuthUser,
+    kind: ImportKindValue,
+    file: UploadedCsv | undefined,
+  ): Promise<ImportPreview> {
     if (!file || file.size === 0) {
       throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choisissez un fichier CSV.');
     }
-    const checked = await this.check(file.buffer);
+    const checked = await this.checkFile(kind, file.buffer);
     const fileId = uuidv7();
     const storageKey = `${actor.companyId}/imports/${fileId}.csv`;
     await this.files.put(storageKey, file.buffer);
@@ -284,7 +332,7 @@ export class ImportsService {
         data: {
           id: uuidv7(),
           companyId: actor.companyId,
-          kind: 'CUSTOMERS',
+          kind,
           totalRows: checked.totalRows,
           errors: checked.errors,
           createdByUserId: actor.userId,
@@ -315,8 +363,7 @@ export class ImportsService {
     if (job.status !== 'PREVIEW') {
       throw new ApiError(HttpStatus.CONFLICT, 'INVALID_STATE', 'Cet import est déjà terminé.');
     }
-    const checked = await this.check(await this.files.get(job.file.storageKey));
-    const calendar = await this.placement.calendar();
+    const checked = await this.checkFile(job.kind, await this.files.get(job.file.storageKey));
     const updated = await this.db.$transaction(
       async (tx) => {
         // Un double clic ne doit pas importer deux fois
@@ -327,43 +374,22 @@ export class ImportsService {
         if (claimed.count === 0) {
           throw new ApiError(HttpStatus.CONFLICT, 'INVALID_STATE', 'Cet import est déjà terminé.');
         }
-        for (let i = 0; i < checked.valid.length; i += 1000) {
-          await tx.customer.createMany({
-            data: checked.valid.slice(i, i + 1000).map((r) => ({
-              id: uuidv7(),
-              companyId: actor.companyId,
-              code: r.code,
-              name: r.name,
-              phone: r.phone,
-              address: r.address,
-              latitude: r.latitude,
-              longitude: r.longitude,
-              customerTypeId: r.customerTypeId,
-              territoryId: r.territoryId,
-              partId: r.partId,
-              frequency: r.frequency,
-              referenceDate: this.placement.referenceDate(calendar, r.partId),
-              isCreditAllowed: r.isCreditAllowed,
-              creditLimitAmount: BigInt(r.creditLimitAmount),
-              createdByUserId: actor.userId,
-            })),
-          });
-        }
+        const imported = await checked.apply(tx as unknown as Prisma.TransactionClient, actor);
         await this.audit.write(
           {
             companyId: actor.companyId,
             actorUserId: actor.userId,
-            action: 'import.customers',
+            action: job.kind === 'PRODUCTS' ? 'import.products' : 'import.customers',
             entity: 'ImportJob',
             entityId: id,
-            after: { imported: checked.valid.length, errors: checked.errors.length },
+            after: { imported, errors: checked.errors.length },
           },
           tx,
         );
         return tx.importJob.update({
           where: { id },
           data: {
-            importedRows: checked.valid.length,
+            importedRows: imported,
             totalRows: checked.totalRows,
             errors: checked.errors,
           },

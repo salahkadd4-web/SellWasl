@@ -164,13 +164,8 @@ export interface ImportPreview {
   validRows: number;
   importedRows: number;
   errors: { line: number; message: string }[];
+  /** Colonnes de l'aperçu. */
+  columns: string[];
   /** Premières lignes valides, telles qu'elles seront importées. */
-  sample: {
-    line: number;
-    name: string;
-    code: string | null;
-    customerType: string;
-    position: string | null;
-    placement: string;
-  }[];
+  sample: { line: number; values: string[] }[];
 }

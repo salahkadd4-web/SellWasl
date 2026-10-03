@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Header,
@@ -11,6 +12,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { ImportPreview } from '@sellwasl/validation';
+import { z } from 'zod';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
 import {
   CUSTOMER_TEMPLATE,
@@ -18,20 +21,35 @@ import {
   MAX_IMPORT_BYTES,
   type UploadedCsv,
 } from './imports.service';
+import { ProductImportService } from './product-import.service';
 
-/** Import CSV des clients (docs/api.md §8.1). Les produits viendront avec la phase 12. */
+const kindSchema = z.object({ kind: z.enum(['CUSTOMERS', 'PRODUCTS']).default('CUSTOMERS') });
+
+/** Import CSV des clients et des produits (docs/api.md §8.1). */
 @Controller('imports')
 export class ImportsController {
-  constructor(private readonly imports: ImportsService) {}
+  constructor(
+    private readonly imports: ImportsService,
+    private readonly products: ProductImportService,
+  ) {}
 
   @RequirePermission('imports.run')
   @Get('templates/customers')
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header('Content-Disposition', 'attachment; filename="modele-clients.csv"')
-  template(): string {
+  customerTemplate(): string {
     return CUSTOMER_TEMPLATE;
   }
 
+  @RequirePermission('imports.run')
+  @Get('templates/products')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="modele-produits.csv"')
+  productTemplate(): Promise<string> {
+    return this.products.template();
+  }
+
+  /** Champ `kind` du formulaire : CUSTOMERS (par défaut) ou PRODUCTS. */
   @RequirePermission('imports.run')
   @Post()
   @HttpCode(201)
@@ -39,8 +57,9 @@ export class ImportsController {
   upload(
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: UploadedCsv | undefined,
+    @Body(new ZodValidationPipe(kindSchema)) body: z.output<typeof kindSchema>,
   ): Promise<ImportPreview> {
-    return this.imports.preview(user, file);
+    return this.imports.preview(user, body.kind, file);
   }
 
   @RequirePermission('imports.run')

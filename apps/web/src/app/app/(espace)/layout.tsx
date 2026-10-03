@@ -10,6 +10,7 @@ import { CompanyAuth } from '@/lib/auth';
 const NAV = [
   { href: '/app', label: 'Accueil', permission: null },
   { href: '/app/clients', label: 'Clients', permission: 'customers.read' },
+  { href: '/app/produits', label: 'Produits', permission: 'products.read' },
   { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
   { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },

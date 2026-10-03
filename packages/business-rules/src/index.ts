@@ -4,3 +4,4 @@ export * from './units';
 export * from './permissions';
 export * from './geo';
 export * from './planning';
+export * from './pricing';

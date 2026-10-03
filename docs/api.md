@@ -154,9 +154,10 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `GET`, `POST`, `PATCH` | `/product-ranges`, `/product-categories` | `products.read`, `products.write` |
 | `GET`, `POST` | `/products` | `products.read`, `products.write` |
 | `GET`, `PATCH` | `/products/{id}` | `products.read`, `products.write` |
-| `GET`, `POST`, `PATCH` | `/products/{id}/variants` (parfums), `/products/{id}/units` | `products.read`, `products.write` |
-| `GET`, `PUT` | `/products/{id}/prices` | `prices.read`, `prices.update` — grille complète : types de clients × unités × parfums |
-| `GET`, `POST`, `PATCH`, `DELETE` | `/price-tiers` | `prices.read`, `price_tiers.update` |
+| `POST` | `/products/{id}/variants` (parfums), `/products/{id}/units` (conditionnements) | `products.write` — le premier parfum d'un produit qui n'en avait pas reprend son article, avec son stock et son historique ; le nombre d'unités de base d'un conditionnement ne change plus ensuite |
+| `PATCH` | `/products/{id}/variants/{variantId}`, `/products/{id}/units/{unitId}` | `products.write` — nom, référence, activation ; l'unité de base et le dernier parfum actif ne se désactivent pas |
+| `GET`, `PUT` | `/products/{id}/prices` | `prices.read`, `prices.update` — grille complète : types de clients × unités × (produit ou parfum à prix propre). Un prix retiré est marqué supprimé, pour que les téléphones le retirent |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/price-tiers` | `prices.read`, `price_tiers.update` — `?productId=` ; seuil sur le total des parfums ou par parfum (BR-CAT-15) |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/bonus-rules` | `prices.read`, `bonuses.update` |
 | `POST` | `/pricing/simulate` | `prices.read` — calcule un panier (prix, paliers, bonus) avec `packages/business-rules`, pour vérifier une grille avant de la publier |
 
@@ -365,9 +366,11 @@ Les numéros (commande, bon, reçu) sont fournis par le téléphone, au format d
 3. GET  /imports/{id}         → résultat
 ```
 
-Fichier limité à 5 Mo et 10 000 lignes. Les modèles de fichiers CSV sont téléchargeables sur `GET /imports/templates/{type}` (`customers` ; `products` avec la phase 12). Permission : `imports.run`.
+Fichier limité à 5 Mo et 10 000 lignes. Le champ `kind` du formulaire vaut `CUSTOMERS` (par défaut) ou `PRODUCTS`. Les modèles de fichiers CSV sont téléchargeables sur `GET /imports/templates/{customers|products}`. Permission : `imports.run`.
 
 Colonnes du fichier des clients : `code`, `nom`*, `telephone`, `adresse`, `type`* (code ou nom du type), `latitude`, `longitude` (degrés décimaux, virgule acceptée), `frequence` (1, 2 ou 4 semaines), `credit_autorise` (oui ou non), `plafond_credit` (DA). Les en-têtes acceptent accents et majuscules. Un client sans position, ou dont la position est dans aucune ou plusieurs parties, est importé hors partie et rejoint les clients à revoir. Le fichier est vérifié de nouveau à la confirmation.
+
+Fichier des produits : une ligne par produit (`reference_produit`*, `nom_produit`*, `gamme`*, `categorie`, `unite_base`*, `conditionnements` au format `carton=24|pack=6`), puis une ligne par parfum avec la même `reference_produit`, `reference_parfum` et `nom_parfum`. Prix en DA dans les colonnes `prix_<TYPE>_<unité>` : sur la ligne du produit, son prix ; sur la ligne d'un parfum, son prix propre (vide : prix du produit). Une gamme ou une catégorie inconnue est créée. Un produit dont une ligne est en erreur n'est pas importé ; l'import ne modifie pas un produit existant.
 
 ### 8.2 Exports CSV (BR-IO-03)
 
