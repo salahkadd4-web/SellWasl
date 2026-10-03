@@ -17,7 +17,10 @@
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @sellwasl/api prisma:migrate",
     "db:generate": "pnpm --filter @sellwasl/api prisma:generate",
-    "dev:mobile": "pnpm --filter @sellwasl/mobile dev"
+    "dev:mobile": "pnpm --filter @sellwasl/mobile dev",
+    "db:seed": "pnpm --filter @sellwasl/api prisma:seed",
+    "db:reset": "pnpm --filter @sellwasl/api prisma:reset",
+    "db:studio": "pnpm --filter @sellwasl/api prisma:studio"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

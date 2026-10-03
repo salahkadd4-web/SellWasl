@@ -6,17 +6,20 @@
     "build": "pnpm prisma:generate && nest build",
     "dev": "prisma generate && nest start --watch",
     "start": "node dist/main.js",
-    "typecheck": "prisma generate && tsc --noEmit",
+    "typecheck": "prisma generate && tsc --noEmit && tsc --noEmit -p prisma/tsconfig.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev && prisma generate",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "prisma db seed",
+    "prisma:reset": "prisma migrate reset --force && prisma generate && prisma db seed"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
+    "@node-rs/argon2": "^2.2.1",
     "@prisma/adapter-pg": "~7.10.0",
     "@prisma/client": "~7.10.0",
     "@sellwasl/business-rules": "workspace:*",
@@ -37,6 +40,7 @@
     "dotenv": "^17.2.2",
     "pino-pretty": "^13.1.1",
     "prisma": "~7.10.0",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3"
   }
 }

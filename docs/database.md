@@ -405,9 +405,11 @@ Deux entreprises, pour tester l'isolation dès la phase 3 (plan, phase 3) :
 | Catalogue | Thon tomate, thon à l'huile, biscuit Bimo (chocolat, fraise, pistache avec prix propre) | Mêmes produits |
 | Règles | Paliers et bonus des exemples chiffrés de `business-rules.md` §22 | Idem |
 | Stock | Un dépôt, un camion | Un dépôt, deux camions |
-| Clients | 30 par secteur, avec positions dans les parties, dont 2 hors partie | Idem |
+| Clients | 30 par secteur dans les parties (5 par partie), plus 2 hors partie | Idem |
 
-Le seed ne s'exécute jamais en production (plan, règle de développement 16).
+Le seed ne s'exécute jamais en production (plan, règle de développement 16). Il est dans `apps/api/prisma/seed.ts` et respecte les invariants du §16 : le stock de départ passe par des mouvements (entrée au dépôt, transfert vers les camions), la dette par une écriture.
+
+**Mise en œuvre (phase 3, 2026-10-03)** : le schéma est dans `apps/api/prisma/schema.prisma` (61 tables). Ce que Prisma ne sait pas exprimer est dans la migration `sync_triggers_and_checks` : séquence `sync_change_seq` et triggers des 38 tables synchronisées, blocage des modifications sur les 4 tables en ajout seul, 24 contraintes `CHECK`. Les unicités avec une colonne facultative (prix, paliers) sont deux index uniques partiels plutôt que `NULLS NOT DISTINCT`.
 
 ---
 

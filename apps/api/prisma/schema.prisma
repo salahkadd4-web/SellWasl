@@ -1,11 +1,21 @@
 // Schéma PostgreSQL de SellWasl — voir docs/database.md.
-// Phase 2 : socle minimal pour vérifier l'accès à la base.
-// Phase 3 : schéma complet du MVP.
+// Généré à partir de la spécification de la phase 3, puis maintenu à la main.
+//
+// Conventions (docs/database.md §1) :
+// - id UUID v7 généré par l'application ; tables et colonnes en snake_case ;
+// - montants en dinars entiers (BigInt), quantités en unité de base (Int) ;
+// - tables S (synchronisées) : deleted_at, version, change_seq, created_by_user_id,
+//   created_by_device_id. change_seq et version sont tenus par un trigger PostgreSQL
+//   (migration « sync_triggers ») ;
+// - tables T (créées par le téléphone) : occurred_at en plus.
+//
+// Contraintes CHECK, triggers et droits de l'audit : voir les migrations SQL.
 
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "cjs"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -26,15 +36,1945 @@ enum CompanyStatus {
   DELETED
 }
 
+enum PlatformRole {
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ModuleCode {
+  PRE_SALES
+  DELIVERY
+  CASH_VAN
+  WAREHOUSE
+  ANALYTICS
+}
+
+enum ModuleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum RoleCode {
+  COMPANY_ADMIN
+  SUPERVISEUR
+  COMPTABLE
+  PRE_VENDEUR
+  VENDEUR_CASH_VAN
+  LIVREUR
+  MAGASINIER
+}
+
+enum Channel {
+  WEB
+  MOBILE
+}
+
+enum PermissionScope {
+  PLATFORM
+  COMPANY
+}
+
+enum DeviceStatus {
+  ACTIVE
+  REVOKED
+  BLOCKED
+}
+
+enum ReasonKind {
+  NO_ORDER
+  DELIVERY_FAILURE
+  ADJUSTMENT
+  FORCED_CLOSE
+  REOPEN
+}
+
+enum ReasonSystemCode {
+  CUSTOMER_ABSENT
+  STORE_CLOSED
+  CLOSED_PERMANENTLY
+  REFUSED
+  NOT_DELIVERED
+  OTHER
+}
+
+enum WarehouseType {
+  DEPOT
+  TRUCK
+}
+
+enum ThresholdScope {
+  ALL_VARIANTS
+  PER_VARIANT
+}
+
+enum FreeVariantMode {
+  FIXED
+  SELLER_CHOICE
+  AUTO_MOST_STOCK
+}
+
+enum Weekday {
+  SAT
+  SUN
+  MON
+  TUE
+  WED
+  THU
+  FRI
+}
+
+enum VisitFrequency {
+  WEEKLY
+  BIWEEKLY
+  EVERY_4_WEEKS
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LostDemandKind {
+  LOST_SALE
+  LOST_DEMAND
+}
+
+enum WorkdayStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  CLOSED
+}
+
+enum VisitMode {
+  ON_SITE
+  PHONE
+}
+
+enum VisitStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+}
+
+enum VisitOutcome {
+  ORDER
+  SALE
+  NO_ORDER
+}
+
+enum OrderSource {
+  PRE_SALES
+  PHONE
+  CASH_VAN
+}
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  LOCKED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  PARTIALLY_DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum OrderLineKind {
+  NORMAL
+  PENDING
+  BONUS
+}
+
+enum PendingStatus {
+  TO_PROCESS
+  ACCEPTED
+  REFUSED
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  TRANSFER
+  RESERVATION
+  RELEASE
+  ADJUSTMENT
+}
+
+enum StockSourceType {
+  ORDER
+  DELIVERY
+  LOAD
+  UNLOAD
+  RECEIPT
+  INVENTORY
+}
+
+enum DocumentStatus {
+  DRAFT
+  VALIDATED
+}
+
+enum LoadKind {
+  ROUTE
+  CASH_VAN
+  RELOAD
+}
+
+enum LoadStatus {
+  PLANNED
+  LOADED
+  RECEIVED
+}
+
+enum RouteStatus {
+  DRAFT
+  PREPARING
+  READY
+  LOADED
+  OUT_FOR_DELIVERY
+  CLOSED
+}
+
+enum DeliveryResult {
+  DELIVERED
+  PARTIAL
+  FAILED
+}
+
+enum PaymentKind {
+  DELIVERY_PAYMENT
+  DEBT_PAYMENT
+}
+
+enum DebtEntryKind {
+  CREDIT_SALE
+  DEBT_PAYMENT
+  ADVANCE
+  ADVANCE_USED
+}
+
+enum PrintDocumentType {
+  DELIVERY_NOTE
+  SALE_NOTE
+  DEBT_RECEIPT
+  DAY_SUMMARY
+}
+
+enum SyncStatus {
+  APPLIED
+  APPLIED_WITH_CHANGES
+  REJECTED
+}
+
+enum FileKind {
+  IMPORT
+  EXPORT
+  LOGO
+}
+
+enum ImportKind {
+  CUSTOMERS
+  PRODUCTS
+}
+
+enum ImportStatus {
+  PREVIEW
+  IMPORTED
+  FAILED
+}
+
+/// Entreprise cliente (tenant).
 model Company {
-  id        String        @id @db.Uuid
-  name      String
-  code      String        @unique
-  mode      SalesMode
-  status    CompanyStatus @default(TRIAL)
-  timezone  String        @default("Africa/Algiers")
-  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  id                      String                 @id @db.Uuid
+  name                    String
+  code                    String                 @unique
+  mode                    SalesMode
+  status                  CompanyStatus          @default(TRIAL)
+  timezone                String                 @default("Africa/Algiers")
+  createdByPlatformUserId String?                @map("created_by_platform_user_id") @db.Uuid
+  createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  companyModules          CompanyModule[]
+  companySettingses       CompanySettings[]
+  roles                   Role[]
+  users                   User[]
+  sessions                Session[]
+  devices                 Device[]
+  deviceActivationCodes   DeviceActivationCode[]
+  devicePings             DevicePing[]
+  customerTypes           CustomerType[]
+  holidays                Holiday[]
+  reasons                 Reason[]
+  warehouses              Warehouse[]
+  productRanges           ProductRange[]
+  productCategories       ProductCategory[]
+  products                Product[]
+  productVariants         ProductVariant[]
+  productUnits            ProductUnit[]
+  prices                  Price[]
+  priceTiers              PriceTier[]
+  bonusRules              BonusRule[]
+  territories             Territory[]
+  territoryParts          TerritoryPart[]
+  partSchedules           PartSchedule[]
+  customers               Customer[]
+  customerReschedules     CustomerReschedule[]
+  quotas                  Quota[]
+  objectives              Objective[]
+  lostDemands             LostDemand[]
+  workdays                Workday[]
+  visits                  Visit[]
+  orders                  Order[]
+  orderLines              OrderLine[]
+  stocks                  Stock[]
+  stockMovements          StockMovement[]
+  stockReceipts           StockReceipt[]
+  stockReceiptLines       StockReceiptLine[]
+  inventoryCounts         InventoryCount[]
+  inventoryCountLines     InventoryCountLine[]
+  loads                   Load[]
+  loadLines               LoadLine[]
+  unloads                 Unload[]
+  unloadLines             UnloadLine[]
+  deliveryRoutes          DeliveryRoute[]
+  deliveries              Delivery[]
+  payments                Payment[]
+  customerDebtEntries     CustomerDebtEntry[]
+  settlements             Settlement[]
+  printLogs               PrintLog[]
+  syncOperations          SyncOperation[]
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  storedFiles             StoredFile[]
+  importJobs              ImportJob[]
 
   @@map("company")
+}
+
+/// Compte Super Admin, séparé des utilisateurs d’entreprise.
+model PlatformUser {
+  id               String            @id @db.Uuid
+  email            String            @unique
+  passwordHash     String            @map("password_hash")
+  name             String
+  role             PlatformRole      @default(SUPER_ADMIN)
+  status           AccountStatus     @default(ACTIVE)
+  lastLoginAt      DateTime?         @map("last_login_at") @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  platformSessions PlatformSession[]
+
+  @@map("platform_user")
+}
+
+/// Session du Super Admin.
+model PlatformSession {
+  id               String       @id @db.Uuid
+  refreshTokenHash String       @unique @map("refresh_token_hash")
+  familyId         String       @map("family_id") @db.Uuid
+  expiresAt        DateTime     @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime?    @map("last_used_at") @db.Timestamptz(3)
+  revokedAt        DateTime?    @map("revoked_at") @db.Timestamptz(3)
+  ip               String?
+  userAgent        String?      @map("user_agent")
+  platformUserId   String       @map("platform_user_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  platformUser     PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@map("platform_session")
+}
+
+/// Audit plateforme, en ajout seul.
+model PlatformAuditLog {
+  id             String   @id @db.Uuid
+  platformUserId String?  @map("platform_user_id") @db.Uuid
+  companyId      String?  @map("company_id") @db.Uuid
+  action         String
+  entity         String
+  entityId       String?  @map("entity_id") @db.Uuid
+  before         Json?
+  after          Json?
+  ip             String?
+  userAgent      String?  @map("user_agent")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([companyId, createdAt])
+  @@map("platform_audit_log")
+}
+
+/// Modules actifs, déduits du mode (BR-TEN-03).
+model CompanyModule {
+  id            String       @id @db.Uuid
+  moduleCode    ModuleCode   @map("module_code")
+  status        ModuleStatus @default(ACTIVE)
+  activatedAt   DateTime?    @map("activated_at") @db.Timestamptz(3)
+  deactivatedAt DateTime?    @map("deactivated_at") @db.Timestamptz(3)
+  config        Json?
+  companyId     String       @map("company_id") @db.Uuid
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company       Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, moduleCode])
+  @@map("company_module")
+}
+
+/// Paramètres versionnés ; une ligne n’est jamais modifiée (ARC-12).
+model CompanySettings {
+  id              String   @id @db.Uuid
+  version         Int
+  data            Json
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, version])
+  @@map("company_settings")
+}
+
+/// Rôle d’entreprise (BR-USR-01).
+model Role {
+  id              String           @id @db.Uuid
+  code            RoleCode
+  name            String
+  channel         Channel
+  isSystem        Boolean          @default(true) @map("is_system")
+  companyId       String           @map("company_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  rolePermissions RolePermission[]
+  users           User[]
+
+  @@unique([companyId, code])
+  @@map("role")
+}
+
+/// Catalogue global des permissions (docs/rbac.md §4).
+model Permission {
+  code            String           @id
+  description     String
+  scope           PermissionScope
+  rolePermissions RolePermission[]
+
+  @@map("permission")
+}
+
+/// Permissions d’un rôle.
+model RolePermission {
+  roleId         String     @map("role_id") @db.Uuid
+  permissionCode String     @map("permission_code")
+  role           Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission     Permission @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@id([roleId, permissionCode])
+  @@map("role_permission")
+}
+
+/// Utilisateur d’entreprise : un seul rôle. [S]
+model User {
+  id                             String                 @id @db.Uuid
+  code                           String
+  firstName                      String                 @map("first_name")
+  lastName                       String                 @map("last_name")
+  phone                          String?
+  email                          String?
+  passwordHash                   String                 @map("password_hash")
+  status                         AccountStatus          @default(ACTIVE)
+  mustChangePassword             Boolean                @default(true) @map("must_change_password")
+  lastLoginAt                    DateTime?              @map("last_login_at") @db.Timestamptz(3)
+  companyId                      String                 @map("company_id") @db.Uuid
+  roleId                         String                 @map("role_id") @db.Uuid
+  deletedAt                      DateTime?              @map("deleted_at") @db.Timestamptz(3)
+  version                        Int                    @default(1)
+  changeSeq                      BigInt                 @default(0) @map("change_seq")
+  createdByUserId                String?                @map("created_by_user_id") @db.Uuid
+  createdByDeviceId              String?                @map("created_by_device_id") @db.Uuid
+  createdAt                      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                        Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  role                           Role                   @relation(fields: [roleId], references: [id])
+  sessions                       Session[]
+  devices                        Device[]
+  deviceActivationCodes          DeviceActivationCode[]
+  devicePings                    DevicePing[]
+  warehouses                     Warehouse[]
+  territoriesAsSellerUser        Territory[]            @relation("TerritorySeller")
+  territoriesAsDeliveryUser      Territory[]            @relation("TerritoryDelivery")
+  quotas                         Quota[]
+  objectives                     Objective[]
+  lostDemands                    LostDemand[]
+  workdays                       Workday[]
+  visits                         Visit[]
+  orders                         Order[]
+  stockMovements                 StockMovement[]
+  loads                          Load[]
+  unloads                        Unload[]
+  deliveryRoutesAsDeliveryUser   DeliveryRoute[]        @relation("RouteDriver")
+  deliveryRoutesAsLaunchedByUser DeliveryRoute[]        @relation("RouteLauncher")
+  deliveries                     Delivery[]
+  payments                       Payment[]
+  settlements                    Settlement[]
+  printLogs                      PrintLog[]
+  syncOperations                 SyncOperation[]
+  notifications                  Notification[]
+  auditLogs                      AuditLog[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, email])
+  @@index([companyId, changeSeq])
+  @@map("user")
+}
+
+/// Session Web ou mobile ; jeton de rafraîchissement à rotation.
+model Session {
+  id               String    @id @db.Uuid
+  channel          Channel
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  familyId         String    @map("family_id") @db.Uuid
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime? @map("last_used_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokedReason    String?   @map("revoked_reason")
+  ip               String?
+  userAgent        String?   @map("user_agent")
+  companyId        String    @map("company_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  deviceId         String?   @map("device_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device           Device?   @relation(fields: [deviceId], references: [id])
+
+  @@index([companyId, userId])
+  @@map("session")
+}
+
+/// Téléphone associé à un utilisateur terrain (BR-USR-06, ARC-11).
+model Device {
+  id                    String                 @id @db.Uuid
+  series                String
+  status                DeviceStatus           @default(ACTIVE)
+  name                  String?
+  model                 String?
+  osVersion             String?                @map("os_version")
+  appVersion            String?                @map("app_version")
+  pushToken             String?                @map("push_token")
+  activatedAt           DateTime               @map("activated_at") @db.Timestamptz(3)
+  revokedAt             DateTime?              @map("revoked_at") @db.Timestamptz(3)
+  lastSeenAt            DateTime?              @map("last_seen_at") @db.Timestamptz(3)
+  lastSyncAt            DateTime?              @map("last_sync_at") @db.Timestamptz(3)
+  batteryLevel          Int?                   @map("battery_level")
+  pendingOps            Int                    @default(0) @map("pending_ops")
+  lastDeviceSeq         Int                    @default(0) @map("last_device_seq")
+  lastLatitude          Float?                 @map("last_latitude")
+  lastLongitude         Float?                 @map("last_longitude")
+  lastPositionAt        DateTime?              @map("last_position_at") @db.Timestamptz(3)
+  companyId             String                 @map("company_id") @db.Uuid
+  userId                String                 @map("user_id") @db.Uuid
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user                  User                   @relation(fields: [userId], references: [id])
+  sessions              Session[]
+  deviceActivationCodes DeviceActivationCode[]
+  devicePings           DevicePing[]
+  workdays              Workday[]
+  syncOperations        SyncOperation[]
+
+  @@unique([companyId, userId, series])
+  @@unique([companyId, userId], map: "device_one_active_per_user", where: raw("status = 'ACTIVE'"))
+  @@map("device")
+}
+
+/// Code d’association à usage unique, 10 minutes (ARC-04).
+model DeviceActivationCode {
+  id              String    @id @db.Uuid
+  codeHash        String    @unique @map("code_hash")
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt          DateTime? @map("used_at") @db.Timestamptz(3)
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  usedByDeviceId  String?   @map("used_by_device_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usedByDevice    Device?   @relation(fields: [usedByDeviceId], references: [id])
+
+  @@index([companyId])
+  @@map("device_activation_code")
+}
+
+/// Signal de vie pendant la journée ; conservé 90 jours (BR-JOU-09).
+model DevicePing {
+  id           String   @id @db.Uuid
+  latitude     Float?
+  longitude    Float?
+  accuracyM    Float?   @map("accuracy_m")
+  batteryLevel Int?     @map("battery_level")
+  pendingOps   Int      @default(0) @map("pending_ops")
+  recordedAt   DateTime @map("recorded_at") @db.Timestamptz(3)
+  companyId    String   @map("company_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  deviceId     String   @map("device_id") @db.Uuid
+  workdayId    String?  @map("workday_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user         User     @relation(fields: [userId], references: [id])
+  device       Device   @relation(fields: [deviceId], references: [id])
+  workday      Workday? @relation(fields: [workdayId], references: [id])
+
+  @@index([companyId, userId, recordedAt])
+  @@map("device_ping")
+}
+
+/// Type de client (BR-CAT-03). [S]
+model CustomerType {
+  id                     String                  @id @db.Uuid
+  code                   String
+  name                   String
+  isActive               Boolean                 @default(true) @map("is_active")
+  companyId              String                  @map("company_id") @db.Uuid
+  deletedAt              DateTime?               @map("deleted_at") @db.Timestamptz(3)
+  version                Int                     @default(1)
+  changeSeq              BigInt                  @default(0) @map("change_seq")
+  createdByUserId        String?                 @map("created_by_user_id") @db.Uuid
+  createdByDeviceId      String?                 @map("created_by_device_id") @db.Uuid
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  prices                 Price[]
+  priceTiers             PriceTier[]
+  bonusRuleCustomerTypes BonusRuleCustomerType[]
+  territoryCustomerTypes TerritoryCustomerType[]
+  customers              Customer[]
+  orders                 Order[]
+
+  @@unique([companyId, code])
+  @@index([companyId, changeSeq])
+  @@map("customer_type")
+}
+
+/// Jour férié (BR-TEN-06). [S]
+model Holiday {
+  id                String    @id @db.Uuid
+  date              DateTime  @db.Date
+  label             String
+  companyId         String    @map("company_id") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version           Int       @default(1)
+  changeSeq         BigInt    @default(0) @map("change_seq")
+  createdByUserId   String?   @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, date])
+  @@index([companyId, changeSeq])
+  @@map("holiday")
+}
+
+/// Motif réglable ; system_code déclenche un comportement (docs/database.md §5). [S]
+model Reason {
+  id                String            @id @db.Uuid
+  kind              ReasonKind
+  systemCode        ReasonSystemCode? @map("system_code")
+  label             String
+  isActive          Boolean           @default(true) @map("is_active")
+  sortOrder         Int               @default(0) @map("sort_order")
+  companyId         String            @map("company_id") @db.Uuid
+  deletedAt         DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  version           Int               @default(1)
+  changeSeq         BigInt            @default(0) @map("change_seq")
+  createdByUserId   String?           @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?           @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  workdays          Workday[]
+  visits            Visit[]
+  stockMovements    StockMovement[]
+  deliveries        Delivery[]
+
+  @@unique([companyId, kind, label])
+  @@index([companyId, changeSeq])
+  @@map("reason")
+}
+
+/// Dépôt ou camion (BR-STK-01). [S]
+model Warehouse {
+  id                            String           @id @db.Uuid
+  type                          WarehouseType
+  code                          String
+  name                          String
+  plateNumber                   String?          @map("plate_number")
+  isActive                      Boolean          @default(true) @map("is_active")
+  companyId                     String           @map("company_id") @db.Uuid
+  assignedUserId                String?          @map("assigned_user_id") @db.Uuid
+  deletedAt                     DateTime?        @map("deleted_at") @db.Timestamptz(3)
+  version                       Int              @default(1)
+  changeSeq                     BigInt           @default(0) @map("change_seq")
+  createdByUserId               String?          @map("created_by_user_id") @db.Uuid
+  createdByDeviceId             String?          @map("created_by_device_id") @db.Uuid
+  createdAt                     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                       Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  assignedUser                  User?            @relation(fields: [assignedUserId], references: [id])
+  stocks                        Stock[]
+  stockMovementsAsFromWarehouse StockMovement[]  @relation("MovementFrom")
+  stockMovementsAsToWarehouse   StockMovement[]  @relation("MovementTo")
+  stockReceipts                 StockReceipt[]
+  inventoryCounts               InventoryCount[]
+  loads                         Load[]
+  unloads                       Unload[]
+  deliveryRoutes                DeliveryRoute[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, assignedUserId], map: "warehouse_one_truck_per_user", where: raw("type = 'TRUCK' AND assigned_user_id IS NOT NULL"))
+  @@index([companyId, changeSeq])
+  @@map("warehouse")
+}
+
+/// Gamme (BR-CAT-01). [S]
+model ProductRange {
+  id                String      @id @db.Uuid
+  code              String
+  name              String
+  isActive          Boolean     @default(true) @map("is_active")
+  companyId         String      @map("company_id") @db.Uuid
+  deletedAt         DateTime?   @map("deleted_at") @db.Timestamptz(3)
+  version           Int         @default(1)
+  changeSeq         BigInt      @default(0) @map("change_seq")
+  createdByUserId   String?     @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?     @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  products          Product[]
+  objectives        Objective[]
+
+  @@unique([companyId, code])
+  @@index([companyId, changeSeq])
+  @@map("product_range")
+}
+
+/// Catégorie de produits. [S]
+model ProductCategory {
+  id                String    @id @db.Uuid
+  name              String
+  isActive          Boolean   @default(true) @map("is_active")
+  companyId         String    @map("company_id") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version           Int       @default(1)
+  changeSeq         BigInt    @default(0) @map("change_seq")
+  createdByUserId   String?   @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  products          Product[]
+
+  @@unique([companyId, name])
+  @@index([companyId, changeSeq])
+  @@map("product_category")
+}
+
+/// Produit ; ses articles sont ses parfums (BR-CAT-12, BR-CAT-13). [S]
+model Product {
+  id                      String           @id @db.Uuid
+  reference               String
+  name                    String
+  isActive                Boolean          @default(true) @map("is_active")
+  companyId               String           @map("company_id") @db.Uuid
+  rangeId                 String           @map("range_id") @db.Uuid
+  categoryId              String?          @map("category_id") @db.Uuid
+  deletedAt               DateTime?        @map("deleted_at") @db.Timestamptz(3)
+  version                 Int              @default(1)
+  changeSeq               BigInt           @default(0) @map("change_seq")
+  createdByUserId         String?          @map("created_by_user_id") @db.Uuid
+  createdByDeviceId       String?          @map("created_by_device_id") @db.Uuid
+  createdAt               DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                 Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  range                   ProductRange     @relation(fields: [rangeId], references: [id])
+  category                ProductCategory? @relation(fields: [categoryId], references: [id])
+  productVariants         ProductVariant[]
+  productUnits            ProductUnit[]
+  prices                  Price[]
+  priceTiers              PriceTier[]
+  bonusRulesAsBuyProduct  BonusRule[]      @relation("BonusBuyProduct")
+  bonusRulesAsFreeProduct BonusRule[]      @relation("BonusFreeProduct")
+  orderLines              OrderLine[]
+
+  @@unique([companyId, reference])
+  @@index([companyId, changeSeq])
+  @@map("product")
+}
+
+/// Article : un parfum, ou le parfum par défaut d’un produit sans parfum. [S]
+model ProductVariant {
+  id                      String               @id @db.Uuid
+  reference               String
+  name                    String
+  isDefault               Boolean              @default(false) @map("is_default")
+  isActive                Boolean              @default(true) @map("is_active")
+  sortOrder               Int                  @default(0) @map("sort_order")
+  companyId               String               @map("company_id") @db.Uuid
+  productId               String               @map("product_id") @db.Uuid
+  deletedAt               DateTime?            @map("deleted_at") @db.Timestamptz(3)
+  version                 Int                  @default(1)
+  changeSeq               BigInt               @default(0) @map("change_seq")
+  createdByUserId         String?              @map("created_by_user_id") @db.Uuid
+  createdByDeviceId       String?              @map("created_by_device_id") @db.Uuid
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                 Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product                 Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  prices                  Price[]
+  priceTiers              PriceTier[]
+  bonusRulesAsBuyVariant  BonusRule[]          @relation("BonusBuyVariant")
+  bonusRulesAsFreeVariant BonusRule[]          @relation("BonusFreeVariant")
+  quotas                  Quota[]
+  lostDemands             LostDemand[]
+  orderLines              OrderLine[]
+  stocks                  Stock[]
+  stockMovements          StockMovement[]
+  stockReceiptLines       StockReceiptLine[]
+  inventoryCountLines     InventoryCountLine[]
+  loadLines               LoadLine[]
+  unloadLines             UnloadLine[]
+
+  @@unique([companyId, reference])
+  @@unique([productId], map: "product_variant_one_default", where: raw("is_default"))
+  @@index([companyId, changeSeq])
+  @@map("product_variant")
+}
+
+/// Unité de base ou conditionnement (BR-CAT-01, BR-CAT-02). [S]
+model ProductUnit {
+  id                   String             @id @db.Uuid
+  name                 String
+  baseQty              Int                @map("base_qty")
+  isBase               Boolean            @default(false) @map("is_base")
+  isActive             Boolean            @default(true) @map("is_active")
+  companyId            String             @map("company_id") @db.Uuid
+  productId            String             @map("product_id") @db.Uuid
+  deletedAt            DateTime?          @map("deleted_at") @db.Timestamptz(3)
+  version              Int                @default(1)
+  changeSeq            BigInt             @default(0) @map("change_seq")
+  createdByUserId      String?            @map("created_by_user_id") @db.Uuid
+  createdByDeviceId    String?            @map("created_by_device_id") @db.Uuid
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company              Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product              Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  prices               Price[]
+  priceTiers           PriceTier[]
+  bonusRulesAsBuyUnit  BonusRule[]        @relation("BonusBuyUnit")
+  bonusRulesAsFreeUnit BonusRule[]        @relation("BonusFreeUnit")
+  quotas               Quota[]
+  orderLines           OrderLine[]
+  stockReceiptLines    StockReceiptLine[]
+
+  @@unique([productId, name])
+  @@unique([productId], map: "product_unit_one_base", where: raw("is_base"))
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("product_unit")
+}
+
+/// Prix TTC ; avec un parfum, c’est son prix propre (BR-CAT-04, BR-CAT-14). [S]
+model Price {
+  id                String          @id @db.Uuid
+  price             BigInt
+  companyId         String          @map("company_id") @db.Uuid
+  productId         String          @map("product_id") @db.Uuid
+  productVariantId  String?         @map("product_variant_id") @db.Uuid
+  customerTypeId    String          @map("customer_type_id") @db.Uuid
+  unitId            String          @map("unit_id") @db.Uuid
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  version           Int             @default(1)
+  changeSeq         BigInt          @default(0) @map("change_seq")
+  createdByUserId   String?         @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?         @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  customerType      CustomerType    @relation(fields: [customerTypeId], references: [id])
+  unit              ProductUnit     @relation(fields: [unitId], references: [id])
+
+  @@unique([companyId, productId, customerTypeId, unitId], map: "price_product_unique", where: raw("product_variant_id IS NULL"))
+  @@unique([companyId, productVariantId, customerTypeId, unitId], map: "price_variant_unique", where: raw("product_variant_id IS NOT NULL"))
+  @@index([companyId, changeSeq])
+  @@map("price")
+}
+
+/// Palier de prix (BR-CAT-05, BR-CAT-15). [S]
+model PriceTier {
+  id                String          @id @db.Uuid
+  minQty            Int             @map("min_qty")
+  unitPrice         BigInt          @map("unit_price")
+  thresholdScope    ThresholdScope  @default(ALL_VARIANTS) @map("threshold_scope")
+  companyId         String          @map("company_id") @db.Uuid
+  productId         String          @map("product_id") @db.Uuid
+  productVariantId  String?         @map("product_variant_id") @db.Uuid
+  customerTypeId    String          @map("customer_type_id") @db.Uuid
+  unitId            String          @map("unit_id") @db.Uuid
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  version           Int             @default(1)
+  changeSeq         BigInt          @default(0) @map("change_seq")
+  createdByUserId   String?         @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?         @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  customerType      CustomerType    @relation(fields: [customerTypeId], references: [id])
+  unit              ProductUnit     @relation(fields: [unitId], references: [id])
+  orderLines        OrderLine[]
+
+  @@unique([companyId, productId, customerTypeId, unitId, minQty], map: "price_tier_product_unique", where: raw("product_variant_id IS NULL"))
+  @@unique([companyId, productVariantId, customerTypeId, unitId, minQty], map: "price_tier_variant_unique", where: raw("product_variant_id IS NOT NULL"))
+  @@index([companyId, changeSeq])
+  @@map("price_tier")
+}
+
+/// Bonus cumulatif « pour Q de X, N de Y offert » (BR-CAT-06, BR-CAT-15). [S]
+model BonusRule {
+  id                     String                  @id @db.Uuid
+  name                   String
+  buyQty                 Int                     @map("buy_qty")
+  freeQty                Int                     @map("free_qty")
+  freeVariantMode        FreeVariantMode         @default(AUTO_MOST_STOCK) @map("free_variant_mode")
+  validFrom              DateTime                @map("valid_from") @db.Date
+  validTo                DateTime?               @map("valid_to") @db.Date
+  isActive               Boolean                 @default(true) @map("is_active")
+  companyId              String                  @map("company_id") @db.Uuid
+  buyProductId           String                  @map("buy_product_id") @db.Uuid
+  buyVariantId           String?                 @map("buy_variant_id") @db.Uuid
+  buyUnitId              String                  @map("buy_unit_id") @db.Uuid
+  freeProductId          String                  @map("free_product_id") @db.Uuid
+  freeVariantId          String?                 @map("free_variant_id") @db.Uuid
+  freeUnitId             String                  @map("free_unit_id") @db.Uuid
+  deletedAt              DateTime?               @map("deleted_at") @db.Timestamptz(3)
+  version                Int                     @default(1)
+  changeSeq              BigInt                  @default(0) @map("change_seq")
+  createdByUserId        String?                 @map("created_by_user_id") @db.Uuid
+  createdByDeviceId      String?                 @map("created_by_device_id") @db.Uuid
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  buyProduct             Product                 @relation("BonusBuyProduct", fields: [buyProductId], references: [id])
+  buyVariant             ProductVariant?         @relation("BonusBuyVariant", fields: [buyVariantId], references: [id])
+  buyUnit                ProductUnit             @relation("BonusBuyUnit", fields: [buyUnitId], references: [id])
+  freeProduct            Product                 @relation("BonusFreeProduct", fields: [freeProductId], references: [id])
+  freeVariant            ProductVariant?         @relation("BonusFreeVariant", fields: [freeVariantId], references: [id])
+  freeUnit               ProductUnit             @relation("BonusFreeUnit", fields: [freeUnitId], references: [id])
+  bonusRuleCustomerTypes BonusRuleCustomerType[]
+  orderLines             OrderLine[]
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("bonus_rule")
+}
+
+/// Types de clients d’un bonus ; aucun = tous.
+model BonusRuleCustomerType {
+  bonusRuleId    String       @map("bonus_rule_id") @db.Uuid
+  customerTypeId String       @map("customer_type_id") @db.Uuid
+  bonusRule      BonusRule    @relation(fields: [bonusRuleId], references: [id], onDelete: Cascade)
+  customerType   CustomerType @relation(fields: [customerTypeId], references: [id], onDelete: Cascade)
+
+  @@id([bonusRuleId, customerTypeId])
+  @@map("bonus_rule_customer_type")
+}
+
+/// Secteur : un vendeur, des types de clients (BR-ORG-01). [S]
+model Territory {
+  id                     String                  @id @db.Uuid
+  code                   String
+  name                   String
+  partCount              Int                     @default(6) @map("part_count")
+  isActive               Boolean                 @default(true) @map("is_active")
+  companyId              String                  @map("company_id") @db.Uuid
+  sellerUserId           String?                 @map("seller_user_id") @db.Uuid
+  deliveryUserId         String?                 @map("delivery_user_id") @db.Uuid
+  deletedAt              DateTime?               @map("deleted_at") @db.Timestamptz(3)
+  version                Int                     @default(1)
+  changeSeq              BigInt                  @default(0) @map("change_seq")
+  createdByUserId        String?                 @map("created_by_user_id") @db.Uuid
+  createdByDeviceId      String?                 @map("created_by_device_id") @db.Uuid
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  sellerUser             User?                   @relation("TerritorySeller", fields: [sellerUserId], references: [id])
+  deliveryUser           User?                   @relation("TerritoryDelivery", fields: [deliveryUserId], references: [id])
+  territoryCustomerTypes TerritoryCustomerType[]
+  territoryParts         TerritoryPart[]
+  partSchedules          PartSchedule[]
+  customers              Customer[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, sellerUserId])
+  @@index([companyId, changeSeq])
+  @@map("territory")
+}
+
+/// Types de clients servis par un secteur (BR-ORG-03).
+model TerritoryCustomerType {
+  territoryId    String       @map("territory_id") @db.Uuid
+  customerTypeId String       @map("customer_type_id") @db.Uuid
+  territory      Territory    @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  customerType   CustomerType @relation(fields: [customerTypeId], references: [id], onDelete: Cascade)
+
+  @@id([territoryId, customerTypeId])
+  @@map("territory_customer_type")
+}
+
+/// Partie : polygone GeoJSON et boîte englobante (ARC-09). [S]
+model TerritoryPart {
+  id                String         @id @db.Uuid
+  number            Int
+  name              String
+  geojson           Json
+  minLat            Float          @map("min_lat")
+  maxLat            Float          @map("max_lat")
+  minLng            Float          @map("min_lng")
+  maxLng            Float          @map("max_lng")
+  companyId         String         @map("company_id") @db.Uuid
+  territoryId       String         @map("territory_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  territory         Territory      @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  partSchedules     PartSchedule[]
+  customers         Customer[]
+
+  @@unique([territoryId, number])
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("territory_part")
+}
+
+/// Planning : une partie par jour travaillé (BR-ORG-07). [S]
+model PartSchedule {
+  id                String        @id @db.Uuid
+  weekday           Weekday
+  companyId         String        @map("company_id") @db.Uuid
+  territoryId       String        @map("territory_id") @db.Uuid
+  partId            String        @map("part_id") @db.Uuid
+  deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz(3)
+  version           Int           @default(1)
+  changeSeq         BigInt        @default(0) @map("change_seq")
+  createdByUserId   String?       @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?       @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  territory         Territory     @relation(fields: [territoryId], references: [id], onDelete: Cascade)
+  part              TerritoryPart @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([territoryId, weekday])
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("part_schedule")
+}
+
+/// Client ; debt_amount est la copie à jour de la somme des écritures de dette. [S] [T]
+model Customer {
+  id                  String               @id @db.Uuid
+  code                String?
+  name                String
+  phone               String?
+  address             String?
+  latitude            Float?
+  longitude           Float?
+  isPartForced        Boolean              @default(false) @map("is_part_forced")
+  frequency           VisitFrequency       @default(WEEKLY)
+  referenceDate       DateTime?            @map("reference_date") @db.Date
+  isCreditAllowed     Boolean              @default(false) @map("is_credit_allowed")
+  creditLimitAmount   BigInt               @default(0) @map("credit_limit_amount")
+  debtAmount          BigInt               @default(0) @map("debt_amount")
+  status              CustomerStatus       @default(ACTIVE)
+  isNew               Boolean              @default(false) @map("is_new")
+  isCashOnly          Boolean              @default(false) @map("is_cash_only")
+  isClosedPermanently Boolean              @default(false) @map("is_closed_permanently")
+  companyId           String               @map("company_id") @db.Uuid
+  customerTypeId      String               @map("customer_type_id") @db.Uuid
+  territoryId         String?              @map("territory_id") @db.Uuid
+  partId              String?              @map("part_id") @db.Uuid
+  deletedAt           DateTime?            @map("deleted_at") @db.Timestamptz(3)
+  version             Int                  @default(1)
+  changeSeq           BigInt               @default(0) @map("change_seq")
+  createdByUserId     String?              @map("created_by_user_id") @db.Uuid
+  createdByDeviceId   String?              @map("created_by_device_id") @db.Uuid
+  occurredAt          DateTime?            @map("occurred_at") @db.Timestamptz(3)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customerType        CustomerType         @relation(fields: [customerTypeId], references: [id])
+  territory           Territory?           @relation(fields: [territoryId], references: [id])
+  part                TerritoryPart?       @relation(fields: [partId], references: [id])
+  customerReschedules CustomerReschedule[]
+  lostDemands         LostDemand[]
+  visits              Visit[]
+  orders              Order[]
+  payments            Payment[]
+  customerDebtEntries CustomerDebtEntry[]
+
+  @@index([companyId, territoryId, partId])
+  @@index([companyId, changeSeq])
+  @@map("customer")
+}
+
+/// Visite reprogrammée à une date (BR-PLA-05). [S]
+model CustomerReschedule {
+  id                String    @id @db.Uuid
+  date              DateTime  @db.Date
+  companyId         String    @map("company_id") @db.Uuid
+  customerId        String    @map("customer_id") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version           Int       @default(1)
+  changeSeq         BigInt    @default(0) @map("change_seq")
+  createdByUserId   String?   @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, customerId, date])
+  @@index([companyId, changeSeq])
+  @@map("customer_reschedule")
+}
+
+/// Quota du jour par vendeur et article (BR-QUO-01). [S]
+model Quota {
+  id                String         @id @db.Uuid
+  date              DateTime       @db.Date
+  qty               Int
+  enteredQty        Int            @map("entered_qty")
+  companyId         String         @map("company_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  enteredUnitId     String         @map("entered_unit_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user              User           @relation(fields: [userId], references: [id])
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+  enteredUnit       ProductUnit    @relation(fields: [enteredUnitId], references: [id])
+
+  @@unique([companyId, userId, productVariantId, date])
+  @@index([companyId, changeSeq])
+  @@map("quota")
+}
+
+/// Objectif mensuel par vendeur et gamme (BR-OBJ-01). [S]
+model Objective {
+  id                String       @id @db.Uuid
+  month             DateTime     @db.Date
+  targetAmount      BigInt       @map("target_amount")
+  bonusAmount       BigInt       @map("bonus_amount")
+  capPercent        Int          @default(120) @map("cap_percent")
+  companyId         String       @map("company_id") @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  rangeId           String       @map("range_id") @db.Uuid
+  deletedAt         DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  version           Int          @default(1)
+  changeSeq         BigInt       @default(0) @map("change_seq")
+  createdByUserId   String?      @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?      @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user              User         @relation(fields: [userId], references: [id])
+  range             ProductRange @relation(fields: [rangeId], references: [id])
+
+  @@unique([companyId, userId, rangeId, month])
+  @@index([companyId, changeSeq])
+  @@map("objective")
+}
+
+/// Vente perdue (ligne refusée) ou demande perdue (quota épuisé). [S] [T]
+model LostDemand {
+  id                String         @id @db.Uuid
+  kind              LostDemandKind
+  qty               Int
+  date              DateTime       @db.Date
+  companyId         String         @map("company_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  customerId        String         @map("customer_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  orderLineId       String?        @map("order_line_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user              User           @relation(fields: [userId], references: [id])
+  customer          Customer       @relation(fields: [customerId], references: [id])
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+  orderLine         OrderLine?     @relation(fields: [orderLineId], references: [id])
+
+  @@index([companyId, date])
+  @@index([companyId, changeSeq])
+  @@map("lost_demand")
+}
+
+/// Journée de travail (BR-JOU). [S] [T]
+model Workday {
+  id                  String        @id @db.Uuid
+  date                DateTime      @db.Date
+  status              WorkdayStatus @default(IN_PROGRESS)
+  startedAt           DateTime?     @map("started_at") @db.Timestamptz(3)
+  closedAt            DateTime?     @map("closed_at") @db.Timestamptz(3)
+  isStartedOffline    Boolean       @default(false) @map("is_started_offline")
+  isClosedOffline     Boolean       @default(false) @map("is_closed_offline")
+  isForceClosed       Boolean       @default(false) @map("is_force_closed")
+  forceClosedByUserId String?       @map("force_closed_by_user_id") @db.Uuid
+  reopenCount         Int           @default(0) @map("reopen_count")
+  settingsVersion     Int           @map("settings_version")
+  expectedCashAmount  BigInt        @default(0) @map("expected_cash_amount")
+  companyId           String        @map("company_id") @db.Uuid
+  userId              String        @map("user_id") @db.Uuid
+  deviceId            String?       @map("device_id") @db.Uuid
+  forceCloseReasonId  String?       @map("force_close_reason_id") @db.Uuid
+  deletedAt           DateTime?     @map("deleted_at") @db.Timestamptz(3)
+  version             Int           @default(1)
+  changeSeq           BigInt        @default(0) @map("change_seq")
+  createdByUserId     String?       @map("created_by_user_id") @db.Uuid
+  createdByDeviceId   String?       @map("created_by_device_id") @db.Uuid
+  occurredAt          DateTime?     @map("occurred_at") @db.Timestamptz(3)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company             Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user                User          @relation(fields: [userId], references: [id])
+  device              Device?       @relation(fields: [deviceId], references: [id])
+  forceCloseReason    Reason?       @relation(fields: [forceCloseReasonId], references: [id])
+  devicePings         DevicePing[]
+  visits              Visit[]
+  orders              Order[]
+  unload              Unload?
+  deliveries          Delivery[]
+  payments            Payment[]
+  settlement          Settlement?
+
+  @@unique([companyId, userId, date])
+  @@index([companyId, changeSeq])
+  @@map("workday")
+}
+
+/// Visite ; la liste du jour est calculée, les MISSED créées à la clôture. [S] [T]
+model Visit {
+  id                        String        @id @db.Uuid
+  date                      DateTime      @db.Date
+  mode                      VisitMode     @default(ON_SITE)
+  status                    VisitStatus
+  isScheduled               Boolean       @default(true) @map("is_scheduled")
+  startedAt                 DateTime?     @map("started_at") @db.Timestamptz(3)
+  endedAt                   DateTime?     @map("ended_at") @db.Timestamptz(3)
+  latitude                  Float?
+  longitude                 Float?
+  distanceM                 Int?          @map("distance_m")
+  isOutOfZone               Boolean       @default(false) @map("is_out_of_zone")
+  isCustomerPositionUnknown Boolean       @default(false) @map("is_customer_position_unknown")
+  outcome                   VisitOutcome?
+  companyId                 String        @map("company_id") @db.Uuid
+  workdayId                 String        @map("workday_id") @db.Uuid
+  userId                    String        @map("user_id") @db.Uuid
+  customerId                String        @map("customer_id") @db.Uuid
+  reasonId                  String?       @map("reason_id") @db.Uuid
+  deletedAt                 DateTime?     @map("deleted_at") @db.Timestamptz(3)
+  version                   Int           @default(1)
+  changeSeq                 BigInt        @default(0) @map("change_seq")
+  createdByUserId           String?       @map("created_by_user_id") @db.Uuid
+  createdByDeviceId         String?       @map("created_by_device_id") @db.Uuid
+  occurredAt                DateTime?     @map("occurred_at") @db.Timestamptz(3)
+  createdAt                 DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                   Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  workday                   Workday       @relation(fields: [workdayId], references: [id])
+  user                      User          @relation(fields: [userId], references: [id])
+  customer                  Customer      @relation(fields: [customerId], references: [id])
+  reason                    Reason?       @relation(fields: [reasonId], references: [id])
+  order                     Order?
+
+  @@index([companyId, date, userId])
+  @@index([companyId, customerId, date])
+  @@index([companyId, changeSeq])
+  @@map("visit")
+}
+
+/// Commande de prévente ou vente cash van (source CASH_VAN, née DELIVERED). [S] [T]
+model Order {
+  id                String         @id @db.Uuid
+  number            String
+  source            OrderSource
+  status            OrderStatus
+  orderDate         DateTime       @map("order_date") @db.Date
+  deliveryDate      DateTime?      @map("delivery_date") @db.Date
+  totalAmount       BigInt         @default(0) @map("total_amount")
+  rescheduleCount   Int            @default(0) @map("reschedule_count")
+  confirmedAt       DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  lockedAt          DateTime?      @map("locked_at") @db.Timestamptz(3)
+  cancelledAt       DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  companyId         String         @map("company_id") @db.Uuid
+  sellerUserId      String         @map("seller_user_id") @db.Uuid
+  customerId        String         @map("customer_id") @db.Uuid
+  customerTypeId    String         @map("customer_type_id") @db.Uuid
+  visitId           String?        @unique @map("visit_id") @db.Uuid
+  workdayId         String         @map("workday_id") @db.Uuid
+  routeId           String?        @map("route_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  sellerUser        User           @relation(fields: [sellerUserId], references: [id])
+  customer          Customer       @relation(fields: [customerId], references: [id])
+  customerType      CustomerType   @relation(fields: [customerTypeId], references: [id])
+  visit             Visit?         @relation(fields: [visitId], references: [id])
+  workday           Workday        @relation(fields: [workdayId], references: [id])
+  route             DeliveryRoute? @relation(fields: [routeId], references: [id])
+  orderLines        OrderLine[]
+  deliveries        Delivery[]
+  payments          Payment[]
+
+  @@unique([companyId, number])
+  @@index([companyId, deliveryDate, status])
+  @@index([companyId, sellerUserId, orderDate])
+  @@index([companyId, changeSeq])
+  @@map("order")
+}
+
+/// Ligne : normale, en attente ou bonus ; prix et règles figés (BR-CAT-09). [S] [T]
+model OrderLine {
+  id                String         @id @db.Uuid
+  kind              OrderLineKind
+  pendingStatus     PendingStatus? @map("pending_status")
+  enteredQty        Int            @map("entered_qty")
+  orderedQty        Int            @map("ordered_qty")
+  reservedQty       Int            @default(0) @map("reserved_qty")
+  preparedQty       Int?           @map("prepared_qty")
+  deliveredQty      Int?           @map("delivered_qty")
+  unitPrice         BigInt         @map("unit_price")
+  lineAmount        BigInt         @map("line_amount")
+  isStockout        Boolean        @default(false) @map("is_stockout")
+  isBonusReduced    Boolean        @default(false) @map("is_bonus_reduced")
+  processedByUserId String?        @map("processed_by_user_id") @db.Uuid
+  processedAt       DateTime?      @map("processed_at") @db.Timestamptz(3)
+  companyId         String         @map("company_id") @db.Uuid
+  orderId           String         @map("order_id") @db.Uuid
+  productId         String         @map("product_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  unitId            String         @map("unit_id") @db.Uuid
+  priceTierId       String?        @map("price_tier_id") @db.Uuid
+  bonusRuleId       String?        @map("bonus_rule_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  order             Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product           Product        @relation(fields: [productId], references: [id])
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+  unit              ProductUnit    @relation(fields: [unitId], references: [id])
+  priceTier         PriceTier?     @relation(fields: [priceTierId], references: [id])
+  bonusRule         BonusRule?     @relation(fields: [bonusRuleId], references: [id])
+  lostDemands       LostDemand[]
+
+  @@unique([orderId, productVariantId, kind], map: "order_line_one_per_kind", where: raw("kind <> 'BONUS'"))
+  @@index([orderId])
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("order_line")
+}
+
+/// Stock par entrepôt et article ; disponible = physique − réservé. [S]
+model Stock {
+  id                String         @id @db.Uuid
+  physicalQty       Int            @default(0) @map("physical_qty")
+  reservedQty       Int            @default(0) @map("reserved_qty")
+  companyId         String         @map("company_id") @db.Uuid
+  warehouseId       String         @map("warehouse_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  warehouse         Warehouse      @relation(fields: [warehouseId], references: [id])
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@unique([companyId, warehouseId, productVariantId])
+  @@index([companyId, changeSeq])
+  @@map("stock")
+}
+
+/// Mouvement de stock, en ajout seul (BR-STK-03).
+model StockMovement {
+  id               String            @id @db.Uuid
+  type             StockMovementType
+  qty              Int
+  sourceType       StockSourceType?  @map("source_type")
+  sourceId         String?           @map("source_id") @db.Uuid
+  deviceId         String?           @map("device_id") @db.Uuid
+  occurredAt       DateTime          @map("occurred_at") @db.Timestamptz(3)
+  companyId        String            @map("company_id") @db.Uuid
+  productVariantId String            @map("product_variant_id") @db.Uuid
+  fromWarehouseId  String?           @map("from_warehouse_id") @db.Uuid
+  toWarehouseId    String?           @map("to_warehouse_id") @db.Uuid
+  reasonId         String?           @map("reason_id") @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  productVariant   ProductVariant    @relation(fields: [productVariantId], references: [id])
+  fromWarehouse    Warehouse?        @relation("MovementFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse      Warehouse?        @relation("MovementTo", fields: [toWarehouseId], references: [id])
+  reason           Reason?           @relation(fields: [reasonId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
+
+  @@index([companyId, productVariantId, occurredAt])
+  @@map("stock_movement")
+}
+
+/// Entrée au dépôt (UC-40). [S] [T]
+model StockReceipt {
+  id                String             @id @db.Uuid
+  reference         String?
+  supplier          String?
+  receivedAt        DateTime           @map("received_at") @db.Timestamptz(3)
+  companyId         String             @map("company_id") @db.Uuid
+  warehouseId       String             @map("warehouse_id") @db.Uuid
+  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(3)
+  version           Int                @default(1)
+  changeSeq         BigInt             @default(0) @map("change_seq")
+  createdByUserId   String?            @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?            @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?          @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  warehouse         Warehouse          @relation(fields: [warehouseId], references: [id])
+  stockReceiptLines StockReceiptLine[]
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("stock_receipt")
+}
+
+/// Ligne d’entrée. [S] [T]
+model StockReceiptLine {
+  id                String         @id @db.Uuid
+  enteredQty        Int            @map("entered_qty")
+  qty               Int
+  companyId         String         @map("company_id") @db.Uuid
+  receiptId         String         @map("receipt_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  unitId            String         @map("unit_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  receipt           StockReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+  unit              ProductUnit    @relation(fields: [unitId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("stock_receipt_line")
+}
+
+/// Inventaire du dépôt (BR-STK-06). [S] [T]
+model InventoryCount {
+  id                  String               @id @db.Uuid
+  status              DocumentStatus       @default(DRAFT)
+  validatedAt         DateTime?            @map("validated_at") @db.Timestamptz(3)
+  companyId           String               @map("company_id") @db.Uuid
+  warehouseId         String               @map("warehouse_id") @db.Uuid
+  deletedAt           DateTime?            @map("deleted_at") @db.Timestamptz(3)
+  version             Int                  @default(1)
+  changeSeq           BigInt               @default(0) @map("change_seq")
+  createdByUserId     String?              @map("created_by_user_id") @db.Uuid
+  createdByDeviceId   String?              @map("created_by_device_id") @db.Uuid
+  occurredAt          DateTime?            @map("occurred_at") @db.Timestamptz(3)
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  warehouse           Warehouse            @relation(fields: [warehouseId], references: [id])
+  inventoryCountLines InventoryCountLine[]
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("inventory_count")
+}
+
+/// Ligne d’inventaire. [S] [T]
+model InventoryCountLine {
+  id                String         @id @db.Uuid
+  expectedQty       Int            @map("expected_qty")
+  countedQty        Int            @map("counted_qty")
+  gapQty            Int            @map("gap_qty")
+  companyId         String         @map("company_id") @db.Uuid
+  inventoryCountId  String         @map("inventory_count_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  inventoryCount    InventoryCount @relation(fields: [inventoryCountId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("inventory_count_line")
+}
+
+/// Chargement d’un camion : tournée, cash van ou rechargement (P-07). [S] [T]
+model Load {
+  id                String         @id @db.Uuid
+  kind              LoadKind
+  date              DateTime       @db.Date
+  status            LoadStatus     @default(PLANNED)
+  hasGap            Boolean        @default(false) @map("has_gap")
+  plannedByUserId   String?        @map("planned_by_user_id") @db.Uuid
+  loadedByUserId    String?        @map("loaded_by_user_id") @db.Uuid
+  loadedAt          DateTime?      @map("loaded_at") @db.Timestamptz(3)
+  receivedAt        DateTime?      @map("received_at") @db.Timestamptz(3)
+  companyId         String         @map("company_id") @db.Uuid
+  truckId           String         @map("truck_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  routeId           String?        @map("route_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  truck             Warehouse      @relation(fields: [truckId], references: [id])
+  user              User           @relation(fields: [userId], references: [id])
+  route             DeliveryRoute? @relation(fields: [routeId], references: [id])
+  loadLines         LoadLine[]
+
+  @@index([companyId, truckId, date])
+  @@index([companyId, changeSeq])
+  @@map("load")
+}
+
+/// Ligne de chargement. [S] [T]
+model LoadLine {
+  id                String         @id @db.Uuid
+  plannedQty        Int            @map("planned_qty")
+  loadedQty         Int?           @map("loaded_qty")
+  receivedQty       Int?           @map("received_qty")
+  companyId         String         @map("company_id") @db.Uuid
+  loadId            String         @map("load_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  load              Load           @relation(fields: [loadId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@unique([loadId, productVariantId])
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("load_line")
+}
+
+/// Déchargement du soir (BR-STK-07, P-06). [S] [T]
+model Unload {
+  id                String         @id @db.Uuid
+  date              DateTime       @db.Date
+  status            DocumentStatus @default(DRAFT)
+  keepsStockInTruck Boolean        @default(false) @map("keeps_stock_in_truck")
+  validatedByUserId String?        @map("validated_by_user_id") @db.Uuid
+  validatedAt       DateTime?      @map("validated_at") @db.Timestamptz(3)
+  companyId         String         @map("company_id") @db.Uuid
+  truckId           String         @map("truck_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  workdayId         String         @unique @map("workday_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  truck             Warehouse      @relation(fields: [truckId], references: [id])
+  user              User           @relation(fields: [userId], references: [id])
+  workday           Workday        @relation(fields: [workdayId], references: [id])
+  unloadLines       UnloadLine[]
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("unload")
+}
+
+/// Ligne de déchargement. [S] [T]
+model UnloadLine {
+  id                String         @id @db.Uuid
+  loadedQty         Int            @map("loaded_qty")
+  deliveredQty      Int            @map("delivered_qty")
+  freeQty           Int            @map("free_qty")
+  theoreticalQty    Int            @map("theoretical_qty")
+  countedQty        Int            @map("counted_qty")
+  gapQty            Int            @map("gap_qty")
+  companyId         String         @map("company_id") @db.Uuid
+  unloadId          String         @map("unload_id") @db.Uuid
+  productVariantId  String         @map("product_variant_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  unload            Unload         @relation(fields: [unloadId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("unload_line")
+}
+
+/// Tournée : un livreur, une date (BR-PRE-01). [S]
+model DeliveryRoute {
+  id                String      @id @db.Uuid
+  deliveryDate      DateTime    @map("delivery_date") @db.Date
+  status            RouteStatus @default(DRAFT)
+  launchedAt        DateTime?   @map("launched_at") @db.Timestamptz(3)
+  companyId         String      @map("company_id") @db.Uuid
+  deliveryUserId    String      @map("delivery_user_id") @db.Uuid
+  truckId           String?     @map("truck_id") @db.Uuid
+  launchedByUserId  String?     @map("launched_by_user_id") @db.Uuid
+  deletedAt         DateTime?   @map("deleted_at") @db.Timestamptz(3)
+  version           Int         @default(1)
+  changeSeq         BigInt      @default(0) @map("change_seq")
+  createdByUserId   String?     @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?     @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  deliveryUser      User        @relation("RouteDriver", fields: [deliveryUserId], references: [id])
+  truck             Warehouse?  @relation(fields: [truckId], references: [id])
+  launchedByUser    User?       @relation("RouteLauncher", fields: [launchedByUserId], references: [id])
+  orders            Order[]
+  loads             Load[]
+  deliveries        Delivery[]
+
+  @@unique([companyId, deliveryUserId, deliveryDate])
+  @@index([companyId, changeSeq])
+  @@map("delivery_route")
+}
+
+/// Tentative de livraison, ou bon de vente cash van. [S] [T]
+model Delivery {
+  id                String         @id @db.Uuid
+  number            String
+  attempt           Int            @default(1)
+  result            DeliveryResult
+  latitude          Float?
+  longitude         Float?
+  deliveredAmount   BigInt         @default(0) @map("delivered_amount")
+  companyId         String         @map("company_id") @db.Uuid
+  orderId           String         @map("order_id") @db.Uuid
+  routeId           String?        @map("route_id") @db.Uuid
+  workdayId         String         @map("workday_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  reasonId          String?        @map("reason_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  order             Order          @relation(fields: [orderId], references: [id])
+  route             DeliveryRoute? @relation(fields: [routeId], references: [id])
+  workday           Workday        @relation(fields: [workdayId], references: [id])
+  user              User           @relation(fields: [userId], references: [id])
+  reason            Reason?        @relation(fields: [reasonId], references: [id])
+  payments          Payment[]
+
+  @@unique([companyId, number])
+  @@unique([companyId, orderId, attempt])
+  @@index([companyId, changeSeq])
+  @@map("delivery")
+}
+
+/// Encaissement d’une livraison ou d’une dette (BR-PAY). [S] [T]
+model Payment {
+  id                  String              @id @db.Uuid
+  number              String
+  kind                PaymentKind
+  dueAmount           BigInt              @default(0) @map("due_amount")
+  cashAmount          BigInt              @default(0) @map("cash_amount")
+  creditAmount        BigInt              @default(0) @map("credit_amount")
+  companyId           String              @map("company_id") @db.Uuid
+  customerId          String              @map("customer_id") @db.Uuid
+  userId              String              @map("user_id") @db.Uuid
+  workdayId           String              @map("workday_id") @db.Uuid
+  orderId             String?             @map("order_id") @db.Uuid
+  deliveryId          String?             @map("delivery_id") @db.Uuid
+  deletedAt           DateTime?           @map("deleted_at") @db.Timestamptz(3)
+  version             Int                 @default(1)
+  changeSeq           BigInt              @default(0) @map("change_seq")
+  createdByUserId     String?             @map("created_by_user_id") @db.Uuid
+  createdByDeviceId   String?             @map("created_by_device_id") @db.Uuid
+  occurredAt          DateTime?           @map("occurred_at") @db.Timestamptz(3)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customer            Customer            @relation(fields: [customerId], references: [id])
+  user                User                @relation(fields: [userId], references: [id])
+  workday             Workday             @relation(fields: [workdayId], references: [id])
+  order               Order?              @relation(fields: [orderId], references: [id])
+  delivery            Delivery?           @relation(fields: [deliveryId], references: [id])
+  customerDebtEntries CustomerDebtEntry[]
+
+  @@unique([companyId, number])
+  @@index([companyId, changeSeq])
+  @@map("payment")
+}
+
+/// Écriture de dette, en ajout seul (BR-PAY-04).
+model CustomerDebtEntry {
+  id         String        @id @db.Uuid
+  kind       DebtEntryKind
+  amount     BigInt
+  occurredAt DateTime      @map("occurred_at") @db.Timestamptz(3)
+  companyId  String        @map("company_id") @db.Uuid
+  customerId String        @map("customer_id") @db.Uuid
+  paymentId  String?       @map("payment_id") @db.Uuid
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  company    Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  payment    Payment?      @relation(fields: [paymentId], references: [id])
+
+  @@index([companyId, customerId, occurredAt])
+  @@map("customer_debt_entry")
+}
+
+/// Versement d’une journée (BR-PAY-08).
+model Settlement {
+  id               String   @id @db.Uuid
+  expectedAmount   BigInt   @map("expected_amount")
+  remittedAmount   BigInt   @map("remitted_amount")
+  gapAmount        BigInt   @map("gap_amount")
+  validatedAt      DateTime @map("validated_at") @db.Timestamptz(3)
+  isRecalculated   Boolean  @default(false) @map("is_recalculated")
+  companyId        String   @map("company_id") @db.Uuid
+  workdayId        String   @unique @map("workday_id") @db.Uuid
+  accountantUserId String   @map("accountant_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  workday          Workday  @relation(fields: [workdayId], references: [id])
+  accountantUser   User     @relation(fields: [accountantUserId], references: [id])
+
+  @@index([companyId])
+  @@map("settlement")
+}
+
+/// Trace d’impression ; copie 2 et plus = DUPLICATA (BR-IMP-03). [T]
+model PrintLog {
+  id           String            @id @db.Uuid
+  documentType PrintDocumentType @map("document_type")
+  documentId   String            @map("document_id") @db.Uuid
+  copyNumber   Int               @map("copy_number")
+  deviceId     String?           @map("device_id") @db.Uuid
+  printedAt    DateTime          @map("printed_at") @db.Timestamptz(3)
+  companyId    String            @map("company_id") @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  occurredAt   DateTime?         @map("occurred_at") @db.Timestamptz(3)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user         User              @relation(fields: [userId], references: [id])
+
+  @@index([companyId, documentId])
+  @@map("print_log")
+}
+
+/// Opération reçue du téléphone : idempotence et journal (BR-SYN-02, BR-SYN-07).
+model SyncOperation {
+  id         String     @id @db.Uuid
+  opId       String     @map("op_id") @db.Uuid
+  deviceSeq  Int        @map("device_seq")
+  type       String
+  payload    Json
+  status     SyncStatus
+  result     Json?
+  errorCode  String?    @map("error_code")
+  occurredAt DateTime   @map("occurred_at") @db.Timestamptz(3)
+  receivedAt DateTime   @default(now()) @map("received_at") @db.Timestamptz(3)
+  companyId  String     @map("company_id") @db.Uuid
+  deviceId   String     @map("device_id") @db.Uuid
+  userId     String     @map("user_id") @db.Uuid
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  device     Device     @relation(fields: [deviceId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([companyId, opId])
+  @@unique([deviceId, deviceSeq])
+  @@map("sync_operation")
+}
+
+/// Notification interne (BR-NOT). [S]
+model Notification {
+  id                String    @id @db.Uuid
+  type              String
+  title             String
+  body              String
+  data              Json?
+  readAt            DateTime? @map("read_at") @db.Timestamptz(3)
+  pushedAt          DateTime? @map("pushed_at") @db.Timestamptz(3)
+  companyId         String    @map("company_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version           Int       @default(1)
+  changeSeq         BigInt    @default(0) @map("change_seq")
+  createdByUserId   String?   @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, userId, readAt])
+  @@index([companyId, changeSeq])
+  @@map("notification")
+}
+
+/// Audit de l’entreprise, en ajout seul (BR-AUD-01).
+model AuditLog {
+  id          String   @id @db.Uuid
+  deviceId    String?  @map("device_id") @db.Uuid
+  action      String
+  entity      String
+  entityId    String?  @map("entity_id") @db.Uuid
+  before      Json?
+  after       Json?
+  reason      String?
+  ip          String?
+  userAgent   String?  @map("user_agent")
+  companyId   String   @map("company_id") @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  actorUser   User?    @relation(fields: [actorUserId], references: [id])
+
+  @@index([companyId, entity, entityId])
+  @@map("audit_log")
+}
+
+/// Fichier en stockage objet, rangé sous companies/<company_id>/.
+model StoredFile {
+  id              String      @id @db.Uuid
+  kind            FileKind
+  storageKey      String      @unique @map("storage_key")
+  filename        String
+  contentType     String      @map("content_type")
+  sizeBytes       Int         @map("size_bytes")
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+  companyId       String      @map("company_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  importJobs      ImportJob[]
+
+  @@index([companyId])
+  @@map("stored_file")
+}
+
+/// Import CSV avec aperçu (BR-IO-01, BR-IO-02).
+model ImportJob {
+  id              String       @id @db.Uuid
+  kind            ImportKind
+  status          ImportStatus @default(PREVIEW)
+  totalRows       Int          @default(0) @map("total_rows")
+  importedRows    Int          @default(0) @map("imported_rows")
+  errors          Json?
+  createdByUserId String       @map("created_by_user_id") @db.Uuid
+  companyId       String       @map("company_id") @db.Uuid
+  fileId          String       @map("file_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  file            StoredFile   @relation(fields: [fileId], references: [id])
+
+  @@index([companyId])
+  @@map("import_job")
 }

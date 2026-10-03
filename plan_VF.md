@@ -305,18 +305,18 @@ Customer ≠ Visit ≠ Order
 
 ## Tâches
 
-- [ ] Écrire le schéma Prisma
-- [ ] Définir les relations et index (`company_id` en tête des index composites)
-- [ ] Ajouter les champs offline-ready sur les entités synchronisables
-- [ ] Créer les migrations
-- [ ] Créer un seed de développement : 2 entreprises minimum pour tester l'isolation, une en prévente et une en cash van, avec les données des exemples chiffrés de `docs/business-rules.md` §22
+- [x] Écrire le schéma Prisma (61 tables, `apps/api/prisma/schema.prisma`)
+- [x] Définir les relations et index (`company_id` en tête des index composites)
+- [x] Ajouter les champs offline-ready sur les entités synchronisables (triggers `change_seq` et `version`)
+- [x] Créer les migrations
+- [x] Créer un seed de développement : 2 entreprises minimum pour tester l'isolation, une en prévente et une en cash van, avec les données des exemples chiffrés de `docs/business-rules.md` §22
 - [x] Rédiger `docs/database.md` avec le diagramme des entités (phase 1, 2026-10-02)
 
 ## Critère de validation
 
-- [ ] Migrations applicables sur une base vide
-- [ ] Seed fonctionnel
-- [ ] Diagramme des entités validé
+- [x] Migrations applicables sur une base vide
+- [x] Seed fonctionnel (invariants de stock et de dette vérifiés)
+- [ ] Diagramme des entités validé (Figma, page « 01 · Base de données »)
 
 ---
 
