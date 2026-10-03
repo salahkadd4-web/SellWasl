@@ -799,6 +799,13 @@ async function main(): Promise<void> {
   }
   await seedPermissions();
   const passwordHash = await hash(DEMO_PASSWORD);
+  // Compte Super Admin de démonstration (comptes plateforme séparés)
+  await prisma.platformUser.upsert({
+    where: { email: 'superadmin@sellwasl.test' },
+    update: {},
+    create: { id: uuidv7(), email: 'superadmin@sellwasl.test', name: 'Super Admin', passwordHash },
+  });
+  console.log('✔ Super Admin : superadmin@sellwasl.test');
   for (const spec of COMPANIES) {
     await seedCompany(spec, passwordHash);
   }

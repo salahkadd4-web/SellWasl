@@ -77,7 +77,7 @@ Toutes les erreurs ont la même forme :
 
 | Méthode | Chemin | Usage |
 |---|---|---|
-| `POST` | `/auth/login` | Code ou email, et mot de passe → jeton d'accès ; cookie de rafraîchissement |
+| `POST` | `/auth/login` | Code de l'entreprise, code ou email de l'utilisateur, mot de passe → jeton d'accès ; cookie de rafraîchissement. Les codes utilisateur n'étant uniques que dans une entreprise, le code de l'entreprise est demandé ; le Web le mémorise |
 | `POST` | `/auth/refresh` | Nouveau jeton d'accès ; rotation du jeton de rafraîchissement |
 | `POST` | `/auth/logout` | Révoque la session |
 | `POST` | `/auth/password` | Changer son mot de passe (obligatoire si `mustChangePassword`) |
@@ -90,7 +90,7 @@ Le mot de passe oublié d'un utilisateur d'entreprise est réinitialisé par l'a
 | Méthode | Chemin | Usage |
 |---|---|---|
 | `POST` | `/auth/device/activate` | Code d'association (QR ou code de secours, ARC-04), informations de l'appareil, mot de passe → appareil enregistré, `deviceId`, série, jetons |
-| `POST` | `/auth/device/login` | `deviceId`, code de l'utilisateur, mot de passe → jetons. Refusé si l'appareil n'est pas l'appareil actif de l'utilisateur |
+| `POST` | `/auth/device/login` | `deviceId` et mot de passe → jetons : l'utilisateur est celui de l'appareil. Refusé si l'appareil n'est plus actif |
 | `POST` | `/auth/refresh` | Comme sur le Web ; le jeton de rafraîchissement est lié à l'appareil |
 | `POST` | `/devices/heartbeat` | Signal de vie : batterie, opérations en attente, position, version de l'application (architecture §11.3). Positions refusées hors journée en cours (BR-JOU-09) |
 | `PUT` | `/devices/push-token` | Enregistrer le jeton de notification push |

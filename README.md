@@ -40,6 +40,10 @@ Vérifier : `curl http://localhost:3001/api/v1/health` → `{"status":"ok","data
 | Cash Van Est | Cash van | `B-ADM` admin · `B-SUP` superviseur · `B-CPT` comptable · `C01`, `C02` vendeurs cash van · `M01` magasinier |
 
 Les comptes Web ont aussi un email : `admin@distri-oran.test`, `superviseur@cashvan-est.test`…
+
+- **Web** (http://localhost:3000/app) : code de l'entreprise (`DISTRI-ORAN` ou `CASHVAN-EST`), code ou email, mot de passe.
+- **Mobile** : sur le Web, le superviseur ouvre **Appareils** et associe le téléphone d'un vendeur ; dans l'application, scanner le QR code (ou saisir le code), puis le mot de passe du vendeur.
+- **Super Admin** (http://localhost:3000/admin) : `superadmin@sellwasl.test`.
 Pour parcourir les données : `pnpm db:studio`. Pour tout effacer et recommencer : `pnpm db:reset`.
 
 ## Mobile (Android)

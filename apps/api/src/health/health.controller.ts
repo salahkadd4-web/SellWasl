@@ -1,7 +1,9 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { Public } from '../common/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Santé de l'API et de la base (architecture §17). */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}

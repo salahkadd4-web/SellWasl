@@ -324,23 +324,23 @@ Customer ≠ Visit ≠ Order
 
 ## Tâches
 
-- [ ] Login / logout
-- [ ] Hash sécurisé des mots de passe
-- [ ] Access token et refresh token
-- [ ] Expiration et rotation des tokens
-- [ ] Révocation
-- [ ] Sessions
-- [ ] Liaison session ↔ appareil
-- [ ] Réinitialisation du mot de passe et récupération de compte
+- [x] Login / logout (Web, mobile, Super Admin)
+- [x] Hash sécurisé des mots de passe (Argon2id)
+- [x] Access token et refresh token
+- [x] Expiration et rotation des tokens (réutilisation d'un ancien jeton → session révoquée)
+- [x] Révocation
+- [x] Sessions
+- [x] Liaison session ↔ appareil
+- [ ] Réinitialisation du mot de passe et récupération de compte (changement de mot de passe fait ; réinitialisation par l'admin en phase 9)
 - [ ] Activation et désactivation d'un utilisateur
-- [ ] Authentification séparée des comptes plateforme (`PlatformUser`)
+- [x] Authentification séparée des comptes plateforme (`PlatformUser`)
 - [ ] MFA éventuellement *(après le MVP)*
 
 **Ajouts phase 0**
 
-- [ ] Un seul appareil actif par utilisateur terrain ; associer un nouvel appareil révoque l'ancien (BR-USR-06, BR-USR-07)
-- [ ] Le superviseur associe un profil à un appareil depuis le Web (UC-01, UC-59)
-- [ ] Les rôles terrain n'ont accès qu'au mobile, et les rôles de gestion qu'au Web (BR-USR-02)
+- [x] Un seul appareil actif par utilisateur terrain ; associer un nouvel appareil révoque l'ancien (BR-USR-06, BR-USR-07)
+- [x] Le superviseur associe un profil à un appareil depuis le Web, par QR code ou code de secours (UC-01, UC-59)
+- [x] Les rôles terrain n'ont accès qu'au mobile, et les rôles de gestion qu'au Web (BR-USR-02)
 - [ ] Chaque opération enregistre l'utilisateur **et** l'appareil (BR-USR-09)
 
 ## Contexte authentifié
@@ -355,8 +355,8 @@ modules actifs
 
 ## Critère de validation
 
-- [ ] Authentification fonctionnelle (Web et mobile)
-- [ ] Refresh et révocation testés
+- [x] Authentification fonctionnelle (Web et mobile)
+- [x] Refresh et révocation testés (parcours vérifiés sur l'API et dans un navigateur)
 
 ---
 

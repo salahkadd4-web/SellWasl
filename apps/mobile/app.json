@@ -24,7 +24,17 @@
       ]
     },
     "scheme": "sellwasl",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SellWasl utilise la cam\u00e9ra pour lire le QR code d'association.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-secure-store"
+    ],
     "platforms": ["android"]
   }
 }
