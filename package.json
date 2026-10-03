@@ -18,9 +18,11 @@
     "db:migrate": "pnpm --filter @sellwasl/api prisma:migrate",
     "db:generate": "pnpm --filter @sellwasl/api prisma:generate",
     "dev:mobile": "pnpm --filter @sellwasl/mobile dev",
-    "db:seed": "pnpm --filter @sellwasl/api prisma:seed",
-    "db:reset": "pnpm --filter @sellwasl/api prisma:reset",
-    "db:studio": "pnpm --filter @sellwasl/api prisma:studio"
+    "db:seed": "pnpm build:packages && pnpm --filter @sellwasl/api prisma:seed",
+    "db:reset": "pnpm build:packages && pnpm --filter @sellwasl/api prisma:reset",
+    "db:studio": "pnpm --filter @sellwasl/api prisma:studio",
+    "build:packages": "turbo run build --filter=./packages/*",
+    "postinstall": "pnpm build:packages"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
