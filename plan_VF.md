@@ -659,21 +659,21 @@ VisitSchedule (fréquence, jour)
 
 ## Tâches
 
-- [ ] CRUD clients (Web : superviseur et admin) ; supprimer = désactiver (BR-CLI-04)
+- [x] CRUD clients (Web : superviseur et admin) ; supprimer = désactiver (BR-CLI-04)
 - [ ] Contacts et adresses multiples *(après le MVP)*
-- [ ] Import CSV des clients, avec aperçu et liste des erreurs (UC-83, BR-IO-01)
-- [ ] Recherche et filtres
-- [ ] Position GPS
-- [ ] Affectation au secteur et à la partie
-- [ ] Fréquence de visite
-- [ ] Historique des visites et commandes
+- [x] Import CSV des clients, avec aperçu et liste des erreurs (UC-83, BR-IO-01) ; fichiers sur le disque du serveur (`STORAGE_DIR`) en attendant le stockage S3
+- [x] Recherche et filtres, pagination par curseur
+- [x] Position GPS (saisie ou collée depuis une carte ; la carte des clients vient avec la phase 13)
+- [x] Affectation au secteur et à la partie (BR-ORG-04 : calcul partagé avec le mobile, partie forcée, choix si plusieurs parties)
+- [x] Fréquence de visite et date de référence (BR-PLA-03)
+- [x] Historique des visites, commandes et paiements (rempli par les phases 15 à 20)
 
 **Ajouts phase 0** (UC-11, UC-12, UC-53)
 
-- [ ] Type de client, crédit autorisé et plafond (BR-CLI-01, BR-PAY-02)
-- [ ] Création par le vendeur sur mobile, avec la position GPS et la fréquence ; client actif tout de suite et marqué « nouveau » (BR-CLI-02, BR-CLI-03)
-- [ ] Liste « clients à revoir » : nouveaux, hors partie, fermés définitivement (BR-CLI-05)
-- [ ] Dette du client sur sa fiche (BR-PAY-04)
+- [x] Type de client, crédit autorisé et plafond (BR-CLI-01, BR-PAY-02)
+- [ ] Création par le vendeur sur mobile, avec la position GPS et la fréquence ; client actif tout de suite et marqué « nouveau » (BR-CLI-02, BR-CLI-03) — *règles faites côté API ; l'écran mobile, hors connexion, vient avec la phase 15*
+- [x] Liste « clients à revoir » : nouveaux, hors partie, fermés définitivement (BR-CLI-05)
+- [x] Dette du client sur sa fiche (BR-PAY-04)
 
 ---
 

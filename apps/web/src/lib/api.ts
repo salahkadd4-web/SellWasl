@@ -75,7 +75,8 @@ export async function api<T>(
   retry = true,
 ): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json');
   if (tokens[scope]) headers.set('Authorization', `Bearer ${tokens[scope]}`);
 
   const response = await fetch(`/api/v1${path}`, { ...init, headers, credentials: 'same-origin' });
@@ -84,4 +85,9 @@ export async function api<T>(
   }
   if (!response.ok) throw await toError(response);
   return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
+/** Jeton d'accès courant, pour un téléchargement de fichier hors de `api`. */
+export function getAccessToken(scope: Scope): string | null {
+  return tokens[scope];
 }

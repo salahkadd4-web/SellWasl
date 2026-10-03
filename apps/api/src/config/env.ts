@@ -8,6 +8,8 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().default(3001),
   /** Secret de signature des jetons d'accès. Obligatoire hors développement. */
   JWT_ACCESS_SECRET: z.string().min(32).optional(),
+  /** Dossier des fichiers (imports CSV) en attendant le stockage objet S3 (architecture §13). */
+  STORAGE_DIR: z.string().default('storage'),
 });
 
 export type Env = z.infer<typeof envSchema> & { JWT_ACCESS_SECRET: string };

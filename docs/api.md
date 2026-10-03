@@ -66,6 +66,8 @@ Toutes les erreurs ont la même forme :
 | 404 | `NOT_FOUND` | Inexistant **ou hors du périmètre** de l'utilisateur (rbac.md §3) |
 | 409 | `VERSION_CONFLICT`, `DUPLICATE`, `INVALID_STATE` | Modification concurrente, doublon, ou action impossible dans l'état actuel (par exemple rouvrir une journée dont la préparation est lancée) |
 | 422 | `BUSINESS_RULE` | Règle métier violée ; `details.rule` donne l'identifiant (`BR-JOU-08`) |
+| 422 | `AMBIGUOUS_PART` | Plusieurs parties contiennent la position d'un client ; `details.options` les liste, à choisir (BR-ORG-04) |
+| 422 | `IMPORT_INVALID` | Fichier d'import illisible : colonnes obligatoires absentes, trop de lignes |
 | 429 | `RATE_LIMITED` | Trop de requêtes (§9) |
 | 500 | `INTERNAL_ERROR` | Erreur inattendue, remontée à Sentry avec le `requestId` |
 
@@ -167,9 +169,10 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `PUT` | `/territories/{id}/parts` | `territories.update` — polygones ; réponse : chevauchements et nombre de clients déplacés (BR-ORG-06) ; `?dryRun=true` pour l'aperçu avant confirmation |
 | `PUT` | `/territories/{id}/schedule` | `territories.update` |
 | `GET` | `/territories/overlaps` | `territories.read` — chevauchements entre secteurs d'un même type (BR-ORG-03) |
-| `GET`, `POST` | `/customers` | `customers.read`, `customers.create` — filtres : secteur, partie, type, statut, `toReview=true` (BR-CLI-05) |
-| `GET`, `PATCH` | `/customers/{id}` | `customers.read`, `customers.update` — forcer la partie, valider un nouveau client |
-| `POST` | `/customers/{id}/disable` | `customers.disable` |
+| `GET`, `POST` | `/customers` | `customers.read`, `customers.create` — filtres : `q` (nom, code, téléphone, adresse), `territoryId`, `partId` (`none` : hors partie), `customerTypeId`, `status` (`ACTIVE` par défaut, `INACTIVE`, `ALL`), `toReview=true` (BR-CLI-05) ; tri par nom, réponse `{ data, nextCursor, total }`. Un utilisateur terrain ne voit que les clients de son secteur (vendeur) ou des secteurs qu'il livre (livreur). Créé par un vendeur : rattaché à son secteur, « nouveau », sans crédit, position obligatoire (BR-CLI-02, BR-CLI-03). Créé sur le Web : partie calculée parmi tous les secteurs qui servent le type, ou `partId` choisi (partie forcée) ; si plusieurs parties conviennent, `422 AMBIGUOUS_PART` avec `details.options` |
+| `GET`, `PATCH` | `/customers/{id}` | `customers.read`, `customers.update` — `partId` force la partie, `partId: null` la libère ; une nouvelle position ou un nouveau type recalcule la partie si elle n'est pas forcée ; un changement de partie recalcule la date de référence (BR-PLA-03) ; `isClosedPermanently: false` retire le signalement |
+| `POST` | `/customers/{id}/validate` | `customers.update` — valide un client créé par un vendeur : il n'est plus « nouveau » ni limité au comptant (BR-CLI-03) |
+| `POST` | `/customers/{id}/disable`, `/customers/{id}/enable` | `customers.disable` |
 | `GET` | `/customers/{id}/history` | `customers.read` — visites, commandes, paiements, dette |
 | `POST`, `DELETE` | `/customers/{id}/reschedules` | `customers.reschedule` |
 | `GET` | `/planning/day?userId=…&date=…` | `territories.read` — liste du jour d'un vendeur, calculée comme sur le téléphone |
@@ -362,7 +365,9 @@ Les numéros (commande, bon, reçu) sont fournis par le téléphone, au format d
 3. GET  /imports/{id}         → résultat
 ```
 
-Fichier limité à 5 Mo et 10 000 lignes. Les modèles de fichiers CSV sont téléchargeables sur `GET /imports/templates/{type}`.
+Fichier limité à 5 Mo et 10 000 lignes. Les modèles de fichiers CSV sont téléchargeables sur `GET /imports/templates/{type}` (`customers` ; `products` avec la phase 12). Permission : `imports.run`.
+
+Colonnes du fichier des clients : `code`, `nom`*, `telephone`, `adresse`, `type`* (code ou nom du type), `latitude`, `longitude` (degrés décimaux, virgule acceptée), `frequence` (1, 2 ou 4 semaines), `credit_autorise` (oui ou non), `plafond_credit` (DA). Les en-têtes acceptent accents et majuscules. Un client sans position, ou dont la position est dans aucune ou plusieurs parties, est importé hors partie et rejoint les clients à revoir. Le fichier est vérifié de nouveau à la confirmation.
 
 ### 8.2 Exports CSV (BR-IO-03)
 

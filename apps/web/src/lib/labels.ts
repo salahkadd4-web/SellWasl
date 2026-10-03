@@ -26,3 +26,25 @@ export function formatDateTime(iso: string | null): string {
     ? new Date(iso).toLocaleString('fr-DZ', { dateStyle: 'short', timeStyle: 'short' })
     : '—';
 }
+
+export const FREQUENCY_LABELS: Record<string, string> = {
+  WEEKLY: 'Chaque semaine',
+  BIWEEKLY: 'Toutes les 2 semaines',
+  EVERY_4_WEEKS: 'Toutes les 4 semaines',
+};
+
+/** Montant en dinars, sans décimales : « 42 000 DA ». */
+export function formatDA(amount: number): string {
+  return `${new Intl.NumberFormat('fr-FR').format(amount)} DA`;
+}
+
+export function formatDate(date: string | null): string {
+  return date
+    ? new Date(`${date.slice(0, 10)}T12:00:00Z`).toLocaleDateString('fr-DZ', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '—';
+}

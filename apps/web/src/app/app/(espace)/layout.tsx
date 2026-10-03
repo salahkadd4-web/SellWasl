@@ -9,6 +9,7 @@ import { CompanyAuth } from '@/lib/auth';
 
 const NAV = [
   { href: '/app', label: 'Accueil', permission: null },
+  { href: '/app/clients', label: 'Clients', permission: 'customers.read' },
   { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
   { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },
@@ -52,7 +53,8 @@ export default function CompanySpaceLayout({ children }: { children: React.React
               key={item.href}
               href={item.href}
               className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
-                pathname === item.href
+                pathname === item.href ||
+                (item.href !== '/app' && pathname.startsWith(`${item.href}/`))
                   ? 'border-accent text-white'
                   : 'border-transparent text-white/70 hover:text-white'
               }`}

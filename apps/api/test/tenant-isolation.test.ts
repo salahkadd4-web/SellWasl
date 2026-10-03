@@ -37,7 +37,11 @@ describe('isolation des entreprises (client Prisma filtré)', () => {
 
   it("ne lit que les clients de l'entreprise courante", async () => {
     const customers = await asCompany(companyA, () => db.customer.findMany());
-    expect(customers.length).toBe(64);
+    // Le nombre dépend des tests déjà passés : on le compare au total réel de l'entreprise
+    expect(customers.length).toBe(
+      await t.app.get(PrismaService).customer.count({ where: { companyId: companyA } }),
+    );
+    expect(customers.length).toBeGreaterThan(0);
     expect(customers.every((c) => c.companyId === companyA)).toBe(true);
   });
 
