@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { hash, verify } from '@node-rs/argon2';
 
 /** Mots de passe hachés en Argon2id (architecture §16). */
@@ -18,4 +19,12 @@ export async function verifyPassword(
     return false;
   }
   return verify(passwordHash, password).catch(() => false);
+}
+
+/** Mot de passe provisoire lisible (sans 0/O ni 1/l), à changer à la première connexion. */
+export function temporaryPassword(): string {
+  const letters = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const pick = (set: string) => set[randomInt(set.length)]!;
+  return `${Array.from({ length: 4 }, () => pick(letters)).join('')}-${Array.from({ length: 4 }, () => pick(digits)).join('')}`;
 }

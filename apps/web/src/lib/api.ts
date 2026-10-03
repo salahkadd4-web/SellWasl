@@ -11,9 +11,14 @@ export class ApiClientError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }
+}
+
+export function errorMessage(error: unknown, fallback = 'Erreur inattendue. Réessayez.'): string {
+  return error instanceof ApiClientError ? error.message : fallback;
 }
 
 const tokens: Record<Scope, string | null> = { company: null, platform: null };
@@ -29,12 +34,13 @@ export function setAccessToken(scope: Scope, token: string | null): void {
 
 async function toError(response: Response): Promise<ApiClientError> {
   const body = (await response.json().catch(() => null)) as {
-    error?: { code?: string; message?: string };
+    error?: { code?: string; message?: string; details?: Record<string, unknown> };
   } | null;
   return new ApiClientError(
     response.status,
     body?.error?.code ?? 'ERROR',
     body?.error?.message ?? 'Erreur inattendue. Réessayez.',
+    body?.error?.details,
   );
 }
 

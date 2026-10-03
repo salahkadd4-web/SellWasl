@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { ChangePasswordForm } from '@/components/change-password';
 import { FullPageMessage } from '@/components/ui';
 import { CompanyAuth } from '@/lib/auth';
 
 const NAV = [
   { href: '/app', label: 'Accueil', permission: null },
+  { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
+  { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },
 ] as const;
 
 /** Espace entreprise : réservé aux sessions Web valides (docs/rbac.md §9). */
@@ -59,7 +62,10 @@ export default function CompanySpaceLayout({ children }: { children: React.React
           ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        {/* Mot de passe provisoire : à changer avant toute autre action (UC-80). */}
+        {me.mustChangePassword ? <ChangePasswordForm /> : children}
+      </main>
     </div>
   );
 }

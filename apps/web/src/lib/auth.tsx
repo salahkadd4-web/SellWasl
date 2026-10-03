@@ -13,6 +13,8 @@ interface AuthState<Me> {
   login: (body: Record<string, string>) => Promise<void>;
   logout: () => Promise<void>;
   can: (permission: string) => boolean;
+  /** Recharge le profil (après un changement de mot de passe, par exemple). */
+  refreshMe: () => Promise<void>;
 }
 
 function createAuth<Me>(
@@ -72,7 +74,9 @@ function createAuth<Me>(
     );
 
     return (
-      <Context.Provider value={{ status, me, login, logout, can }}>{children}</Context.Provider>
+      <Context.Provider value={{ status, me, login, logout, can, refreshMe: loadMe }}>
+        {children}
+      </Context.Provider>
     );
   }
 

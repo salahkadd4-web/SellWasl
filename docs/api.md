@@ -115,9 +115,10 @@ Préfixe `/platform`, réservé aux sessions `PlatformUser` (rbac.md §2.1).
 |---|---|---|---|
 | `POST` | `/platform/auth/login`, `/platform/auth/refresh`, `/platform/auth/logout` | — | Connexion séparée du Super Admin |
 | `GET` | `/platform/companies` | `companies.read` | Liste, avec statut et mode |
-| `POST` | `/platform/companies` | `companies.create` | Nom, mode, administrateur → entreprise, modules, rôles, paramètres par défaut (modules.md §4) |
+| `POST` | `/platform/companies` | `companies.create` | Nom, code, mode, administrateur → entreprise, modules, rôles, paramètres par défaut (modules.md §4) ; renvoie une seule fois le mot de passe provisoire de l'administrateur |
 | `GET` | `/platform/companies/{id}` | `companies.read` | Détail, nombre d'utilisateurs et d'appareils |
-| `PATCH` | `/platform/companies/{id}` | `companies.update` | Nom ; changement de mode avec ses contrôles (modules.md §8) |
+| `POST` | `/platform/companies/{id}/mode` | `companies.update` | Changement de mode avec ses contrôles (modules.md §8) ; refus `409 INVALID_STATE` avec la liste de ce qui bloque (`details.blockers`) |
+| `PATCH` | `/platform/companies/{id}` | `companies.update` | Nom *(après le MVP)* |
 | `POST` | `/platform/companies/{id}/suspend`, `/platform/companies/{id}/reactivate` | `companies.suspend` | |
 | `GET` | `/platform/audit` | `platform.audit.read` | |
 
@@ -134,9 +135,11 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `GET`, `PUT` | `/settings` | `settings.read`, `settings.update` — crée une nouvelle version (ARC-12) |
 | `GET` | `/settings/versions` | `settings.read` |
 | `GET` | `/modules` | `modules.read` |
-| `GET`, `POST`, `PATCH`, `DELETE` | `/customer-types`, `/holidays`, `/reasons`, `/warehouses` | `settings.read`, `settings.update` (un `DELETE` désactive) |
-| `GET`, `POST` | `/users` | `users.read`, `users.create` |
-| `GET`, `PATCH` | `/users/{id}` | `users.read`, `users.update` |
+| `GET`, `POST`, `PATCH` | `/customer-types`, `/reasons`, `/warehouses` | `settings.read`, `settings.update` (`isActive: false` désactive ; un motif système reste actif ; il reste toujours un type de client actif) |
+| `GET`, `POST`, `DELETE` | `/holidays` | `settings.read`, `settings.update` |
+| `GET`, `POST` | `/users` | `users.read`, `users.create` — la création renvoie une seule fois le mot de passe provisoire |
+| `GET` | `/roles` | `users.read` — rôles de l'entreprise, avec `available` selon les modules actifs |
+| `PATCH` | `/users/{id}` | `users.update` — jamais son propre rôle ; il reste toujours un administrateur actif ; un changement de rôle ferme les sessions |
 | `POST` | `/users/{id}/disable`, `/users/{id}/enable` | `users.disable` |
 | `POST` | `/users/{id}/reset-password` | `users.update` |
 | `GET` | `/audit` | `audit.read` |

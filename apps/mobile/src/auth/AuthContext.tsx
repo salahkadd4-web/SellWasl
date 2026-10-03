@@ -9,9 +9,10 @@ import { type DeviceProfile, secureStorage } from './storage';
  * États du téléphone (UC-01) :
  * - needsActivation : aucun appareil associé, ou l'association a été révoquée ;
  * - loggedOut : appareil associé, mot de passe à saisir ;
+ * - mustChangePassword : session ouverte avec un mot de passe provisoire, à changer d'abord ;
  * - loggedIn : session ouverte.
  */
-type Status = 'loading' | 'needsActivation' | 'loggedOut' | 'loggedIn';
+type Status = 'loading' | 'needsActivation' | 'loggedOut' | 'mustChangePassword' | 'loggedIn';
 
 interface AuthState {
   status: Status;
@@ -21,6 +22,7 @@ interface AuthState {
   notice: string | null;
   activate: (code: string, password: string) => Promise<void>;
   login: (password: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   forgetDevice: () => Promise<void>;
 }
@@ -57,9 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const openSession = useCallback(async (tokens: AuthTokens) => {
     setAccessToken(tokens.accessToken);
     if (tokens.refreshToken) await secureStorage.setRefreshToken(tokens.refreshToken);
-    setMe(await request<MeResponse>('/me'));
+    const nextMe = await request<MeResponse>('/me');
+    setMe(nextMe);
     setNotice(null);
-    setStatus('loggedIn');
+    setStatus(nextMe.mustChangePassword ? 'mustChangePassword' : 'loggedIn');
   }, []);
 
   // Jeton d'accès expiré pendant l'utilisation : rotation silencieuse, sinon retour à la connexion.
@@ -159,6 +162,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [openSession, deviceLost],
   );
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await request('/auth/password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const nextMe = await request<MeResponse>('/me');
+    setMe(nextMe);
+    setStatus(nextMe.mustChangePassword ? 'mustChangePassword' : 'loggedIn');
+  }, []);
+
   const logout = useCallback(async () => {
     await request('/auth/logout', { method: 'POST' }).catch(() => undefined);
     await secureStorage.clearRefreshToken();
@@ -175,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ status, profile, me, notice, activate, login, logout, forgetDevice }}
+      value={{ status, profile, me, notice, activate, login, changePassword, logout, forgetDevice }}
     >
       {children}
     </AuthContext.Provider>

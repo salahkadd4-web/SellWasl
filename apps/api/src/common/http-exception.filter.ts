@@ -48,6 +48,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return;
     }
 
+    // Erreurs Prisma connues : doublon et ligne introuvable
+    const prismaCode = (exception as { code?: unknown }).code;
+    if (prismaCode === 'P2002') {
+      res
+        .status(HttpStatus.CONFLICT)
+        .json({ error: { code: 'DUPLICATE', message: 'Cette valeur existe déjà.', requestId } });
+      return;
+    }
+    if (prismaCode === 'P2025') {
+      res
+        .status(HttpStatus.NOT_FOUND)
+        .json({ error: { code: 'NOT_FOUND', message: 'Introuvable.', requestId } });
+      return;
+    }
+
     this.logger.error(exception);
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       error: { code: 'INTERNAL_ERROR', message: 'Erreur inattendue.', requestId },

@@ -487,10 +487,12 @@ Cette phase distingue l'administration globale du SaaS de l'administration d'une
 
 **Périmètre du MVP** (UC-90) : uniquement les tâches suivantes. Tout le reste de la phase vient *après le MVP*.
 
-- [ ] Connexion du Super Admin
-- [ ] Liste des entreprises
-- [ ] Création d'une entreprise : nom, mode (Prévente, Cash van ou Mixte), paramètres par défaut
-- [ ] Création du compte administrateur de l'entreprise
+- [x] Connexion du Super Admin (phase 4)
+- [x] Liste des entreprises
+- [x] Création d'une entreprise : nom, code, mode (Prévente, Cash van ou Mixte), paramètres par défaut, rôles, motifs système, type de client « Détail »
+- [x] Création du compte administrateur de l'entreprise (mot de passe provisoire, à changer à la première connexion)
+- [x] Changement de mode, refusé tant que du travail est en cours dans un module retiré (modules.md §8)
+- [x] Suspension et réactivation d'une entreprise (sessions refusées, `COMPANY_SUSPENDED`)
 
 ## Routes
 
@@ -521,8 +523,8 @@ Cette phase distingue l'administration globale du SaaS de l'administration d'une
 
 ## Entreprises
 
-- [ ] Créer, consulter, modifier
-- [ ] Activer, suspendre, réactiver
+- [ ] Créer, consulter, modifier *(création et consultation faites ; modification du nom après le MVP)*
+- [x] Activer, suspendre, réactiver
 - [ ] Gérer les modules
 - [ ] Consulter le plan et l'utilisation
 - [ ] Consulter les utilisateurs, les appareils et l'activité
@@ -542,7 +544,7 @@ Cette phase distingue l'administration globale du SaaS de l'administration d'une
 ## Monitoring, logs, support
 
 - [ ] Monitoring : API, temps de réponse, erreurs, base, stockage, notifications, synchronisation, jobs
-- [ ] Logs et audit plateforme (actor, action, target, timestamp, IP, user agent, company, metadata)
+- [ ] Logs et audit plateforme *(l'audit est écrit à chaque action depuis la phase 4 ; l'écran vient après le MVP)* (actor, action, target, timestamp, IP, user agent, company, metadata)
 - [ ] Accès support temporaire, audité, en lecture seule de préférence
 
 ## Livrables
@@ -565,18 +567,18 @@ Cette phase distingue l'administration globale du SaaS de l'administration d'une
 
 ## COMPANY_ADMIN
 
-- [ ] Informations et paramètres de l'entreprise
-- [ ] Utilisateurs, rôles, permissions
+- [x] Informations et paramètres de l'entreprise (`/app/parametres`)
+- [x] Utilisateurs et rôles (`/app/utilisateurs`) ; permissions fixées par le rôle et P-08, P-10
 - [ ] Équipes *(après le MVP)*
-- [ ] Secteurs
-- [ ] Appareils
+- [ ] Secteurs *(phase 13)*
+- [x] Appareils (phase 4)
 
 ## Utilisateurs
 
-- [ ] Créer, modifier, désactiver
-- [ ] Modifier le rôle
+- [x] Créer, modifier, désactiver, réactiver ; réinitialiser le mot de passe
+- [x] Modifier le rôle (sessions fermées ; jamais son propre rôle ; toujours un administrateur actif)
 - [ ] Affecter à une équipe *(après le MVP)*
-- [ ] Voir les sessions, les appareils, la dernière connexion
+- [x] Voir les sessions, les appareils (page Appareils), la dernière connexion
 
 ## SUPERVISEUR
 
@@ -585,11 +587,11 @@ Cette phase distingue l'administration globale du SaaS de l'administration d'une
 
 **Ajouts phase 0** (UC-80, UC-82)
 
-- [ ] Code libre et unique par utilisateur (BR-USR-10)
-- [ ] Paramètres : types de clients, jours travaillés, jours fériés, motifs de non-commande et d'échec, distance hors zone, largeur du ticket, en-tête des bons
-- [ ] Règles réglables P-01 à P-10, avec leurs valeurs par défaut ; lues par le serveur et le mobile à chaque opération (BR-TEN-08)
-- [ ] Dépôts et camions
-- [ ] Rôle `COMPTABLE`
+- [x] Code libre et unique par utilisateur (BR-USR-10)
+- [x] Paramètres : types de clients, jours travaillés, jours fériés, motifs de non-commande et d'échec, distance hors zone, largeur du ticket, en-tête des bons
+- [x] Règles réglables P-01 à P-10, avec leurs valeurs par défaut ; lues par le serveur et le mobile à chaque opération (BR-TEN-08)
+- [x] Dépôts et camions (un camion est confié à un livreur ou un vendeur cash van actif)
+- [x] Rôle `COMPTABLE`
 
 ---
 

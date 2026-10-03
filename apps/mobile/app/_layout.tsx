@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthContext';
 const SCREENS_BY_STATUS = {
   needsActivation: ['activation', 'scan'],
   loggedOut: ['login'],
+  mustChangePassword: ['change-password'],
   loggedIn: ['home', 'printer-test'],
 } as const;
 
@@ -42,6 +43,10 @@ export default function RootLayout() {
         <Stack.Screen name="activation" options={{ title: 'Associer ce téléphone' }} />
         <Stack.Screen name="scan" options={{ title: 'Scanner le QR code' }} />
         <Stack.Screen name="login" options={{ title: 'Connexion' }} />
+        <Stack.Screen
+          name="change-password"
+          options={{ title: 'Nouveau mot de passe', headerBackVisible: false }}
+        />
         <Stack.Screen name="home" options={{ title: 'SellWasl' }} />
         <Stack.Screen name="printer-test" options={{ title: "Test d'impression" }} />
       </Stack>

@@ -5,7 +5,18 @@ import {
   ROLE_CODES,
   rolePermissions,
 } from '@sellwasl/business-rules';
-import type { Prisma } from '../generated/prisma/client';
+import type { RoleCode } from '@sellwasl/business-rules';
+
+/** Client de transaction, filtré par entreprise ou non : seules ces opérations sont utilisées. */
+export interface RolesTx {
+  role: {
+    findMany(args: { where: { companyId: string } }): Promise<{ id: string; code: RoleCode }[]>;
+  };
+  rolePermission: {
+    deleteMany(args: { where: { roleId: string } }): Promise<unknown>;
+    createMany(args: { data: { roleId: string; permissionCode: string }[] }): Promise<unknown>;
+  };
+}
 
 /**
  * Permissions des rôles d'une entreprise (docs/rbac.md §5, §7, §8).
@@ -13,11 +24,7 @@ import type { Prisma } from '../generated/prisma/client';
  */
 @Injectable()
 export class RolesService {
-  async applyPermissions(
-    tx: Prisma.TransactionClient,
-    companyId: string,
-    rules: PermissionRules,
-  ): Promise<void> {
+  async applyPermissions(tx: RolesTx, companyId: string, rules: PermissionRules): Promise<void> {
     const roles = await tx.role.findMany({ where: { companyId } });
     for (const code of ROLE_CODES) {
       const role = roles.find((r) => r.code === code);

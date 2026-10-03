@@ -67,6 +67,7 @@ describe('couverture des routes', () => {
       'auth/auth.service.ts',
       'auth/platform-auth.controller.ts',
       'auth/tokens.service.ts',
+      'companies/provisioning.service.ts',
       'health/health.controller.ts',
       'modules/modules.service.ts',
       'platform/platform-companies.controller.ts',
