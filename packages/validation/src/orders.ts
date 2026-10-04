@@ -190,6 +190,10 @@ export const objectiveCapSchema = z.object({
   capPercent: z.number().int().min(100).max(500).nullable(),
 });
 
+export const objectivePaymentSchema = z.object({
+  delayMonths: z.union([z.literal(0), z.literal(1)]),
+});
+
 export interface ObjectiveDto extends MyObjective {
   id: string;
   user: { id: string; code: string; name: string };

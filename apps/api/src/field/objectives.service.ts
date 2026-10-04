@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { localDate, objectiveProgress } from '@sellwasl/business-rules';
-import type { MyObjective } from '@sellwasl/validation';
+import { bonusPaymentDate, localDate, objectiveProgress } from '@sellwasl/business-rules';
+import { companySettingsSchema, type MyObjective } from '@sellwasl/validation';
 import type { AuthUser } from '../common/auth-context';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { toDate } from './field-errors';
@@ -11,15 +11,38 @@ function nextMonth(month: string): string {
   return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 }
 
+/** Mois précédent, « AAAA-MM ». */
+function previousMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+}
+
 /** Objectifs du vendeur connecté (UC-20, BR-OBJ-01 à BR-OBJ-04). */
 @Injectable()
 export class ObjectivesService {
   constructor(@Inject(TENANT_PRISMA) private readonly db: TenantPrisma) {}
 
+  /** Délai de versement des primes de l'entreprise : 0 (fin du mois) ou 1 (fin du mois suivant). */
+  async paymentDelay(): Promise<0 | 1> {
+    const row = await this.db.companySettings.findFirst({ orderBy: { version: 'desc' } });
+    return companySettingsSchema.parse(row?.data ?? {}).objectivePaymentDelayMonths;
+  }
+
+  /**
+   * Objectifs du vendeur : le mois demandé, sinon le mois courant — et le mois précédent tant que
+   * sa prime n'est pas versée (entreprise qui paie à la fin du mois suivant).
+   */
   async mine(actor: AuthUser, requestedMonth?: string): Promise<MyObjective[]> {
     const company = await this.db.company.findFirstOrThrow();
-    const month = requestedMonth ?? localDate(new Date(), company.timezone).slice(0, 7);
-    return (await this.forMonth(month, actor.userId)).map(({ id: _id, userId: _u, ...o }) => o);
+    const current = localDate(new Date(), company.timezone).slice(0, 7);
+    const months = requestedMonth
+      ? [requestedMonth]
+      : (await this.paymentDelay()) === 1
+        ? [current, previousMonth(current)]
+        : [current];
+    const rows = [];
+    for (const month of months) rows.push(...(await this.forMonth(month, actor.userId)));
+    return rows.map(({ id: _id, userId: _u, ...o }) => o);
   }
 
   /** Objectifs d'un mois, d'un vendeur ou de tous, avec le réalisé et la prime (BR-OBJ-02, 03). */
@@ -35,6 +58,7 @@ export class ObjectivesService {
       orderBy: { range: { name: 'asc' } },
     });
     if (objectives.length === 0) return [];
+    const paymentDate = bonusPaymentDate(month, await this.paymentDelay());
 
     // Réalisé : lignes payantes livrées dans le mois, commandes du vendeur (BR-OBJ-02)
     const lines = await this.db.orderLine.findMany({
@@ -78,6 +102,7 @@ export class ObjectivesService {
         month,
         ...amounts,
         ...objectiveProgress(amounts),
+        paymentDate,
       };
     });
   }

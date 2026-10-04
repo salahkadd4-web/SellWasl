@@ -3,8 +3,23 @@ import type { MyObjective } from '@sellwasl/validation';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { request } from '@/api/client';
-import { errorMessage, formatDA } from '@/seller/format';
+import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { Card, Message, Screen, Title } from '@/ui';
+
+const MONTHS = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+];
 
 /** Objectifs du mois par gamme (UC-20, BR-OBJ-04) : cible, réalisé, taux, prime estimée. */
 export default function ObjectivesScreen() {
@@ -19,12 +34,17 @@ export default function ObjectivesScreen() {
 
   return (
     <Screen>
-      <Title subtitle="Chiffre d'affaires livré du mois.">Mes objectifs</Title>
+      <Title subtitle="Chiffre d'affaires livré du mois ; prime versée à la date indiquée.">
+        Mes objectifs
+      </Title>
       {error ? <Message>{error}</Message> : null}
       {!objectives && !error ? <ActivityIndicator color={colors.primary} /> : null}
       {objectives?.length === 0 ? <Message tone="info">Aucun objectif ce mois-ci.</Message> : null}
       {objectives?.map((o) => (
-        <Card key={o.range.id} title={o.range.name}>
+        <Card
+          key={`${o.month}-${o.range.id}`}
+          title={`${o.range.name} · ${MONTHS[Number(o.month.slice(5, 7)) - 1]} ${o.month.slice(0, 4)}`}
+        >
           <Text style={styles.rate}>{o.rate.toString().replace('.', ',')} %</Text>
           <View style={styles.track}>
             <View style={[styles.fill, { width: `${Math.min(o.rate, 100)}%` }]} />
@@ -35,6 +55,7 @@ export default function ObjectivesScreen() {
             Prime estimée : {formatDA(o.estimatedBonus)} sur {formatDA(o.bonusAmount)} (
             {o.capPercent === null ? 'sans plafond' : `plafond ${o.capPercent} %`})
           </Text>
+          <Text style={styles.muted}>Prime versée le {formatDate(o.paymentDate)}</Text>
         </Card>
       ))}
     </Screen>
@@ -51,4 +72,5 @@ const styles = StyleSheet.create({
   },
   fill: { height: '100%', backgroundColor: colors.accent },
   line: { fontSize: 15, color: colors.textDark },
+  muted: { fontSize: 14, color: colors.muted },
 });

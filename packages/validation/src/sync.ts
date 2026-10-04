@@ -161,4 +161,6 @@ export interface MyObjective {
   /** null : pas de plafond. */
   capPercent: number | null;
   estimatedBonus: number;
+  /** Date de versement de la prime, « AAAA-MM-JJ ». */
+  paymentDate: string;
 }

@@ -27,6 +27,8 @@ export const companySettingsSchema = z.object({
   positionIntervalMin: z.number().int().min(1).max(60).default(5),
   /** Plafond des primes d'objectifs, décidé par la direction (BR-OBJ-01) ; null : pas de plafond. */
   objectiveCapPercent: z.number().int().min(100).max(500).nullable().default(120),
+  /** Versement des primes : 0 = fin du mois de l'objectif, 1 = fin du mois suivant. */
+  objectivePaymentDelayMonths: z.union([z.literal(0), z.literal(1)]).default(0),
   receiptHeader: z
     .object({
       name: z.string().max(60).default(''),

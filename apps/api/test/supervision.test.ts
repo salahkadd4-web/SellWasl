@@ -1,5 +1,6 @@
 import type {
   CustomerDto,
+  MyObjective,
   ObjectiveDto,
   OrderDto,
   Page,
@@ -280,6 +281,93 @@ describe('supervision (phase 16)', () => {
         expect(await cap(past)).toBe(120);
       } finally {
         await call(t.url, 'PUT', '/objectives/cap', { token: sup, body: { capPercent: 120 } });
+      }
+    });
+  });
+
+  describe('versement des primes (fin du mois ou du mois suivant)', () => {
+    const monthOffset = (n: number) => {
+      const d = new Date();
+      d.setUTCDate(1);
+      d.setUTCMonth(d.getUTCMonth() + n);
+      return d.toISOString().slice(0, 7);
+    };
+    const endOf = (month: string, delay: number) => {
+      const [y, m] = month.split('-').map(Number) as [number, number];
+      return new Date(Date.UTC(y, m + delay, 0)).toISOString().slice(0, 10);
+    };
+
+    it('affiche la date de versement et garde l’objectif du mois précédent jusqu’à son paiement', async () => {
+      const delayOf = async () =>
+        (await call<{ delayMonths: number }>(t.url, 'GET', '/objectives/payment', { token: sup }))
+          .body.delayMonths;
+      expect(await delayOf()).toBe(0);
+
+      const ranges = await call<ProductRangeDto[]>(t.url, 'GET', '/product-ranges', { token: sup });
+      const bimo = ranges.body.find((r) => r.code === 'BIMO')!;
+      const previous = monthOffset(-1);
+      const current = monthOffset(0);
+      const companyId = (await raw.company.findUniqueOrThrow({ where: { code: 'DISTRI-ORAN' } }))
+        .id;
+      // Objectif du mois courant (celui du seed s'il existe déjà) et du mois précédent
+      const ensure = async (month: string) => {
+        const date = new Date(`${month}-01T00:00:00Z`);
+        const found = await raw.objective.findFirst({
+          where: { userId: v07.id, rangeId: bimo.id, month: date },
+        });
+        if (!found)
+          await raw.objective.create({
+            data: {
+              id: uuidv7(),
+              companyId,
+              userId: v07.id,
+              rangeId: bimo.id,
+              month: date,
+              targetAmount: 3_000_000n,
+              bonusAmount: 12_000n,
+              capPercent: 120,
+            },
+          });
+      };
+      await ensure(current);
+      await ensure(previous);
+
+      const paymentDate = async (month: string) =>
+        (
+          await call<ObjectiveDto[]>(t.url, 'GET', `/objectives?month=${month}`, { token: sup })
+        ).body.find((o) => o.user.code === 'V07' && o.range.code === 'BIMO')?.paymentDate;
+      expect(await paymentDate(current)).toBe(endOf(current, 0));
+
+      const p = await phones.get('V07');
+      const phoneMonths = async () =>
+        (await call<MyObjective[]>(t.url, 'GET', '/me/objectives', { token: p.token })).body
+          .filter((o) => o.range.code === 'BIMO')
+          .map((o) => o.month);
+      expect(await phoneMonths()).toEqual([current]);
+
+      expect(
+        (
+          await call(t.url, 'PUT', '/objectives/payment', {
+            token: p.token,
+            body: { delayMonths: 1 },
+          })
+        ).status,
+      ).toBe(403);
+      try {
+        expect(
+          (
+            await call(t.url, 'PUT', '/objectives/payment', {
+              token: sup,
+              body: { delayMonths: 1 },
+            })
+          ).status,
+        ).toBe(200);
+        expect(await delayOf()).toBe(1);
+        expect(await paymentDate(current)).toBe(endOf(current, 1));
+        // Le mois précédent n'est versé qu'à la fin de ce mois-ci : le vendeur le voit encore
+        expect(await phoneMonths()).toEqual([current, previous]);
+      } finally {
+        await call(t.url, 'PUT', '/objectives/payment', { token: sup, body: { delayMonths: 0 } });
       }
     });
   });

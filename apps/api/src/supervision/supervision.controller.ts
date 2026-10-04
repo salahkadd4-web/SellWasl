@@ -17,6 +17,7 @@ import {
   pendingLinesQuerySchema,
   type ObjectiveDto,
   objectiveCapSchema,
+  objectivePaymentSchema,
   objectivesQuerySchema,
   putObjectivesSchema,
   putQuotasSchema,
@@ -31,6 +32,7 @@ import { notFound } from '../common/api-error';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { toDate } from '../field/field-errors';
+import { ObjectivesService } from '../field/objectives.service';
 import { OrderService } from '../field/order.service';
 import { ObjectivesAdminService } from './objectives-admin.service';
 import { PendingLinesService } from './pending-lines.service';
@@ -52,7 +54,23 @@ export class SupervisionController {
     private readonly pending: PendingLinesService,
     private readonly orders: OrderService,
     private readonly workdays: WorkdaysAdminService,
+    private readonly objectivesCalc: ObjectivesService,
   ) {}
+
+  @RequirePermission('objectives.read')
+  @Get('objectives/payment')
+  async objectivesPayment(): Promise<{ delayMonths: 0 | 1 }> {
+    return { delayMonths: await this.objectivesCalc.paymentDelay() };
+  }
+
+  @RequirePermission('objectives.update')
+  @Put('objectives/payment')
+  putObjectivesPayment(
+    @CurrentUser() actor: AuthUser,
+    @Body(new ZodValidationPipe(objectivePaymentSchema)) body: Out<typeof objectivePaymentSchema>,
+  ): Promise<{ delayMonths: 0 | 1 }> {
+    return this.objectives.setPaymentDelay(actor, body.delayMonths);
+  }
 
   @RequirePermission('workdays.read')
   @Get('workdays')

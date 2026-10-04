@@ -43,3 +43,14 @@ export function objectiveProgress(o: {
 export function paymentNumber(userCode: string, series: string, sequence: number): string {
   return `${userCode}-${series}${String(sequence).padStart(4, '0')}`;
 }
+
+/**
+ * Date de versement de la prime d'un objectif (« AAAA-MM ») : dernier jour du mois, ou du mois
+ * suivant quand l'entreprise paie un mois plus tard.
+ */
+export function bonusPaymentDate(month: string, delayMonths: 0 | 1): string {
+  const [year, m] = month.split('-').map(Number) as [number, number];
+  // Jour 0 du mois d'après = dernier jour du mois visé
+  const last = new Date(Date.UTC(year, m + delayMonths, 0));
+  return last.toISOString().slice(0, 10);
+}

@@ -2,10 +2,10 @@
 
 import type { ObjectiveDto, ProductRangeDto, TerritoryDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Field, PageTitle, Toggle } from '@/components/ui';
+import { Alert, Button, Card, Field, PageTitle, Select, Toggle } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
-import { formatDA, todayDate } from '@/lib/labels';
+import { formatDA, formatDate, todayDate } from '@/lib/labels';
 
 interface Row {
   targetAmount: string;
@@ -27,6 +27,7 @@ export default function ObjectivesPage() {
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [cap, setCap] = useState('');
   const [uncapped, setUncapped] = useState(false);
+  const [delay, setDelay] = useState<'0' | '1'>('0');
   const [commonBonus, setCommonBonus] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -52,10 +53,12 @@ export default function ObjectivesPage() {
     setError(null);
     setSaved(false);
     try {
-      const [list, companyCap] = await Promise.all([
+      const [list, companyCap, payment] = await Promise.all([
         api<ObjectiveDto[]>('company', `/objectives?month=${month}`),
         api<{ capPercent: number | null }>('company', '/objectives/cap'),
+        api<{ delayMonths: 0 | 1 }>('company', '/objectives/payment'),
       ]);
+      setDelay(String(payment.delayMonths) as '0' | '1');
       setObjectives(list);
       setUncapped(companyCap.capPercent === null);
       setCap(companyCap.capPercent === null ? '' : String(companyCap.capPercent));
@@ -126,6 +129,22 @@ export default function ObjectivesPage() {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Versement des primes à la fin du mois, ou à la fin du mois suivant. */
+  async function savePaymentDelay(value: '0' | '1') {
+    setError(null);
+    setDelay(value);
+    try {
+      await api('company', '/objectives/payment', {
+        method: 'PUT',
+        body: JSON.stringify({ delayMonths: Number(value) }),
+      });
+      await load();
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
     }
   }
 
@@ -214,6 +233,16 @@ export default function ObjectivesPage() {
             Enregistrer le plafond
           </Button>
         )}
+        <Select
+          label="Versement des primes"
+          value={delay}
+          disabled={!editable}
+          onChange={(e) => void savePaymentDelay(e.target.value as '0' | '1')}
+          options={[
+            { value: '0', label: 'À la fin du mois' },
+            { value: '1', label: 'À la fin du mois suivant' },
+          ]}
+        />
       </Card>
       {editable && ranges.length > 0 && sellers.length > 0 && (
         <Card className="flex flex-col gap-3">
@@ -265,7 +294,7 @@ export default function ObjectivesPage() {
                     {field(k, 'bonusAmount', 'Prime (DA)')}
                     <span className="text-sm text-muted">
                       {o
-                        ? `Réalisé ${formatDA(o.realizedAmount)} · ${o.rate} % · prime due ${formatDA(o.estimatedBonus)} (${o.capPercent === null ? 'sans plafond' : `plafond ${o.capPercent} %`})`
+                        ? `Réalisé ${formatDA(o.realizedAmount)} · ${o.rate} % · prime due ${formatDA(o.estimatedBonus)} (${o.capPercent === null ? 'sans plafond' : `plafond ${o.capPercent} %`}) · versée le ${formatDate(o.paymentDate)}`
                         : 'Pas d’objectif'}
                     </span>
                   </div>

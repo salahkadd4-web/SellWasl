@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { objectiveProgress, paymentNumber, visitCounters } from './field';
+import { bonusPaymentDate, objectiveProgress, paymentNumber, visitCounters } from './field';
 import { distanceMeters } from './geo';
 
 describe('terrain', () => {
@@ -79,6 +79,13 @@ describe('terrain', () => {
         capPercent: null,
       }),
     ).toEqual({ rate: 160, estimatedBonus: 19_200 });
+  });
+
+  it('verse la prime en fin de mois, ou en fin du mois suivant selon l’entreprise', () => {
+    expect(bonusPaymentDate('2026-10', 0)).toBe('2026-10-31');
+    expect(bonusPaymentDate('2026-10', 1)).toBe('2026-11-30');
+    expect(bonusPaymentDate('2026-12', 1)).toBe('2027-01-31');
+    expect(bonusPaymentDate('2028-01', 1)).toBe('2028-02-29');
   });
 
   it('numérote les reçus : code + série + séquence (ARC-11)', () => {

@@ -86,6 +86,36 @@ export class ObjectivesAdminService {
     return { capPercent };
   }
 
+  /** Versement des primes : fin du mois (0) ou fin du mois suivant (1), réglé par l'entreprise. */
+  async setPaymentDelay(actor: AuthUser, delayMonths: 0 | 1): Promise<{ delayMonths: 0 | 1 }> {
+    await this.db.$transaction(async (tenantTx) => {
+      const tx = tenantTx as unknown as Prisma.TransactionClient;
+      const row = await tx.companySettings.findFirst({ orderBy: { version: 'desc' } });
+      const data = companySettingsSchema.parse(row?.data ?? {});
+      await tx.companySettings.create({
+        data: {
+          id: uuidv7(),
+          companyId: actor.companyId,
+          version: (row?.version ?? 0) + 1,
+          data: { ...data, objectivePaymentDelayMonths: delayMonths },
+          createdByUserId: actor.userId,
+        },
+      });
+      await this.audit.write(
+        {
+          companyId: actor.companyId,
+          actorUserId: actor.userId,
+          action: 'objective.payment_delay',
+          entity: 'CompanySettings',
+          before: { delayMonths: data.objectivePaymentDelayMonths },
+          after: { delayMonths },
+        },
+        tx,
+      );
+    });
+    return { delayMonths };
+  }
+
   async put(actor: AuthUser, input: z.output<typeof putObjectivesSchema>): Promise<ObjectiveDto[]> {
     const month = toDate(`${input.month}-01`);
     const cap = await this.cap();
