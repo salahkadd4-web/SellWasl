@@ -1,7 +1,9 @@
 import type {
+  CustomerDto,
   CustomerHistory,
   DeviceActivationResponse,
   FieldUserDevice,
+  Page,
   SyncPushResponse,
   TodayResponse,
 } from '@sellwasl/validation';
@@ -33,7 +35,18 @@ describe('journée du vendeur (phase 15)', () => {
   let t: TestApp;
   const sups: Record<string, string> = {};
 
+  const phones = new Map<string, Phone>();
+
+  /** Téléphone associé une fois par vendeur pour tout le fichier (l'association est limitée en débit). */
   async function phone(code: string, company = 'DISTRI-ORAN'): Promise<Phone> {
+    const cached = phones.get(code);
+    if (cached) return cached;
+    const p = await activate(code, company);
+    phones.set(code, p);
+    return p;
+  }
+
+  async function activate(code: string, company: string): Promise<Phone> {
     const sup = sups[company]!;
     const list = await call<FieldUserDevice[]>(t.url, 'GET', '/devices', { token: sup });
     const user = list.body.find((u) => u.code === code)!;
@@ -115,10 +128,12 @@ describe('journée du vendeur (phase 15)', () => {
 
     it('signale un trou dans la numérotation de l’appareil (GAP)', async () => {
       const p = await phone('V08');
-      p.seq = 4;
+      const seq = p.seq;
+      p.seq = seq + 4;
       const reply = await push(p, [
         op(p, 'workday.start', { workdayId: uuidv7(), date: '2026-10-12' }),
       ]);
+      p.seq = seq;
       expect(reply.body.results[0]!.status).toBe('GAP');
     });
 
@@ -144,6 +159,7 @@ describe('journée du vendeur (phase 15)', () => {
         },
       });
       expect(reply.status).toBe(403);
+      p.seq -= 1; // refusée avant d'être lue : le numéro n'est pas consommé
     });
 
     it('refuse le Web', async () => {
@@ -164,7 +180,7 @@ describe('journée du vendeur (phase 15)', () => {
       expect(before.body.day.part?.name).toBe('Partie 1');
       expect(before.body.counters.planned).toBe(before.body.day.customers.length);
 
-      await startDay(p, SATURDAY);
+      const workdayId = await startDay(p, SATURDAY);
       const after = await today(p, SATURDAY);
       expect(after.body.workday).toMatchObject({ status: 'IN_PROGRESS' });
       expect(after.body.counters).toMatchObject({
@@ -176,6 +192,7 @@ describe('journée du vendeur (phase 15)', () => {
 
       const again = await send(p, 'workday.start', { workdayId: uuidv7(), date: SATURDAY });
       expect(again).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
+      await closeDay(p, workdayId);
     });
 
     it('refuse un jour non travaillé quand l’entreprise l’interdit (P-01, BR-JOU-03)', async () => {
@@ -245,6 +262,115 @@ describe('journée du vendeur (phase 15)', () => {
         mode: 'PHONE',
       });
       expect(late).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
+    });
+  });
+  describe('visites', () => {
+    interface Reason {
+      id: string;
+      kind: string;
+      systemCode: string | null;
+    }
+    async function reason(p: Phone, systemCode: string): Promise<string> {
+      const list = await call<Reason[]>(t.url, 'GET', '/reasons', { token: p.token });
+      return list.body.find((r) => r.kind === 'NO_ORDER' && r.systemCode === systemCode)!.id;
+    }
+    const startVisit = (p: Phone, customerId: string, extra: Record<string, unknown> = {}) =>
+      send(p, 'visit.start', { visitId: uuidv7(), customerId, mode: 'ON_SITE', ...extra });
+
+    it('visite sur place : distance, hors zone et position inconnue, jamais bloquée (BR-VIS-02)', async () => {
+      const p = await phone('V07');
+      const date = '2026-10-10';
+      const workdayId = await startDay(p, date);
+      const customer = (await today(p, date)).body.day.customers.find((c) => c.latitude != null)!;
+      const absent = await reason(p, 'CUSTOMER_ABSENT');
+      const close = async (visitId: string) =>
+        expect(await send(p, 'visit.close_no_order', { visitId, reasonId: absent })).toMatchObject({
+          status: 'APPLIED',
+        });
+
+      const here = await startVisit(p, customer.id, {
+        latitude: customer.latitude,
+        longitude: customer.longitude,
+      });
+      expect(here).toMatchObject({
+        status: 'APPLIED',
+        result: { distanceM: 0, isOutOfZone: false, isScheduled: true },
+      });
+      await close(here.result!.visitId as string);
+
+      const far = await startVisit(p, customer.id, {
+        latitude: customer.latitude! + 0.01,
+        longitude: customer.longitude,
+      });
+      expect(far.result).toMatchObject({ isOutOfZone: true });
+      expect(far.result!.distanceM as number).toBeGreaterThan(1000);
+      await close(far.result!.visitId as string);
+
+      const unknown = await startVisit(p, customer.id);
+      expect(unknown.result).toMatchObject({ isOutOfZone: true, distanceM: null });
+      await close(unknown.result!.visitId as string);
+
+      // Trois visites du même client : compté une fois (BR-VIS-08)
+      expect((await today(p, date)).body.counters.visited).toBe(1);
+      await closeDay(p, workdayId);
+    });
+
+    it('une seule visite en cours ; hors programme comptée à part (BR-VIS-07)', async () => {
+      const p = await phone('V07');
+      const date = '2026-10-11';
+      const workdayId = await startDay(p, date);
+      const day = (await today(p, date)).body.day;
+      const sector = await call<Page<CustomerDto>>(t.url, 'GET', '/customers?limit=100', {
+        token: p.token,
+      });
+      const outside = sector.body.data.find(
+        (c) => c.status === 'ACTIVE' && !day.customers.some((d) => d.id === c.id),
+      )!;
+      const first = await startVisit(p, outside.id, { mode: 'PHONE' });
+      expect(first).toMatchObject({ status: 'APPLIED', result: { isScheduled: false } });
+      const second = await startVisit(p, outside.id, { mode: 'PHONE' });
+      expect(second).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
+
+      const visitId = first.result!.visitId as string;
+      const reasonId = await reason(p, 'OTHER');
+      expect((await send(p, 'visit.close_no_order', { visitId, reasonId })).status).toBe('APPLIED');
+      expect((await today(p, date)).body.counters).toMatchObject({ visited: 0, outOfProgram: 1 });
+      await closeDay(p, workdayId);
+    });
+
+    it('motif « fermé définitivement » : client à revoir (BR-VIS-05)', async () => {
+      const p = await phone('V08');
+      const date = '2026-10-10';
+      const workdayId = await startDay(p, date);
+      const customer = (await today(p, date)).body.day.customers[0]!;
+      const visit = await startVisit(p, customer.id, { mode: 'PHONE' });
+      const reasonId = await reason(p, 'CLOSED_PERMANENTLY');
+      expect(
+        (await send(p, 'visit.close_no_order', { visitId: visit.result!.visitId, reasonId }))
+          .status,
+      ).toBe('APPLIED');
+      const fiche = await call<CustomerDto>(t.url, 'GET', `/customers/${customer.id}`, {
+        token: sups['DISTRI-ORAN'],
+      });
+      expect(fiche.body).toMatchObject({ isClosedPermanently: true });
+      expect(fiche.body.reviewReasons).toContain('CLOSED');
+      await closeDay(p, workdayId);
+    });
+
+    it('refuse une visite sans journée en cours (BR-JOU-05)', async () => {
+      const p = await phone('V08');
+      const customer = (await today(p, SATURDAY)).body.day.customers[0]!;
+      const refused = await startVisit(p, customer.id, { mode: 'PHONE' });
+      expect(refused).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
+    });
+
+    it('refuse le mode téléphone au vendeur cash van (BR-VIS-03)', async () => {
+      const p = await phone('C01', 'CASHVAN-EST');
+      const workdayId = await startDay(p, SATURDAY);
+      const customer = (await today(p, SATURDAY)).body.day.customers[0]!;
+      const refused = await startVisit(p, customer.id, { mode: 'PHONE' });
+      expect(refused).toMatchObject({ status: 'REJECTED', error: { code: 'BUSINESS_RULE' } });
+      await closeDay(p, workdayId);
     });
   });
 });
