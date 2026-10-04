@@ -58,3 +58,40 @@ export const WEEKDAY_LABELS: [string, string][] = [
   ['THU', 'Jeudi'],
   ['FRI', 'Vendredi'],
 ];
+
+export const ORDER_STATUS: Record<
+  string,
+  { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
+> = {
+  DRAFT: { label: 'Panier', tone: 'neutral' },
+  CONFIRMED: { label: 'Confirmée', tone: 'success' },
+  LOCKED: { label: 'Figée', tone: 'neutral' },
+  PREPARING: { label: 'En préparation', tone: 'warning' },
+  READY: { label: 'Préparée', tone: 'warning' },
+  OUT_FOR_DELIVERY: { label: 'En livraison', tone: 'warning' },
+  DELIVERED: { label: 'Livrée', tone: 'success' },
+  PARTIALLY_DELIVERED: { label: 'Livrée partiellement', tone: 'warning' },
+  FAILED: { label: 'Échouée', tone: 'danger' },
+  CANCELLED: { label: 'Annulée', tone: 'danger' },
+};
+
+export const WORKDAY_STATUS: Record<
+  string,
+  { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
+> = {
+  NOT_STARTED: { label: 'Non démarrée', tone: 'neutral' },
+  IN_PROGRESS: { label: 'En cours', tone: 'success' },
+  CLOSED: { label: 'Clôturée', tone: 'warning' },
+};
+
+export const ORDER_SOURCE_LABELS: Record<string, string> = {
+  PRE_SALES: 'Visite',
+  PHONE: 'Téléphone',
+  CASH_VAN: 'Cash van',
+};
+
+/** Date du jour dans le fuseau du navigateur, « AAAA-MM-JJ ». */
+export function todayDate(): string {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+}
