@@ -21,6 +21,9 @@ import {
   putQuotasSchema,
   type QuotaDto,
   quotasQuerySchema,
+  type WorkdayDto,
+  workdayReasonSchema,
+  workdaysQuerySchema,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { notFound } from '../common/api-error';
@@ -31,6 +34,7 @@ import { OrderService } from '../field/order.service';
 import { ObjectivesAdminService } from './objectives-admin.service';
 import { PendingLinesService } from './pending-lines.service';
 import { QuotasService } from './quotas.service';
+import { WorkdaysAdminService } from './workdays-admin.service';
 
 type Out<T extends z.ZodType> = z.output<T>;
 
@@ -46,7 +50,38 @@ export class SupervisionController {
     private readonly objectives: ObjectivesAdminService,
     private readonly pending: PendingLinesService,
     private readonly orders: OrderService,
+    private readonly workdays: WorkdaysAdminService,
   ) {}
+
+  @RequirePermission('workdays.read')
+  @Get('workdays')
+  listWorkdays(
+    @Query(new ZodValidationPipe(workdaysQuerySchema)) query: Out<typeof workdaysQuerySchema>,
+  ): Promise<WorkdayDto[]> {
+    return this.workdays.list(query.date);
+  }
+
+  @RequirePermission('workdays.reopen')
+  @Post('workdays/:id/reopen')
+  @HttpCode(200)
+  reopen(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(workdayReasonSchema)) body: Out<typeof workdayReasonSchema>,
+  ): Promise<{ workdayId: string }> {
+    return this.workdays.reopen(actor, id, body.reason);
+  }
+
+  @RequirePermission('workdays.force_close')
+  @Post('workdays/:id/force-close')
+  @HttpCode(200)
+  forceClose(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(workdayReasonSchema)) body: Out<typeof workdayReasonSchema>,
+  ): Promise<{ workdayId: string }> {
+    return this.workdays.forceClose(actor, id, body.reason);
+  }
 
   @RequirePermission('pending_lines.process')
   @Get('pending-lines')

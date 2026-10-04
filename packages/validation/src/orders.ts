@@ -202,7 +202,8 @@ export const workdayReasonSchema = z.object({
   reason: z.string().trim().min(3, 'Motif obligatoire').max(200),
 });
 export interface WorkdayDto {
-  id: string;
+  /** null : journée pas encore démarrée ce jour-là. */
+  id: string | null;
   date: string;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'CLOSED';
   user: { id: string; code: string; name: string; roleName: string };

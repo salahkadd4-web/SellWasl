@@ -158,42 +158,9 @@ export class WorkdayService implements OnModuleInit {
     });
     if (current) throw invalidState("Terminez d'abord la visite en cours.");
 
-    // Clients du jour non visités : visite manquée, sans report (BR-PLA-06)
-    const date = dateOnly(workday.date);
-    const day = await this.planning.day(actor.userId, date);
-    const done = await tx.visit.findMany({
-      where: { workdayId, status: 'COMPLETED', deletedAt: null },
-      select: { customerId: true },
-    });
-    const missed = missedCustomers(
-      day.customers.map((c) => ({ customerId: c.id, reason: c.reason })),
-      done.map((v) => v.customerId),
-    );
-    if (missed.length > 0)
-      await tx.visit.createMany({
-        data: missed.map((customerId) => ({
-          id: uuidv7(),
-          companyId: actor.companyId,
-          date: workday.date,
-          status: 'MISSED' as const,
-          isScheduled: true,
-          workdayId,
-          userId: actor.userId,
-          customerId,
-          createdByUserId: actor.userId,
-          createdByDeviceId: actor.deviceId,
-          occurredAt,
-        })),
-      });
-
-    // Les commandes confirmées de la journée sont figées (BR-JOU-07)
-    await tx.order.updateMany({
-      where: { workdayId, status: 'CONFIRMED', deletedAt: null },
-      data: { status: 'LOCKED', lockedAt: occurredAt },
-    });
-    await tx.workday.update({
-      where: { id: workdayId },
-      data: { status: 'CLOSED', closedAt: occurredAt, version: { increment: 1 } },
+    const missed = await this.closeEffects(tx, workday, occurredAt, {
+      byUserId: actor.userId,
+      deviceId: actor.deviceId,
     });
     await this.audit.write(
       {
@@ -203,11 +170,61 @@ export class WorkdayService implements OnModuleInit {
         action: 'workday.close',
         entity: 'Workday',
         entityId: workdayId,
-        after: { missed: missed.length },
+        after: { missed },
       },
       tx,
     );
-    return { workdayId, missed: missed.length };
+    return { workdayId, missed };
+  }
+
+  /**
+   * Effets d'une clôture, normale ou d'office (BR-JOU-07, BR-PLA-06) : visites manquées pour les
+   * clients du jour non visités, commandes figées, journée close. Renvoie le nombre de visites
+   * manquées créées.
+   */
+  async closeEffects(
+    tx: Prisma.TransactionClient,
+    workday: { id: string; companyId: string; userId: string; date: Date },
+    at: Date,
+    by: { byUserId: string; deviceId: string | null },
+    extra: Prisma.WorkdayUpdateInput = {},
+  ): Promise<number> {
+    const day = await this.planning.day(workday.userId, dateOnly(workday.date));
+    // Un client visité, ou déjà marqué manqué (clôture après une réouverture), n'est pas recompté
+    const known = await tx.visit.findMany({
+      where: { workdayId: workday.id, status: { in: ['COMPLETED', 'MISSED'] }, deletedAt: null },
+      select: { customerId: true },
+    });
+    const missed = missedCustomers(
+      day.customers.map((c) => ({ customerId: c.id, reason: c.reason })),
+      known.map((v) => v.customerId),
+    );
+    if (missed.length > 0)
+      await tx.visit.createMany({
+        data: missed.map((customerId) => ({
+          id: uuidv7(),
+          companyId: workday.companyId,
+          date: workday.date,
+          status: 'MISSED' as const,
+          isScheduled: true,
+          workdayId: workday.id,
+          userId: workday.userId,
+          customerId,
+          createdByUserId: by.byUserId,
+          createdByDeviceId: by.deviceId,
+          occurredAt: at,
+        })),
+      });
+    // Les commandes confirmées de la journée sont figées (BR-JOU-07)
+    await tx.order.updateMany({
+      where: { workdayId: workday.id, status: 'CONFIRMED', deletedAt: null },
+      data: { status: 'LOCKED', lockedAt: at },
+    });
+    await tx.workday.update({
+      where: { id: workday.id },
+      data: { status: 'CLOSED', closedAt: at, version: { increment: 1 }, ...extra },
+    });
+    return missed.length;
   }
 
   /** Journée du vendeur connecté à la date du téléphone (UC-02, UC-10). */
