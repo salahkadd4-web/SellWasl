@@ -1,4 +1,4 @@
-import { paymentNumber } from '@sellwasl/business-rules';
+import { isSameAction, paymentNumber } from '@sellwasl/business-rules';
 import type {
   OperationType,
   SyncOperationInput,
@@ -38,6 +38,51 @@ function isNetwork(error: unknown): boolean {
 }
 
 /**
+ * Sans réponse lisible (réseau coupé, erreur 5xx d'un proxy), le serveur a peut-être appliqué
+ * l'opération : on la garde pour la renvoyer telle quelle. Une erreur 4xx ne passera jamais.
+ */
+function mayHaveApplied(error: unknown): boolean {
+  return error instanceof ApiClientError && (error.status === 0 || error.status >= 500);
+}
+
+const applied = (r: SyncResult) => r.status === 'APPLIED' || r.status === 'APPLIED_WITH_CHANGES';
+
+const TYPE_LABELS: Record<string, string> = {
+  'workday.start': 'démarrage de la journée',
+  'workday.close': 'clôture de la journée',
+  'visit.start': 'début de visite',
+  'visit.close_no_order': 'clôture de visite',
+  'customer.create': 'nouveau client',
+  'payment.debt': 'encaissement',
+};
+
+/**
+ * Envoie l'opération en la gardant comme « en attente » jusqu'à une réponse lisible ; recale une
+ * fois le numéro d'ordre sur celui qu'attend le serveur (réinstallation, réponse perdue).
+ */
+async function deliver(deviceId: string, base: SyncOperationInput): Promise<SyncResult> {
+  let op = base;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await secureStorage.setNumber('deviceSeq', op.deviceSeq);
+    await secureStorage.setPendingOp(JSON.stringify(op));
+    let result: SyncResult;
+    try {
+      result = await push(deviceId, op);
+    } catch (error) {
+      if (isNetwork(error)) throw new ApiClientError(0, 'NETWORK', NO_NETWORK);
+      if (!mayHaveApplied(error)) await secureStorage.setPendingOp(null);
+      throw error;
+    }
+    await secureStorage.setPendingOp(null);
+    const expected = result.result?.expectedDeviceSeq;
+    const outOfOrder = result.status === 'GAP' || result.error?.code === 'DUPLICATE';
+    if (!(outOfOrder && typeof expected === 'number' && attempt === 0)) return result;
+    op = { ...op, deviceSeq: expected };
+  }
+  throw new ApiClientError(409, 'GAP', 'Numérotation des opérations décalée. Réessayez.');
+}
+
+/**
  * Envoie une action du vendeur au serveur, tout de suite (phase 15, en ligne d'abord).
  * L'opération porte un opId et un numéro d'ordre : renvoyée après une coupure, elle n'est
  * appliquée qu'une fois (BR-SYN-02). Ce module deviendra la file d'envoi hors connexion
@@ -51,57 +96,37 @@ export async function sendOperation<T = Record<string, unknown>>(
   const deviceId = await secureStorage.getDeviceId();
   if (!deviceId) throw new ApiClientError(0, 'NO_DEVICE', "Ce téléphone n'est pas associé.");
 
-  // Une action précédente est partie sans réponse : on la renvoie d'abord, sans en créer une autre,
-  // pour qu'un nouvel essai du vendeur ne la fasse pas deux fois.
-  const pending = await secureStorage.getPendingOp();
-  if (pending) {
+  // Une action précédente est partie sans réponse : on la renvoie d'abord, telle quelle.
+  const stored = await secureStorage.getPendingOp();
+  if (stored) {
+    const previous = JSON.parse(stored) as SyncOperationInput;
+    let resent: SyncResult | null = null;
     try {
-      await push(deviceId, JSON.parse(pending) as SyncOperationInput);
+      resent = await deliver(deviceId, previous);
     } catch (error) {
-      if (isNetwork(error)) throw new ApiClientError(0, 'NETWORK', NO_NETWORK);
-      throw error;
+      if (mayHaveApplied(error)) throw error;
+      // Refusée sans appel possible (4xx) : abandonnée, l'action du vendeur suit
     }
-    await secureStorage.setPendingOp(null);
-    throw new ApiClientError(
-      0,
-      'RESENT',
-      "Votre action précédente vient d'être envoyée. Vérifiez l'écran avant de recommencer.",
-    );
+    if (resent && applied(resent)) {
+      // Le vendeur refait la même action : c'est celle-là qui vient d'aboutir, on ne la refait pas
+      if (isSameAction(previous, { type, payload })) return (resent.result ?? {}) as T;
+      throw new ApiClientError(
+        0,
+        'RESENT',
+        `Votre action précédente (${TYPE_LABELS[previous.type] ?? previous.type}) vient d'être enregistrée. Vérifiez l'écran puis recommencez si besoin.`,
+      );
+    }
   }
 
-  const send = async (deviceSeq: number): Promise<SyncResult> => {
-    const op: SyncOperationInput = {
-      opId: newId(),
-      deviceSeq,
-      type,
-      occurredAt: new Date().toISOString(),
-      workdayId,
-      payload,
-    };
-    await secureStorage.setNumber('deviceSeq', deviceSeq);
-    await secureStorage.setPendingOp(JSON.stringify(op));
-    try {
-      const result = await push(deviceId, op);
-      await secureStorage.setPendingOp(null);
-      return result;
-    } catch (error) {
-      if (isNetwork(error)) throw new ApiClientError(0, 'NETWORK', NO_NETWORK);
-      await secureStorage.setPendingOp(null);
-      throw error;
-    }
-  };
-
-  let result = await send((await secureStorage.getNumber('deviceSeq')) + 1);
-  // Numérotation décalée (réinstallation, réponse perdue) : on se recale une fois sur le serveur
-  const expected = result.result?.expectedDeviceSeq;
-  if (
-    (result.status === 'GAP' || result.error?.code === 'DUPLICATE') &&
-    typeof expected === 'number'
-  )
-    result = await send(expected);
-
-  if (result.status === 'APPLIED' || result.status === 'APPLIED_WITH_CHANGES')
-    return (result.result ?? {}) as T;
+  const result = await deliver(deviceId, {
+    opId: newId(),
+    deviceSeq: (await secureStorage.getNumber('deviceSeq')) + 1,
+    type,
+    occurredAt: new Date().toISOString(),
+    workdayId,
+    payload,
+  });
+  if (applied(result)) return (result.result ?? {}) as T;
   throw new ApiClientError(
     409,
     result.error?.code ?? 'REJECTED',

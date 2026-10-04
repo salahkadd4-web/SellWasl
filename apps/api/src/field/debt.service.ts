@@ -93,6 +93,10 @@ export class DebtService implements OnModuleInit {
       },
       tx,
     );
-    return { paymentId: payload.paymentId, debtAmount: Number(updated.debtAmount) };
+    return {
+      paymentId: payload.paymentId,
+      number: payload.number,
+      debtAmount: Number(updated.debtAmount),
+    };
   }
 }

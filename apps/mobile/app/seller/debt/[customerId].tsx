@@ -38,12 +38,12 @@ export default function DebtScreen() {
     if (!today?.seller.series) return setError('Série du téléphone inconnue : reconnectez-vous.');
     setBusy(true);
     try {
-      let result: { debtAmount: number } | null = null;
+      let result: { debtAmount: number; number: string } | null = null;
       let number = '';
       for (let attempt = 0; !result && attempt < MAX_NUMBER_RETRIES; attempt += 1) {
         number = await nextReceiptNumber(today.seller.code, today.seller.series);
         try {
-          result = await act<{ debtAmount: number }>('payment.debt', {
+          result = await act<{ debtAmount: number; number: string }>('payment.debt', {
             paymentId: newId(),
             number,
             customerId,
@@ -56,11 +56,13 @@ export default function DebtScreen() {
       if (!result) throw new Error('Aucun numéro de reçu libre. Contactez votre superviseur.');
       Alert.alert(
         'Encaissement enregistré',
-        `Reçu ${number} : ${formatDA(value)}.\nNouvelle dette : ${formatDA(result.debtAmount)}.`,
+        `Reçu ${result.number} : ${formatDA(value)}.\nNouvelle dette : ${formatDA(result.debtAmount)}.`,
       );
       router.back();
     } catch (e) {
       setError(errorMessage(e));
+      // La dette a peut-être changé (encaissement précédent enfin enregistré) : on la relit
+      void request<CustomerDto>(`/customers/${customerId}`).then(setCustomer, () => undefined);
     } finally {
       setBusy(false);
     }

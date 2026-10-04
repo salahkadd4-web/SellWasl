@@ -96,22 +96,26 @@ export default function NewCustomerScreen() {
     setBusy(true);
     try {
       const customerId = newId();
-      const result = await act<{ partName: string | null; outOfPart: boolean }>('customer.create', {
-        customerId,
-        name: name.trim(),
-        phone: phone.trim() || null,
-        address: address.trim() || null,
-        customerTypeId: typeId,
-        latitude: position.latitude,
-        longitude: position.longitude,
-        frequency,
-      });
+      const result = await act<{ customerId: string; partName: string | null; outOfPart: boolean }>(
+        'customer.create',
+        {
+          customerId,
+          name: name.trim(),
+          phone: phone.trim() || null,
+          address: address.trim() || null,
+          customerTypeId: typeId,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          frequency,
+        },
+      );
       if (result.outOfPart)
         Alert.alert(
           'Client hors partie',
           'Sa position est en dehors des parties de votre secteur. Vous pouvez le visiter ; votre superviseur le placera.',
         );
-      router.replace(`/seller/customer/${customerId}`);
+      // Après une réponse perdue, c'est le client du premier essai qui a été créé
+      router.replace(`/seller/customer/${result.customerId ?? customerId}`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {

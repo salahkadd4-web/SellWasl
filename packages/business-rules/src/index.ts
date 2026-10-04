@@ -6,3 +6,4 @@ export * from './geo';
 export * from './planning';
 export * from './pricing';
 export * from './field';
+export * from './sync';

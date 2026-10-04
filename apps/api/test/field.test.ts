@@ -455,7 +455,7 @@ describe('journée du vendeur (phase 15)', () => {
       });
       expect(await pay(12_000, `X-${p.series}0004`)).toMatchObject({
         status: 'APPLIED',
-        result: { debtAmount: 30_000 },
+        result: { debtAmount: 30_000, number: `X-${p.series}0004` },
       });
       expect(await pay(1000, `X-${p.series}0004`)).toMatchObject({
         status: 'REJECTED',
