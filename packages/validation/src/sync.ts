@@ -16,6 +16,9 @@ export const OPERATION_TYPES = [
   'visit.close_no_order',
   'customer.create',
   'payment.debt',
+  'order.confirm',
+  'order.update',
+  'order.cancel',
 ] as const;
 export type OperationType = (typeof OPERATION_TYPES)[number];
 
@@ -63,6 +66,28 @@ export const paymentDebtPayload = z.object({
   amount: z.number().int().positive('Le montant doit être supérieur à 0'),
 });
 
+export const orderLineInput = z.object({
+  variantId: z.uuid(),
+  unitId: z.uuid(),
+  qty: z.number().int().min(1, 'Quantité supérieure à 0').max(100_000),
+});
+const orderLines = z.array(orderLineInput).min(1, 'Le panier est vide').max(200);
+/** Parfum offert choisi par le vendeur, par règle de bonus (BR-CAT-15). */
+const freeVariantChoices = z.record(z.uuid(), z.uuid()).optional();
+export const orderConfirmPayload = z.object({
+  orderId: z.uuid(),
+  number: z.string().min(3).max(30),
+  visitId: z.uuid(),
+  lines: orderLines,
+  freeVariantChoices,
+});
+export const orderUpdatePayload = z.object({
+  orderId: z.uuid(),
+  lines: orderLines,
+  freeVariantChoices,
+});
+export const orderCancelPayload = z.object({ orderId: z.uuid() });
+
 export type SyncStatusValue = 'APPLIED' | 'APPLIED_WITH_CHANGES' | 'REJECTED' | 'GAP';
 
 export interface SyncResult {
@@ -107,7 +132,15 @@ export interface TodayResponse {
   openWorkday: { id: string; date: string } | null;
   day: PlanningDay;
   visits: TodayVisit[];
-  counters: { visited: number; planned: number; outOfProgram: number; collectedAmount: number };
+  counters: {
+    visited: number;
+    planned: number;
+    outOfProgram: number;
+    collectedAmount: number;
+    /** Commandes non annulées de la journée et leur montant (phase 16). */
+    ordersCount: number;
+    ordersAmount: number;
+  };
   currentVisit: TodayVisit | null;
   rules: {
     outOfZoneDistanceM: number;
