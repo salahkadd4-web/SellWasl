@@ -178,14 +178,16 @@ describe('journée du vendeur (phase 15)', () => {
   describe('journée de travail', () => {
     it('démarre la journée une fois par jour et la montre dans /me/today (BR-JOU-01)', async () => {
       const p = await phone('V07');
-      const before = await today(p, SATURDAY);
+      // Pas le 3 octobre : modules.test.ts y crée une journée pour V07
+      const date = '2026-10-24';
+      const before = await today(p, date);
       expect(before.status).toBe(200);
       expect(before.body.workday).toBeNull();
       expect(before.body.day.part?.name).toBe('Partie 1');
       expect(before.body.counters.planned).toBe(before.body.day.customers.length);
 
-      const workdayId = await startDay(p, SATURDAY);
-      const after = await today(p, SATURDAY);
+      const workdayId = await startDay(p, date);
+      const after = await today(p, date);
       expect(after.body.workday).toMatchObject({ status: 'IN_PROGRESS' });
       expect(after.body.counters).toMatchObject({
         visited: 0,
@@ -194,7 +196,7 @@ describe('journée du vendeur (phase 15)', () => {
       });
       expect(after.body.seller).toMatchObject({ code: 'V07', series: p.series });
 
-      const again = await send(p, 'workday.start', { workdayId: uuidv7(), date: SATURDAY });
+      const again = await send(p, 'workday.start', { workdayId: uuidv7(), date: date });
       expect(again).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
       await closeDay(p, workdayId);
     });
@@ -359,6 +361,12 @@ describe('journée du vendeur (phase 15)', () => {
       expect(fiche.body).toMatchObject({ isClosedPermanently: true });
       expect(fiche.body.reviewReasons).toContain('CLOSED');
       await closeDay(p, workdayId);
+      // Remis en état : la liste « à revoir » est comptée par customers.test.ts
+      const reset = await call(t.url, 'PATCH', `/customers/${customer.id}`, {
+        token: sups['DISTRI-ORAN'],
+        body: { isClosedPermanently: false },
+      });
+      expect(reset.status).toBe(200);
     });
 
     it('refuse une visite sans journée en cours (BR-JOU-05)', async () => {
@@ -405,6 +413,11 @@ describe('journée du vendeur (phase 15)', () => {
       });
       expect(fiche.body).toMatchObject({ isNew: true, isCreditAllowed: false });
       await closeDay(p, workdayId);
+      // Validé par le superviseur : il quitte la liste « à revoir » comptée par customers.test.ts
+      const validated = await call(t.url, 'POST', `/customers/${customerId}/validate`, {
+        token: sups['DISTRI-ORAN'],
+      });
+      expect([200, 201]).toContain(validated.status);
     });
 
     it('encaisse une dette, au plus égale à la dette (BR-PAY-04, BR-PAY-05)', async () => {
