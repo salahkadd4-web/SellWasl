@@ -121,8 +121,10 @@ export default function VisitScreen() {
               </Text>
             ) : null}
           </Card>
-          <PrimaryButton title="Prendre une commande" onPress={() => undefined} disabled />
-          <Text style={styles.muted}>La prise de commande arrive avec le module Commandes.</Text>
+          <PrimaryButton
+            title="Prendre une commande"
+            onPress={() => router.push(`/seller/order/${current.id}?customerId=${customerId}`)}
+          />
           {reasons ? (
             <View style={styles.reasons}>
               <Text style={styles.label}>Motif de non-commande</Text>
@@ -172,7 +174,6 @@ export default function VisitScreen() {
 const styles = StyleSheet.create({
   line: { fontSize: 16, color: colors.textDark },
   warning: { fontSize: 15, fontWeight: '600', color: colors.status.error },
-  muted: { fontSize: 14, color: colors.muted, textAlign: 'center' },
   label: { fontWeight: '600', color: colors.textDark },
   reasons: { gap: 8 },
 });

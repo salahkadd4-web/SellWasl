@@ -134,6 +134,13 @@ export async function sendOperation<T = Record<string, unknown>>(
   );
 }
 
+/** Numéro de la prochaine commande de ce téléphone : V07-B0042 (BR-CMD-07). */
+export async function nextOrderNumber(userCode: string, series: string): Promise<string> {
+  const next = (await secureStorage.getNumber('orderSeq')) + 1;
+  await secureStorage.setNumber('orderSeq', next);
+  return paymentNumber(userCode, series, next);
+}
+
 /** Numéro du prochain reçu de dette de ce téléphone : V07-B0042 (ARC-11). */
 export async function nextReceiptNumber(userCode: string, series: string): Promise<string> {
   const next = (await secureStorage.getNumber('receiptSeq')) + 1;
