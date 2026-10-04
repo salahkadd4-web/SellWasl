@@ -4,7 +4,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "passThroughEnv": ["DATABASE_URL"]
     },
     "dev": {
       "dependsOn": ["^build"],
@@ -15,7 +16,8 @@
       "dependsOn": ["^build"]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["DATABASE_URL"]
     },
     "test": {
       "dependsOn": ["^build"],
