@@ -671,7 +671,7 @@ VisitSchedule (fréquence, jour)
 **Ajouts phase 0** (UC-11, UC-12, UC-53)
 
 - [x] Type de client, crédit autorisé et plafond (BR-CLI-01, BR-PAY-02)
-- [ ] Création par le vendeur sur mobile, avec la position GPS et la fréquence ; client actif tout de suite et marqué « nouveau » (BR-CLI-02, BR-CLI-03) — *règles faites côté API ; l'écran mobile, hors connexion, vient avec la phase 15*
+- [x] Création par le vendeur sur mobile, avec la position GPS et la fréquence ; client actif tout de suite et marqué « nouveau » (BR-CLI-02, BR-CLI-03) — *écran mobile fait en phase 15, en ligne ; hors connexion avec la phase 23*
 - [x] Liste « clients à revoir » : nouveaux, hors partie, fermés définitivement (BR-CLI-05)
 - [x] Dette du client sur sa fiche (BR-PAY-04)
 
@@ -804,7 +804,7 @@ Vendeur → Secteur → Partie du jour → Clients de la partie
 - [x] Fréquence et date de référence pour chaque client (BR-PLA-01, BR-PLA-03)
 - [x] Calcul des clients du jour, partagé entre le serveur et le mobile (BR-PLA-02, BR-PLA-07)
 - [x] Jours travaillés et jours fériés : pas de clients du jour ces jours-là (BR-PLA-04)
-- [ ] Visites manquées à la clôture de la journée, sans report automatique (BR-PLA-06) — *calcul fait (`missedCustomers`) ; enregistré à la clôture de la journée, phase 15*
+- [x] Visites manquées à la clôture de la journée, sans report automatique (BR-PLA-06) — *enregistrées à la clôture de la journée (phase 15)*
 - [x] Reprogrammer un client à une date précise (BR-PLA-05, UC-54)
 - [x] Modification manuelle du planning par le superviseur (planning des parties, date de référence d'un client, reprogrammations)
 - [x] Vue Web de la liste du jour d'un vendeur, avec un calendrier de 14 jours
@@ -834,20 +834,21 @@ Login · Tableau de bord · Clients du jour (liste / carte) · Fiche client · A
 ## Fonctionnalités
 
 - [x] Animation du logo à l'ouverture, icône et écran de démarrage SellWasl (ajout du 2026-10-04)
-- [ ] Connexion et profil
-- [ ] **Journée de travail** : démarrer et clôturer ; hors journée, consultation seulement (BR-JOU, UC-03, UC-05)
-- [ ] Secteur et partie du jour
-- [ ] Liste des clients du jour **triée par distance**, avec une bascule vers **tout le secteur** (BR-VIS-10, UC-10)
-- [ ] Carte : marqueurs rouges puis verts ; appui sur un client → itinéraire Google Maps, fiche, commencer la visite (UC-10)
-- [ ] Fiche client : informations, dette, historique, appeler, ouvrir sur la carte (UC-11)
-- [ ] Ajouter un client avec la position GPS (UC-12)
-- [ ] Démarrer une visite : **sur place** (distance calculée, « hors zone » signalé mais non bloquant) ou **par téléphone** (BR-VIS-02, BR-VIS-03)
-- [ ] Clore une visite sans commande avec un motif configurable (UC-16)
+- [x] Réception des opérations du téléphone (`POST /sync/push` : idempotence, ordre, refus sans blocage), envoyées en ligne ; la file hors connexion et `/sync/pull` viennent avec la phase 23
+- [x] Connexion et profil (écrans du vendeur : tableau de bord, profil, routage par rôle)
+- [x] **Journée de travail** : démarrer et clôturer ; hors journée, consultation seulement (BR-JOU, UC-03, UC-05) — *en ligne ; démarrer et clôturer sans réseau (BR-JOU-04, BR-JOU-06) avec la phase 23*
+- [x] Secteur et partie du jour
+- [x] Liste des clients du jour **triée par distance**, avec une bascule vers **tout le secteur** (BR-VIS-10, UC-10)
+- [x] Carte : marqueurs rouges puis verts ; appui sur un client → itinéraire Google Maps, fiche, commencer la visite (UC-10)
+- [x] Fiche client : informations, dette, historique, appeler, ouvrir sur la carte (UC-11)
+- [x] Ajouter un client avec la position GPS (UC-12)
+- [x] Démarrer une visite : **sur place** (distance calculée, « hors zone » signalé mais non bloquant) ou **par téléphone** (BR-VIS-02, BR-VIS-03)
+- [x] Clore une visite sans commande avec un motif configurable (UC-16)
 - [ ] Prendre une commande depuis la visite (phase 16, UC-14)
-- [ ] Modifier ou annuler ses commandes jusqu'à la clôture (UC-17)
-- [ ] Encaisser une dette (UC-19)
-- [ ] Objectifs : cible, réalisé, taux, prime estimée (UC-20)
-- [ ] Catalogue sans prix (UC-21)
+- [ ] Modifier ou annuler ses commandes jusqu'à la clôture (UC-17) *(avec les commandes, phase 16)*
+- [x] Encaisser une dette (UC-19) — *impression du reçu avec la phase 20 ; numérotation déjà en place (ARC-11)*
+- [x] Objectifs : cible, réalisé, taux, prime estimée (UC-20) — *réalisé à 0 tant qu'aucune livraison n'existe (phases 19-20)*
+- [x] Catalogue sans prix (UC-21)
 - [ ] Photo de visite *(après le MVP)*
 
 ## Statuts de visite

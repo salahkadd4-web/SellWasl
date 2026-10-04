@@ -96,6 +96,8 @@ Le mot de passe oublié d'un utilisateur d'entreprise est réinitialisé par l'a
 | `POST` | `/auth/refresh` | Comme sur le Web ; le jeton de rafraîchissement est lié à l'appareil |
 | `POST` | `/devices/heartbeat` | Signal de vie : batterie, opérations en attente, position, version de l'application (architecture §11.3). Position ignorée hors journée en cours (BR-JOU-09) ; la réponse donne `positionRecorded` et l'intervalle d'envoi `intervalMin` (paramètres de l'entreprise) |
 | `PUT` | `/devices/push-token` | Enregistrer le jeton de notification push |
+| `GET` | `/me/today?date=AAAA-MM-JJ` | `workdays.own` — journée du vendeur à la date du téléphone : état de la journée, liste du jour (secteur, partie, clients), visites du jour, compteurs x/N et hors programme, encaissé du jour, visite en cours, règles utiles (distance hors zone, P-01, P-02), code et série pour les reçus (phase 15) |
+| `GET` | `/me/objectives?month=AAAA-MM` | `objectives.read` — objectifs du mois par gamme : cible, réalisé, taux, prime estimée (BR-OBJ-04) |
 
 ### 3.3 Appareils, côté Web
 
@@ -291,6 +293,8 @@ Réponse : un résultat par opération, dans le même ordre.
 - **Idempotence** : une opération déjà reçue (`opId` connu) renvoie le résultat enregistré, sans être rejouée (BR-SYN-02).
 - **Ordre** : si `deviceSeq` saute un numéro, le serveur traite les opérations jusqu'au trou et répond `GAP` pour la suite. Le téléphone renvoie alors les opérations manquantes.
 - **Transaction** : chaque opération est appliquée dans sa propre transaction. Une opération refusée n'empêche pas les suivantes, sauf si elles en dépendent (par exemple, le paiement d'une commande refusée est refusé aussi, avec le code `DEPENDS_ON_REJECTED`).
+- **Recalage** : avec `GAP`, ou `REJECTED` + `DUPLICATE` sur le numéro d'ordre, `result.expectedDeviceSeq` donne le numéro attendu ; le téléphone renvoie l'opération avec ce numéro.
+- **En ligne d'abord (phase 15)** : le téléphone envoie chaque opération tout de suite, une par requête ; la file hors connexion arrive avec la phase 23.
 - **Appareil révoqué** : les opérations dont `occurredAt` est antérieur à la révocation sont acceptées ; les autres sont refusées avec `DEVICE_REVOKED` (BR-USR-11).
 
 ### 6.2 Réception : `GET /sync/pull`
