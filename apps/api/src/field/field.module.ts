@@ -25,5 +25,6 @@ import { WorkdayService } from './workday.service';
     OrderService,
     VisitCatalogService,
   ],
+  exports: [WorkdayService, VisitService, OrderService, ObjectivesService],
 })
 export class FieldModule {}

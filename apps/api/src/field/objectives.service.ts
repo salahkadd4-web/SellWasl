@@ -19,10 +19,18 @@ export class ObjectivesService {
   async mine(actor: AuthUser, requestedMonth?: string): Promise<MyObjective[]> {
     const company = await this.db.company.findFirstOrThrow();
     const month = requestedMonth ?? localDate(new Date(), company.timezone).slice(0, 7);
+    return (await this.forMonth(month, actor.userId)).map(({ id: _id, userId: _u, ...o }) => o);
+  }
+
+  /** Objectifs d'un mois, d'un vendeur ou de tous, avec le réalisé et la prime (BR-OBJ-02, 03). */
+  async forMonth(
+    month: string,
+    userId?: string,
+  ): Promise<(MyObjective & { id: string; userId: string })[]> {
     const from = toDate(`${month}-01`);
     const to = toDate(nextMonth(month));
     const objectives = await this.db.objective.findMany({
-      where: { userId: actor.userId, month: from, deletedAt: null },
+      where: { month: from, deletedAt: null, ...(userId ? { userId } : {}) },
       include: { range: true },
       orderBy: { range: { name: 'asc' } },
     });
@@ -35,29 +43,37 @@ export class ObjectivesService {
         deliveredQty: { gt: 0 },
         product: { rangeId: { in: objectives.map((o) => o.rangeId) } },
         order: {
-          sellerUserId: actor.userId,
+          sellerUserId: { in: [...new Set(objectives.map((o) => o.userId))] },
           status: { in: ['DELIVERED', 'PARTIALLY_DELIVERED'] },
           deliveryDate: { gte: from, lt: to },
           deletedAt: null,
         },
       },
-      select: { deliveredQty: true, unitPrice: true, product: { select: { rangeId: true } } },
+      select: {
+        deliveredQty: true,
+        unitPrice: true,
+        product: { select: { rangeId: true } },
+        order: { select: { sellerUserId: true } },
+      },
     });
+    // Réalisé par vendeur et par gamme
+    const key = (userId: string, rangeId: string) => `${userId}:${rangeId}`;
     const realized = new Map<string, number>();
-    for (const l of lines)
-      realized.set(
-        l.product.rangeId,
-        (realized.get(l.product.rangeId) ?? 0) + (l.deliveredQty ?? 0) * Number(l.unitPrice),
-      );
+    for (const l of lines) {
+      const k = key(l.order.sellerUserId, l.product.rangeId);
+      realized.set(k, (realized.get(k) ?? 0) + (l.deliveredQty ?? 0) * Number(l.unitPrice));
+    }
 
     return objectives.map((o) => {
       const amounts = {
         targetAmount: Number(o.targetAmount),
-        realizedAmount: realized.get(o.rangeId) ?? 0,
+        realizedAmount: realized.get(key(o.userId, o.rangeId)) ?? 0,
         bonusAmount: Number(o.bonusAmount),
         capPercent: o.capPercent,
       };
       return {
+        id: o.id,
+        userId: o.userId,
         range: { id: o.range.id, code: o.range.code, name: o.range.name },
         month,
         ...amounts,
