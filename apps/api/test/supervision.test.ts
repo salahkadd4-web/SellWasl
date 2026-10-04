@@ -8,6 +8,7 @@ import type {
   ProductRangeDto,
   QuotaDto,
   VisitCatalog,
+  WorkdayDto,
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
@@ -272,8 +273,89 @@ describe('supervision (phase 16)', () => {
         token: v08.token,
       });
       expect(others.body.some((o) => o.id === orderId)).toBe(false);
-      expect((await call(t.url, 'GET', `/orders/${orderId}`, { token: v08.token })).status).toBe(404);
+      const forced = await call<OrderDto[]>(t.url, 'GET', `/orders?date=${date}&sellerId=${v07.id}`, {
+        token: v08.token,
+      });
+      expect(forced.body.some((o) => o.id === orderId)).toBe(false);
+      expect((await call(t.url, 'GET', `/orders/${orderId}`, { token: v08.token })).status).toBe(
+        404,
+      );
       await phones.closeDay(p, workdayId);
+    });
+  });
+  describe('journées (UC-57, UC-58, UC-64)', () => {
+    const date = '2026-12-19';
+
+    it('rouvre une journée (commandes de nouveau modifiables), puis la referme sans doublon', async () => {
+      const p = await phones.get('V08');
+      const workdayId = await phones.startDay(p, date);
+      const day = (await phones.today(p, date)).body.day;
+      const orderId = uuidv7();
+      await phones.send(p, 'order.confirm', {
+        orderId,
+        number: `V08-${p.series}0301`,
+        visitId: await phones.startVisit(p, day.customers[0]!.id),
+        lines: [{ variantId: thon().variantId, unitId: thon().cartonId, qty: 1 }],
+      });
+      await phones.closeDay(p, workdayId);
+      const missedBefore = await raw.visit.count({
+        where: { workdayId, status: 'MISSED', deletedAt: null },
+      });
+      expect(missedBefore).toBe(day.customers.length - 1);
+
+      const reopen = (body: unknown) =>
+        call(t.url, 'POST', `/workdays/${workdayId}/reopen`, { token: sup, body });
+      expect((await reopen({})).status).toBe(400);
+      expect((await reopen({ reason: 'Commande oubliée' })).status).toBe(200);
+      const status = async () =>
+        (await raw.order.findUniqueOrThrow({ where: { id: orderId } })).status;
+      expect(await status()).toBe('CONFIRMED');
+      expect(await raw.workday.findUniqueOrThrow({ where: { id: workdayId } })).toMatchObject({
+        status: 'IN_PROGRESS',
+        reopenCount: 1,
+      });
+
+      await phones.closeDay(p, workdayId);
+      expect(await status()).toBe('LOCKED');
+      expect(
+        await raw.visit.count({ where: { workdayId, status: 'MISSED', deletedAt: null } }),
+      ).toBe(missedBefore);
+
+      // Préparation lancée : trop tard pour rouvrir (BR-JOU-08)
+      await raw.order.update({ where: { id: orderId }, data: { status: 'PREPARING' } });
+      try {
+        expect((await reopen({ reason: 'Encore' })).status).toBe(409);
+      } finally {
+        await raw.order.update({ where: { id: orderId }, data: { status: 'LOCKED' } });
+      }
+    });
+
+    it('clôture d’office une journée restée ouverte (BR-JOU-10) et liste les journées', async () => {
+      const p = await phones.get('V07');
+      const workdayId = await phones.startDay(p, date);
+      const customer = (await phones.today(p, date)).body.day.customers[0]!;
+      await phones.startVisit(p, customer.id);
+
+      const forced = await call(t.url, 'POST', `/workdays/${workdayId}/force-close`, {
+        token: sup,
+        body: { reason: 'Téléphone cassé' },
+      });
+      expect(forced.status).toBe(200);
+      expect(await raw.workday.findUniqueOrThrow({ where: { id: workdayId } })).toMatchObject({
+        status: 'CLOSED',
+        isForceClosed: true,
+      });
+      expect(
+        await raw.visit.count({ where: { workdayId, status: 'IN_PROGRESS', deletedAt: null } }),
+      ).toBe(0);
+
+      const list = await call<WorkdayDto[]>(t.url, 'GET', `/workdays?date=${date}`, {
+        token: sup,
+      });
+      const byCode = Object.fromEntries(list.body.map((w) => [w.user.code, w]));
+      expect(byCode.V07).toMatchObject({ status: 'CLOSED', isForceClosed: true });
+      expect(byCode.V08).toMatchObject({ status: 'CLOSED', reopenCount: 1, ordersCount: 1 });
+      expect(byCode.V08!.visits.done).toBe(1);
     });
   });
 });

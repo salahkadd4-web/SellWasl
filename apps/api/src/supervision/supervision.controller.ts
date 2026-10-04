@@ -74,10 +74,11 @@ export class SupervisionController {
     @Query(new ZodValidationPipe(ordersQuerySchema)) query: Out<typeof ordersQuerySchema>,
   ): Promise<OrderDto[]> {
     return this.orders.toDtos({
-      ...ownOnPhone(actor),
       ...(query.date ? { orderDate: toDate(query.date) } : {}),
       ...(query.sellerId ? { sellerUserId: query.sellerId } : {}),
       ...(query.status ? { status: query.status } : {}),
+      // En dernier : aucun filtre de la requête ne peut l'élargir
+      ...ownOnPhone(actor),
     });
   }
 
