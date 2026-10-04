@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { FieldModule } from '../field/field.module';
 import { ObjectivesAdminService } from './objectives-admin.service';
+import { PendingLinesService } from './pending-lines.service';
 import { QuotasService } from './quotas.service';
 import { SupervisionController } from './supervision.controller';
 
@@ -8,6 +9,6 @@ import { SupervisionController } from './supervision.controller';
 @Module({
   imports: [FieldModule],
   controllers: [SupervisionController],
-  providers: [QuotasService, ObjectivesAdminService],
+  providers: [QuotasService, ObjectivesAdminService, PendingLinesService],
 })
 export class SupervisionModule {}

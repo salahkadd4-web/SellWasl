@@ -1,13 +1,16 @@
 import type {
   CustomerDto,
   ObjectiveDto,
+  OrderDto,
   Page,
+  PendingLineDto,
   ProductDto,
   ProductRangeDto,
   QuotaDto,
   VisitCatalog,
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { Phones } from './phone';
@@ -156,6 +159,121 @@ describe('supervision (phase 16)', () => {
           })
         ).status,
       ).toBe(403);
+    });
+  });
+  describe('lignes en attente et historique (UC-60)', () => {
+    const date = '2026-12-12';
+
+    it('accepte dans la ligne normale, signale la rupture, refuse en vente perdue', async () => {
+      const bimoFra = products
+        .find((x) => x.reference === 'BIMO')!
+        .variants.find((v) => v.reference === 'BIMO-FRA')!.id;
+      const bimoCarton = products
+        .find((x) => x.reference === 'BIMO')!
+        .units.find((u) => u.name === 'carton')!.id;
+      await call(t.url, 'PUT', '/quotas', {
+        token: sup,
+        body: {
+          date,
+          entries: [
+            { userId: v07.id, productVariantId: thon().variantId, unitId: thon().cartonId, qty: 1 },
+            { userId: v07.id, productVariantId: bimoFra, unitId: bimoCarton, qty: 1 },
+          ],
+        },
+      });
+      const p = await phones.get('V07');
+      const workdayId = await phones.startDay(p, date);
+      const [c1, c2] = (await phones.today(p, date)).body.day.customers;
+
+      const orderId = uuidv7();
+      await phones.send(p, 'order.confirm', {
+        orderId,
+        number: `V07-${p.series}0201`,
+        visitId: await phones.startVisit(p, c1!.id),
+        lines: [
+          { variantId: thon().variantId, unitId: thon().cartonId, qty: 3 },
+          { variantId: bimoFra, unitId: bimoCarton, qty: 2 },
+        ],
+      });
+
+      const pending = await call<PendingLineDto[]>(t.url, 'GET', `/pending-lines?date=${date}`, {
+        token: sup,
+      });
+      const mine = pending.body.filter((l) => l.orderId === orderId);
+      expect(mine.map((l) => [l.productName, l.qty]).sort()).toEqual([
+        ['Biscuit Bimo', 1],
+        ['Thon tomate', 2],
+      ]);
+      const thonLine = mine.find((l) => l.productName === 'Thon tomate')!;
+      const bimoLine = mine.find((l) => l.productName === 'Biscuit Bimo')!;
+
+      const decide = (lineIds: string[], decision: 'ACCEPT' | 'REFUSE') =>
+        call(t.url, 'POST', '/pending-lines/decide', { token: sup, body: { lineIds, decision } });
+
+      expect((await decide([thonLine.id], 'ACCEPT')).status).toBe(200);
+      // Plus de stock disponible pour le Bimo fraise : acceptée, mais en rupture
+      const stock = await raw.stock.findFirstOrThrow({
+        where: { productVariantId: bimoFra, warehouse: { type: 'DEPOT' } },
+      });
+      await raw.stock.update({ where: { id: stock.id }, data: { reservedQty: stock.physicalQty } });
+      try {
+        expect((await decide([bimoLine.id], 'ACCEPT')).status).toBe(200);
+      } finally {
+        const now = await raw.stock.findUniqueOrThrow({ where: { id: stock.id } });
+        await raw.stock.update({
+          where: { id: stock.id },
+          data: { reservedQty: now.reservedQty - (stock.physicalQty - stock.reservedQty) },
+        });
+      }
+      expect((await decide([thonLine.id], 'ACCEPT')).status).toBe(409);
+
+      const detail = await call<OrderDto>(t.url, 'GET', `/orders/${orderId}`, { token: sup });
+      const normal = (name: string) =>
+        detail.body.lines.find((l) => l.kind === 'NORMAL' && l.productName === name)!;
+      expect(normal('Thon tomate')).toMatchObject({
+        enteredQty: 3,
+        reservedQty: 60,
+        isStockout: false,
+      });
+      expect(normal('Biscuit Bimo')).toMatchObject({ enteredQty: 2, isStockout: true });
+      expect(detail.body.totalAmount).toBe(3 * 5800 + 2 * 1200);
+      expect(
+        detail.body.lines.filter((l) => l.kind === 'PENDING').map((l) => l.pendingStatus),
+      ).toEqual(['ACCEPTED', 'ACCEPTED']);
+
+      // Quota épuisé : tout part en attente ; refusé, c'est une vente perdue
+      const second = uuidv7();
+      await phones.send(p, 'order.confirm', {
+        orderId: second,
+        number: `V07-${p.series}0202`,
+        visitId: await phones.startVisit(p, c2!.id),
+        lines: [{ variantId: thon().variantId, unitId: thon().cartonId, qty: 1 }],
+      });
+      const line = (
+        await call<PendingLineDto[]>(t.url, 'GET', `/pending-lines?date=${date}`, {
+          token: sup,
+        })
+      ).body.find((l) => l.orderId === second)!;
+      expect((await decide([line.id], 'REFUSE')).status).toBe(200);
+      expect(
+        await raw.lostDemand.count({ where: { orderLineId: line.id, kind: 'LOST_SALE' } }),
+      ).toBe(1);
+
+      const history = await call<OrderDto[]>(
+        t.url,
+        'GET',
+        `/orders?date=${date}&sellerId=${v07.id}`,
+        { token: sup },
+      );
+      expect(history.body.map((o) => o.id).sort()).toEqual([orderId, second].sort());
+      // Sur le téléphone, un vendeur ne voit que ses commandes, même avec orders.read
+      const v08 = await phones.get('V08');
+      const others = await call<OrderDto[]>(t.url, 'GET', `/orders?date=${date}`, {
+        token: v08.token,
+      });
+      expect(others.body.some((o) => o.id === orderId)).toBe(false);
+      expect((await call(t.url, 'GET', `/orders/${orderId}`, { token: v08.token })).status).toBe(404);
+      await phones.closeDay(p, workdayId);
     });
   });
 });
