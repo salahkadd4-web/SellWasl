@@ -6,3 +6,4 @@ export * from './customers';
 export * from './catalog';
 export * from './territories';
 export * from './planning';
+export * from './sync';
