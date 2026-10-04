@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
-import { errorMessage, formatDA } from '@/seller/format';
+import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { newId } from '@/sync/operations';
 import { phoneDate, useToday } from '@/today/TodayContext';
 import { Card, Message, PrimaryButton, Title } from '@/ui';
@@ -34,6 +34,7 @@ export default function SellerDashboard() {
   const status = today?.workday?.status ?? 'NOT_STARTED';
   const canStart =
     status === 'NOT_STARTED' &&
+    !today?.openWorkday &&
     (day?.status === 'WORKING' || today?.rules.P01_workOnNonWorkingDays === true);
 
   return (
@@ -54,6 +55,16 @@ export default function SellerDashboard() {
       </Title>
       {error ? <Text style={styles.offline}>{error}</Text> : null}
 
+      {today?.openWorkday ? (
+        <Card title={`Journée du ${formatDate(today.openWorkday.date)} non clôturée`}>
+          <Message tone="info">Clôturez-la avant de démarrer celle d'aujourd'hui.</Message>
+          <PrimaryButton
+            title={`Clôturer la journée du ${formatDate(today.openWorkday.date)}`}
+            onPress={() => router.push('/seller/close')}
+          />
+        </Card>
+      ) : null}
+
       <Card title="Journée">
         {status === 'NOT_STARTED' ? (
           <>
@@ -64,7 +75,7 @@ export default function SellerDashboard() {
                 onPress={() => void startDay()}
                 busy={busy}
               />
-            ) : day ? (
+            ) : day && !today?.openWorkday ? (
               <Message tone="info">
                 L'entreprise n'autorise pas le travail les jours non travaillés.
               </Message>

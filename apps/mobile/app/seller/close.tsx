@@ -2,7 +2,7 @@ import { colors } from '@sellwasl/config';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { errorMessage, formatDA } from '@/seller/format';
+import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { useToday } from '@/today/TodayContext';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 
@@ -12,16 +12,19 @@ export default function CloseDayScreen() {
   const { today, act } = useToday();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Journée d'un autre jour restée ouverte : on la clôture d'abord
+  const stale = today?.openWorkday ?? null;
   const workday = today?.workday;
   const counters = today?.counters;
   const missed = (counters?.planned ?? 0) - (counters?.visited ?? 0);
 
   async function confirm() {
-    if (!workday) return;
+    const workdayId = stale?.id ?? workday?.id;
+    if (!workdayId) return;
     setError(null);
     setBusy(true);
     try {
-      await act('workday.close', { workdayId: workday.id });
+      await act('workday.close', { workdayId });
       router.back();
     } catch (e) {
       setError(errorMessage(e));
@@ -29,6 +32,28 @@ export default function CloseDayScreen() {
       setBusy(false);
     }
   }
+
+  if (stale)
+    return (
+      <Screen>
+        <Title subtitle="Les clients non visités ce jour-là recevront une visite manquée.">
+          {`Journée du ${formatDate(stale.date)}`}
+        </Title>
+        {today?.currentVisit ? (
+          <>
+            <Message>Terminez d'abord la visite en cours.</Message>
+            <PrimaryButton
+              title="Reprendre la visite"
+              onPress={() => router.push(`/seller/visit/${today.currentVisit!.customerId}`)}
+            />
+          </>
+        ) : (
+          <PrimaryButton title="Confirmer la clôture" onPress={() => void confirm()} busy={busy} />
+        )}
+        {error ? <Message>{error}</Message> : null}
+        <PrimaryButton title="Annuler" variant="secondary" onPress={() => router.back()} />
+      </Screen>
+    );
 
   if (workday?.status !== 'IN_PROGRESS')
     return (

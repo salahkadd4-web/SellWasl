@@ -210,22 +210,31 @@ export class WorkdayService implements OnModuleInit {
   async today(actor: AuthUser, requestedDate?: string): Promise<TodayResponse> {
     const company = await this.db.company.findFirstOrThrow();
     const date = requestedDate ?? localDate(new Date(), company.timezone);
-    const [day, settings, workday, visits, currentVisit, user, device] = await Promise.all([
-      this.planning.day(actor.userId, date),
-      this.settings(),
-      this.db.workday.findFirst({
-        where: { userId: actor.userId, date: toDate(date), deletedAt: null },
-      }),
-      this.db.visit.findMany({
-        where: { userId: actor.userId, date: toDate(date), deletedAt: null },
-        orderBy: { createdAt: 'asc' },
-      }),
-      this.db.visit.findFirst({
-        where: { userId: actor.userId, status: 'IN_PROGRESS', deletedAt: null },
-      }),
-      this.db.user.findFirstOrThrow({ where: { id: actor.userId } }),
-      actor.deviceId ? this.db.device.findFirst({ where: { id: actor.deviceId } }) : null,
-    ]);
+    const [day, settings, workday, visits, currentVisit, user, staleWorkday, device] =
+      await Promise.all([
+        this.planning.day(actor.userId, date),
+        this.settings(),
+        this.db.workday.findFirst({
+          where: { userId: actor.userId, date: toDate(date), deletedAt: null },
+        }),
+        this.db.visit.findMany({
+          where: { userId: actor.userId, date: toDate(date), deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+        }),
+        this.db.visit.findFirst({
+          where: { userId: actor.userId, status: 'IN_PROGRESS', deletedAt: null },
+        }),
+        this.db.user.findFirstOrThrow({ where: { id: actor.userId } }),
+        this.db.workday.findFirst({
+          where: {
+            userId: actor.userId,
+            status: 'IN_PROGRESS',
+            date: { not: toDate(date) },
+            deletedAt: null,
+          },
+        }),
+        actor.deviceId ? this.db.device.findFirst({ where: { id: actor.deviceId } }) : null,
+      ]);
     const collected = workday
       ? await this.db.payment.aggregate({
           where: { workdayId: workday.id, deletedAt: null },
@@ -240,6 +249,7 @@ export class WorkdayService implements OnModuleInit {
         startedAt: workday.startedAt?.toISOString() ?? null,
         closedAt: workday.closedAt?.toISOString() ?? null,
       },
+      openWorkday: staleWorkday && { id: staleWorkday.id, date: dateOnly(staleWorkday.date) },
       day,
       visits: visits.map(toTodayVisit),
       counters: {

@@ -201,6 +201,16 @@ describe('journée du vendeur (phase 15)', () => {
       await closeDay(p, workdayId);
     });
 
+    it('signale la journée d’un autre jour restée ouverte, pour la clôturer', async () => {
+      const p = await phone('V08');
+      const workdayId = await startDay(p, '2026-10-26');
+      const next = await today(p, '2026-10-27');
+      expect(next.body.workday).toBeNull();
+      expect(next.body.openWorkday).toMatchObject({ id: workdayId, date: '2026-10-26' });
+      await closeDay(p, workdayId);
+      expect((await today(p, '2026-10-27')).body.openWorkday).toBeNull();
+    });
+
     it('refuse un jour non travaillé quand l’entreprise l’interdit (P-01, BR-JOU-03)', async () => {
       const admin = await webLogin(t.url, 'DISTRI-ORAN', 'A-ADM');
       const current = (await call<SettingsResponse>(t.url, 'GET', '/settings', { token: admin }))

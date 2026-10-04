@@ -103,6 +103,8 @@ export interface TodayResponse {
     startedAt: string | null;
     closedAt: string | null;
   } | null;
+  /** Journée d'un autre jour restée ouverte : à clôturer avant d'en démarrer une nouvelle. */
+  openWorkday: { id: string; date: string } | null;
   day: PlanningDay;
   visits: TodayVisit[];
   counters: { visited: number; planned: number; outOfProgram: number; collectedAmount: number };

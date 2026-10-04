@@ -100,72 +100,70 @@ export default function VisitScreen() {
       <Title subtitle={isScheduled ? 'Client du jour' : 'Hors programme'}>
         {customer?.name ?? 'Visite'}
       </Title>
-      <WorkdayGuard>
-        {current && current.customerId !== customerId ? (
-          <>
-            <Message>Une autre visite est en cours : terminez-la d'abord.</Message>
-            <PrimaryButton
-              title="Aller à la visite en cours"
-              onPress={() => router.replace(`/seller/visit/${current.customerId}`)}
-            />
-          </>
-        ) : current ? (
-          <>
-            <Card title="Visite en cours">
-              <Text style={styles.line}>
-                {current.mode === 'PHONE' ? 'Par téléphone' : 'Sur place'}
-                {current.distanceM !== null ? ` · à ${formatDistance(current.distanceM)}` : ''}
+      {current && current.customerId !== customerId ? (
+        <>
+          <Message>Une autre visite est en cours : terminez-la d'abord.</Message>
+          <PrimaryButton
+            title="Aller à la visite en cours"
+            onPress={() => router.replace(`/seller/visit/${current.customerId}`)}
+          />
+        </>
+      ) : current ? (
+        <>
+          <Card title="Visite en cours">
+            <Text style={styles.line}>
+              {current.mode === 'PHONE' ? 'Par téléphone' : 'Sur place'}
+              {current.distanceM !== null ? ` · à ${formatDistance(current.distanceM)}` : ''}
+            </Text>
+            {current.isOutOfZone ? (
+              <Text style={styles.warning}>
+                Hors zone : signalé au superviseur, la visite continue.
               </Text>
-              {current.isOutOfZone ? (
-                <Text style={styles.warning}>
-                  Hors zone : signalé au superviseur, la visite continue.
-                </Text>
-              ) : null}
-            </Card>
-            <PrimaryButton title="Prendre une commande" onPress={() => undefined} disabled />
-            <Text style={styles.muted}>La prise de commande arrive avec le module Commandes.</Text>
-            {reasons ? (
-              <View style={styles.reasons}>
-                <Text style={styles.label}>Motif de non-commande</Text>
-                {reasons.map((r) => (
-                  <PrimaryButton
-                    key={r.id}
-                    title={r.label}
-                    variant="secondary"
-                    onPress={() => closeWith(r)}
-                    busy={busy}
-                  />
-                ))}
-              </View>
-            ) : (
+            ) : null}
+          </Card>
+          <PrimaryButton title="Prendre une commande" onPress={() => undefined} disabled />
+          <Text style={styles.muted}>La prise de commande arrive avec le module Commandes.</Text>
+          {reasons ? (
+            <View style={styles.reasons}>
+              <Text style={styles.label}>Motif de non-commande</Text>
+              {reasons.map((r) => (
+                <PrimaryButton
+                  key={r.id}
+                  title={r.label}
+                  variant="secondary"
+                  onPress={() => closeWith(r)}
+                  busy={busy}
+                />
+              ))}
+            </View>
+          ) : (
+            <PrimaryButton
+              title="Pas de commande"
+              variant="secondary"
+              onPress={() => void showReasons()}
+            />
+          )}
+        </>
+      ) : (
+        <WorkdayGuard>
+          {isCashVan ? null : (
+            <View style={styles.reasons}>
+              <Text style={styles.label}>Mode de visite</Text>
               <PrimaryButton
-                title="Pas de commande"
-                variant="secondary"
-                onPress={() => void showReasons()}
+                title="Sur place"
+                variant={mode === 'ON_SITE' ? 'primary' : 'secondary'}
+                onPress={() => setMode('ON_SITE')}
               />
-            )}
-          </>
-        ) : (
-          <>
-            {isCashVan ? null : (
-              <View style={styles.reasons}>
-                <Text style={styles.label}>Mode de visite</Text>
-                <PrimaryButton
-                  title="Sur place"
-                  variant={mode === 'ON_SITE' ? 'primary' : 'secondary'}
-                  onPress={() => setMode('ON_SITE')}
-                />
-                <PrimaryButton
-                  title="Par téléphone"
-                  variant={mode === 'PHONE' ? 'primary' : 'secondary'}
-                  onPress={() => setMode('PHONE')}
-                />
-              </View>
-            )}
-            <PrimaryButton title="Commencer la visite" onPress={() => void start()} busy={busy} />
-          </>
-        )}
-      </WorkdayGuard>
+              <PrimaryButton
+                title="Par téléphone"
+                variant={mode === 'PHONE' ? 'primary' : 'secondary'}
+                onPress={() => setMode('PHONE')}
+              />
+            </View>
+          )}
+          <PrimaryButton title="Commencer la visite" onPress={() => void start()} busy={busy} />
+        </WorkdayGuard>
+      )}
       {error ? <Message>{error}</Message> : null}
     </Screen>
   );
