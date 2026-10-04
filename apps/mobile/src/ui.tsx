@@ -1,4 +1,4 @@
-import { colors } from '@sellwasl/config';
+import { colors, radius } from '@sellwasl/config';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -45,22 +45,26 @@ export function PrimaryButton({
   title,
   onPress,
   busy = false,
+  disabled = false,
   variant = 'primary',
 }: {
   title: string;
   onPress: () => void;
   busy?: boolean;
+  /** Action pas encore disponible : bouton visible mais grisé. */
+  disabled?: boolean;
   variant?: 'primary' | 'secondary';
 }) {
   const primary = variant === 'primary';
   return (
     <Pressable
       onPress={onPress}
-      disabled={busy}
+      disabled={busy || disabled}
       style={({ pressed }) => [
         styles.button,
         primary ? styles.buttonPrimary : styles.buttonSecondary,
         (pressed || busy) && { opacity: 0.7 },
+        disabled && { opacity: 0.4 },
       ]}
     >
       {busy ? (
@@ -90,7 +94,25 @@ export function Message({
   );
 }
 
+/** Bloc d'informations encadré (tableau de bord, fiches). */
+export function Card({ children, title }: { children: ReactNode; title?: string }) {
+  return (
+    <View style={styles.card}>
+      {title ? <Text style={styles.label}>{title}</Text> : null}
+      {children}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  card: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: 16,
+    gap: 8,
+    backgroundColor: colors.surface,
+  },
   screen: {
     flexGrow: 1,
     padding: 16,
