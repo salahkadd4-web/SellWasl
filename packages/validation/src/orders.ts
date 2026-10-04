@@ -22,10 +22,10 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 /** Grille de prix d'un type de client, au format de `priceCart` (packages/business-rules). */
 export interface VisitPricingCatalog {
-  units: { id: string; productId: string; baseQty: number }[];
-  variants: { id: string; productId: string; isActive: boolean }[];
-  prices: { productId: string; variantId: string | null; unitId: string; price: number }[];
-  tiers: {
+  units: readonly { id: string; productId: string; baseQty: number }[];
+  variants: readonly { id: string; productId: string; isActive: boolean }[];
+  prices: readonly { productId: string; variantId: string | null; unitId: string; price: number }[];
+  tiers: readonly {
     productId: string;
     variantId: string | null;
     unitId: string;
@@ -33,7 +33,7 @@ export interface VisitPricingCatalog {
     unitPrice: number;
     thresholdScope: 'ALL_VARIANTS' | 'PER_VARIANT';
   }[];
-  bonusRules: {
+  bonusRules: readonly {
     id: string;
     name: string;
     buyProductId: string;
@@ -47,7 +47,7 @@ export interface VisitPricingCatalog {
     freeVariantMode: 'FIXED' | 'SELLER_CHOICE' | 'AUTO_MOST_STOCK';
     validFrom: string;
     validTo: string | null;
-    customerTypeIds: string[];
+    customerTypeIds: readonly string[];
   }[];
 }
 

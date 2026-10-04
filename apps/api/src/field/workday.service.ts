@@ -186,7 +186,11 @@ export class WorkdayService implements OnModuleInit {
         })),
       });
 
-    // Les commandes passeront LOCKED avec la phase 16 (BR-JOU-07)
+    // Les commandes confirmées de la journée sont figées (BR-JOU-07)
+    await tx.order.updateMany({
+      where: { workdayId, status: 'CONFIRMED', deletedAt: null },
+      data: { status: 'LOCKED', lockedAt: occurredAt },
+    });
     await tx.workday.update({
       where: { id: workdayId },
       data: { status: 'CLOSED', closedAt: occurredAt, version: { increment: 1 } },
@@ -235,12 +239,19 @@ export class WorkdayService implements OnModuleInit {
         }),
         actor.deviceId ? this.db.device.findFirst({ where: { id: actor.deviceId } }) : null,
       ]);
-    const collected = workday
-      ? await this.db.payment.aggregate({
-          where: { workdayId: workday.id, deletedAt: null },
-          _sum: { cashAmount: true },
-        })
-      : null;
+    const [collected, orders] = workday
+      ? await Promise.all([
+          this.db.payment.aggregate({
+            where: { workdayId: workday.id, deletedAt: null },
+            _sum: { cashAmount: true },
+          }),
+          this.db.order.aggregate({
+            where: { workdayId: workday.id, status: { not: 'CANCELLED' }, deletedAt: null },
+            _sum: { totalAmount: true },
+            _count: true,
+          }),
+        ])
+      : [null, null];
     return {
       date,
       workday: workday && {
@@ -258,6 +269,8 @@ export class WorkdayService implements OnModuleInit {
           visits,
         ),
         collectedAmount: Number(collected?._sum.cashAmount ?? 0n),
+        ordersCount: orders?._count ?? 0,
+        ordersAmount: Number(orders?._sum.totalAmount ?? 0n),
       },
       currentVisit: currentVisit && toTodayVisit(currentVisit),
       rules: {
