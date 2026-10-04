@@ -833,6 +833,7 @@ Login · Tableau de bord · Clients du jour (liste / carte) · Fiche client · A
 
 ## Fonctionnalités
 
+- [x] Animation du logo à l'ouverture, icône et écran de démarrage SellWasl (ajout du 2026-10-04)
 - [ ] Connexion et profil
 - [ ] **Journée de travail** : démarrer et clôturer ; hors journée, consultation seulement (BR-JOU, UC-03, UC-05)
 - [ ] Secteur et partie du jour

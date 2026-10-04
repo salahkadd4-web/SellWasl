@@ -29,11 +29,27 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "SellWasl utilise la cam\u00e9ra pour lire le QR code d'association.",
+          "cameraPermission": "SellWasl utilise la caméra pour lire le QR code d'association.",
           "recordAudioAndroid": false
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain"
+        }
+      ],
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SellWasl utilise votre position pendant la journée pour trier les clients par distance et vérifier les visites sur place."
+        }
+      ]
     ],
     "platforms": ["android"]
   }

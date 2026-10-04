@@ -1,8 +1,13 @@
 import { colors } from '@sellwasl/config';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
+import { SplashIntro } from '@/splash/SplashIntro';
+
+/** L'écran natif reste affiché jusqu'à ce que SplashIntro prenne le relais. */
+void SplashScreen.preventAutoHideAsync();
 
 /** Écrans accessibles dans chaque état du téléphone ; le premier est l'écran par défaut. */
 const SCREENS_BY_STATUS = {
@@ -25,6 +30,12 @@ function AuthGate() {
   }, [status, segments, router]);
 
   return null;
+}
+
+/** L'animation couvre la navigation : AuthGate redirige en dessous pendant qu'elle se joue. */
+function Intro() {
+  const { status } = useAuth();
+  return <SplashIntro ready={status !== 'loading'} />;
 }
 
 export default function RootLayout() {
@@ -50,6 +61,7 @@ export default function RootLayout() {
         <Stack.Screen name="home" options={{ title: 'SellWasl' }} />
         <Stack.Screen name="printer-test" options={{ title: "Test d'impression" }} />
       </Stack>
+      <Intro />
     </AuthProvider>
   );
 }
