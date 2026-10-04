@@ -246,4 +246,67 @@ describe('commandes (phase 16)', () => {
       await phones.closeDay(p, workdayId);
     });
   });
+  describe('modification, annulation et clôture', () => {
+    it('ajuste la réservation, libère à l’annulation et fige à la clôture (BR-CMD-02, BR-CMD-04)', async () => {
+      const p = await phones.get('V08');
+      const date = '2026-11-14';
+      const workdayId = await phones.startDay(p, date);
+      const [a, b] = await (async () => {
+        const first = await detailCustomer(p, date);
+        return [first, await detailCustomer(p, date, [first.id])];
+      })();
+
+      const orderA = uuidv7();
+      const visitA = await phones.startVisit(p, a.id);
+      const before = (await depotStock('THON-HUI')).reservedQty;
+      expect(
+        await phones.send(p, 'order.confirm', {
+          orderId: orderA,
+          number: `V08-${p.series}0101`,
+          visitId: visitA,
+          lines: [line('THON-HUI', 'carton', 5)],
+        }),
+      ).toMatchObject({ status: 'APPLIED', result: { totalAmount: 5 * 6200 } });
+      expect((await depotStock('THON-HUI')).reservedQty - before).toBe(100);
+
+      // Moins de cartons : le stock réservé de trop est rendu
+      expect(
+        await phones.send(p, 'order.update', {
+          orderId: orderA,
+          lines: [line('THON-HUI', 'carton', 2)],
+        }),
+      ).toMatchObject({ status: 'APPLIED', result: { totalAmount: 2 * 6200 } });
+      expect((await depotStock('THON-HUI')).reservedQty - before).toBe(40);
+
+      const orderB = uuidv7();
+      const visitB = await phones.startVisit(p, b.id);
+      await phones.send(p, 'order.confirm', {
+        orderId: orderB,
+        number: `V08-${p.series}0102`,
+        visitId: visitB,
+        lines: [line('THON-HUI', 'carton', 3)],
+      });
+      expect(await phones.send(p, 'order.cancel', { orderId: orderB })).toMatchObject({
+        status: 'APPLIED',
+      });
+      expect((await depotStock('THON-HUI')).reservedQty - before).toBe(40);
+
+      const day = (await phones.today(p, date)).body.counters;
+      expect(day).toMatchObject({ ordersCount: 1, ordersAmount: 2 * 6200 });
+
+      await phones.closeDay(p, workdayId);
+      const orders = await call<OrderDto[]>(t.url, 'GET', `/me/orders?date=${date}`, {
+        token: p.token,
+      });
+      expect(Object.fromEntries(orders.body.map((o) => [o.id, o.status]))).toEqual({
+        [orderA]: 'LOCKED',
+        [orderB]: 'CANCELLED',
+      });
+      const late = await phones.send(p, 'order.update', {
+        orderId: orderA,
+        lines: [line('THON-HUI', 'carton', 1)],
+      });
+      expect(late).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
+    });
+  });
 });
