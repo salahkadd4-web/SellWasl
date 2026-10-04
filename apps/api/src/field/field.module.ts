@@ -5,6 +5,7 @@ import { SyncModule } from '../sync/sync.module';
 import { CustomerOpsService } from './customer-ops.service';
 import { DebtService } from './debt.service';
 import { MeController } from './me.controller';
+import { ObjectivesService } from './objectives.service';
 import { VisitService } from './visit.service';
 import { WorkdayService } from './workday.service';
 
@@ -12,6 +13,6 @@ import { WorkdayService } from './workday.service';
 @Module({
   imports: [SyncModule, PlanningModule, CustomersModule],
   controllers: [MeController],
-  providers: [WorkdayService, VisitService, CustomerOpsService, DebtService],
+  providers: [WorkdayService, VisitService, CustomerOpsService, DebtService, ObjectivesService],
 })
 export class FieldModule {}

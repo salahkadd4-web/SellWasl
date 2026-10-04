@@ -3,6 +3,7 @@ import type {
   CustomerHistory,
   DeviceActivationResponse,
   FieldUserDevice,
+  MyObjective,
   Page,
   SyncPushResponse,
   TodayResponse,
@@ -447,6 +448,30 @@ describe('journée du vendeur (phase 15)', () => {
       );
       expect((await today(p, date)).body.counters.collectedAmount).toBe(12_000);
       await closeDay(p, workdayId);
+    });
+  });
+  describe('objectifs', () => {
+    it('donne la cible, le réalisé, le taux et la prime estimée du mois (BR-OBJ-04)', async () => {
+      const p = await phone('V07');
+      const october = await call<MyObjective[]>(t.url, 'GET', '/me/objectives?month=2026-10', {
+        token: p.token,
+      });
+      expect(october.status).toBe(200);
+      const byRange = Object.fromEntries(october.body.map((o) => [o.range.code, o]));
+      expect(byRange.BIMO).toMatchObject({
+        month: '2026-10',
+        targetAmount: 3_200_000,
+        bonusAmount: 12_000,
+        capPercent: 120,
+        realizedAmount: 0,
+        rate: 0,
+        estimatedBonus: 0,
+      });
+      expect(byRange.THON).toMatchObject({ targetAmount: 5_000_000, bonusAmount: 15_000 });
+      const november = await call<MyObjective[]>(t.url, 'GET', '/me/objectives?month=2026-11', {
+        token: p.token,
+      });
+      expect(november.body).toEqual([]);
     });
   });
 });
