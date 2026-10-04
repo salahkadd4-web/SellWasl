@@ -22,7 +22,7 @@ interface ReasonRow {
 
 /**
  * Visite d'un client (UC-13, UC-16) : sur place (distance, hors zone signalé sans bloquer) ou par
- * téléphone, puis clôture sans commande avec un motif. La commande arrive avec la phase 16.
+ * téléphone, puis commande ou clôture sans commande avec un motif.
  */
 export default function VisitScreen() {
   const { customerId } = useLocalSearchParams<{ customerId: string }>();

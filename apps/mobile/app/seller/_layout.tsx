@@ -21,6 +21,8 @@ export default function SellerLayout() {
         <Stack.Screen name="visit/[customerId]" options={{ title: 'Visite' }} />
         <Stack.Screen name="debt/[customerId]" options={{ title: 'Encaisser une dette' }} />
         <Stack.Screen name="order/[visitId]" options={{ title: 'Commande' }} />
+        <Stack.Screen name="orders" options={{ title: 'Commandes du jour' }} />
+        <Stack.Screen name="orders/[id]" options={{ title: 'Commande' }} />
         <Stack.Screen name="objectives" options={{ title: 'Objectifs' }} />
         <Stack.Screen name="catalog" options={{ title: 'Catalogue' }} />
         <Stack.Screen name="profile" options={{ title: 'Profil' }} />

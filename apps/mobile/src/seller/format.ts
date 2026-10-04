@@ -30,3 +30,16 @@ export const VISIT_STATUS_LABELS: Record<string, string> = {
 export function formatDate(date: string): string {
   return date.slice(0, 10).split('-').reverse().join('/');
 }
+
+export const ORDER_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Panier',
+  CONFIRMED: 'Confirmée',
+  LOCKED: 'Figée',
+  PREPARING: 'En préparation',
+  READY: 'Préparée',
+  OUT_FOR_DELIVERY: 'En livraison',
+  DELIVERED: 'Livrée',
+  PARTIALLY_DELIVERED: 'Livrée partiellement',
+  FAILED: 'Échouée',
+  CANCELLED: 'Annulée',
+};

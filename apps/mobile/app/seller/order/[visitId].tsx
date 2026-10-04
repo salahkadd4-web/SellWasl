@@ -15,6 +15,7 @@ import { ApiClientError, request } from '@/api/client';
 import { type CartEntry, entriesFromOrder, useCart } from '@/seller/cart';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { ProductSheet } from '@/seller/ProductSheet';
+import { WorkdayGuard } from '@/seller/WorkdayGuard';
 import { newId, nextOrderNumber } from '@/sync/operations';
 import { useToday } from '@/today/TodayContext';
 import { Card, Input, Message, PrimaryButton, Title } from '@/ui';
@@ -303,12 +304,14 @@ function OrderForm({
         <Text style={styles.muted}>Le serveur confirme les prix, les quotas et le stock.</Text>
       </View>
       {error ? <Message>{error}</Message> : null}
-      <PrimaryButton
-        title={existing ? 'Enregistrer la modification' : 'Confirmer la commande'}
-        onPress={() => void onSubmit(cart.lines, cart.freeChoices)}
-        busy={busy}
-        disabled={cart.lines.length === 0}
-      />
+      <WorkdayGuard>
+        <PrimaryButton
+          title={existing ? 'Enregistrer la modification' : 'Confirmer la commande'}
+          onPress={() => void onSubmit(cart.lines, cart.freeChoices)}
+          busy={busy}
+          disabled={cart.lines.length === 0}
+        />
+      </WorkdayGuard>
 
       <Input label="Rechercher un produit" value={query} onChangeText={setQuery} />
       {available.length === 0 ? (
@@ -323,7 +326,12 @@ function OrderForm({
           <View style={styles.productText}>
             <Text style={styles.name}>{p.name}</Text>
             <Text style={styles.muted}>
-              {[p.range.name, p.hasFlavors ? `${p.variants.length} parfums` : null]
+              {[
+                p.range.name,
+                p.hasFlavors
+                  ? `${p.variants.length} parfum${p.variants.length > 1 ? 's' : ''}`
+                  : null,
+              ]
                 .filter(Boolean)
                 .join(' · ')}
             </Text>

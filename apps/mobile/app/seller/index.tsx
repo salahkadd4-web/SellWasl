@@ -124,6 +124,19 @@ export default function SellerDashboard() {
         <PrimaryButton title="Clients du jour" onPress={() => router.push('/seller/customers')} />
       </Card>
 
+      <Card title="Commandes du jour">
+        <Text style={styles.big}>
+          {today?.counters.ordersCount ?? 0} commande
+          {(today?.counters.ordersCount ?? 0) > 1 ? 's' : ''} ·{' '}
+          {formatDA(today?.counters.ordersAmount ?? 0)}
+        </Text>
+        <PrimaryButton
+          title="Voir les commandes"
+          variant="secondary"
+          onPress={() => router.push('/seller/orders')}
+        />
+      </Card>
+
       <PrimaryButton
         title="Objectifs"
         variant="secondary"
