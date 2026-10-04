@@ -179,8 +179,11 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `POST` | `/customers/{id}/validate` | `customers.update` — valide un client créé par un vendeur : il n'est plus « nouveau » ni limité au comptant (BR-CLI-03) |
 | `POST` | `/customers/{id}/disable`, `/customers/{id}/enable` | `customers.disable` |
 | `GET` | `/customers/{id}/history` | `customers.read` — visites, commandes, paiements, dette |
-| `POST`, `DELETE` | `/customers/{id}/reschedules` | `customers.reschedule` |
-| `GET` | `/planning/day?userId=…&date=…` | `territories.read` — liste du jour d'un vendeur, calculée comme sur le téléphone |
+| `GET` | `/customers/{id}/reschedules`, `/planning/reschedules?userId=…` | `customers.read`, `territories.read` — reprogrammations à venir |
+| `POST` | `/customers/{id}/reschedules` | `customers.reschedule` — `{ date }` : jour ouvré à venir, ni chômé ni férié (BR-PLA-04, BR-PLA-05) ; déjà reprogrammé ce jour : `409` |
+| `DELETE` | `/customers/{id}/reschedules/{date}` | `customers.reschedule` |
+| `GET` | `/planning/day?userId=…&date=…` | `territories.read` — liste du jour d'un vendeur, calculée comme sur le téléphone : statut du jour (travaillé, chômé, férié), partie prévue, clients avec `reason` `SCHEDULED` ou `RESCHEDULED` |
+| `GET` | `/planning/calendar?userId=…&from=…&days=14` | `territories.read` — nombre de clients prévus chaque jour (31 jours au plus) |
 
 ### 5.4 Quotas, objectifs, journées
 

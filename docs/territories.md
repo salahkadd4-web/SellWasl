@@ -51,7 +51,13 @@ Avec `?dryRun=true`, rien n'est enregistré : la réponse liste les clients qui 
 
 `PUT /territories/{id}/schedule` associe une partie à chaque jour. Quand les jours d'une partie changent, la date de référence de ses clients passe au premier nouveau jour **de la même semaine** : un client « tous les 15 jours » garde sa semaine de passage.
 
-## 6. Carte du superviseur
+## 6. Clients du jour (BR-PLA-02 à BR-PLA-07)
+
+Un client est du jour à la date D si D est un jour ouvré (ni chômé ni férié), si sa partie est celle que le planning prévoit ce jour-là, si le nombre de semaines entre sa date de référence et D est un multiple de sa période (1, 2 ou 4 semaines), et s'il est actif et placé. Les clients reprogrammés à D s'ajoutent à la liste ; leur fréquence ne change pas. Un client sans date de référence est dû à chaque passage dans sa partie.
+
+Le calcul (`dayList`, `isCustomerDue` dans `packages/business-rules/planning`) est le même sur le serveur (`GET /planning/day`) et sur le téléphone, hors connexion. Les clients du jour non visités à la clôture deviennent des visites manquées (`missedCustomers`), sans report automatique.
+
+## 7. Carte du superviseur
 
 | Élément | Affichage |
 |---|---|
@@ -62,13 +68,15 @@ Avec `?dryRun=true`, rien n'est enregistré : la réponse liste les clients qui 
 
 Dessin : Leaflet et Leaflet-Geoman. Les sommets s'aimantent aux sommets voisins (15 pixels), ce qui permet de dessiner des parties qui partagent exactement un bord.
 
-## 7. Fond de carte
+## 8. Fond de carte
 
 Le fond de carte vient de `NEXT_PUBLIC_MAP_TILE_URL` (Web). Sans cette variable, l'application utilise les tuiles publiques d'OpenStreetMap, réservées au développement par leur règlement. Pour le pilote, un fournisseur avec une offre gratuite, comme MapTiler ; l'attribution se règle avec `NEXT_PUBLIC_MAP_ATTRIBUTION`.
 
-## 8. Tests
+## 9. Tests
 
 | Test | Ce qu'il vérifie |
 |---|---|
 | `business-rules` : `territories.test.ts` | Polygone normalisé, parties voisines sans chevauchement, chevauchement réel, décalage de la date de référence |
+| `business-rules` : `dayList.test.ts` | Exemple §22 (tous les 15 jours), 4 semaines, jour de la partie, jours chômés et fériés, reprogrammation, visites manquées |
+| API : `planning.test.ts` | Liste du jour identique au calcul partagé, calendrier, reprogrammation et annulation, jours refusés |
 | API : `territories.test.ts` | Liste, vendeur unique, aperçu puis enregistrement des parties, parties qui se chevauchent refusées, superposition signalée, partie forcée conservée, planning et dates de référence, placement par sélection |

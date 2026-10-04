@@ -800,15 +800,15 @@ Vendeur → Secteur → Partie du jour → Clients de la partie
 
 ## Tâches
 
-- [ ] Planning jour → partie par secteur (`PartSchedule`) (BR-ORG-07)
-- [ ] Fréquence et date de référence pour chaque client (BR-PLA-01, BR-PLA-03)
-- [ ] Calcul des clients du jour, partagé entre le serveur et le mobile (BR-PLA-02, BR-PLA-07)
-- [ ] Jours travaillés et jours fériés : pas de clients du jour ces jours-là (BR-PLA-04)
-- [ ] Visites manquées à la clôture de la journée, sans report automatique (BR-PLA-06)
-- [ ] Reprogrammer un client à une date précise (BR-PLA-05, UC-54)
-- [ ] Modification manuelle du planning par le superviseur
-- [ ] Vue Web de la liste du jour d'un vendeur
-- [ ] Règles de fréquence dans `packages/business-rules`, avec tests unitaires (exemple §22)
+- [x] Planning jour → partie par secteur (`PartSchedule`) (BR-ORG-07)
+- [x] Fréquence et date de référence pour chaque client (BR-PLA-01, BR-PLA-03)
+- [x] Calcul des clients du jour, partagé entre le serveur et le mobile (BR-PLA-02, BR-PLA-07)
+- [x] Jours travaillés et jours fériés : pas de clients du jour ces jours-là (BR-PLA-04)
+- [ ] Visites manquées à la clôture de la journée, sans report automatique (BR-PLA-06) — *calcul fait (`missedCustomers`) ; enregistré à la clôture de la journée, phase 15*
+- [x] Reprogrammer un client à une date précise (BR-PLA-05, UC-54)
+- [x] Modification manuelle du planning par le superviseur (planning des parties, date de référence d'un client, reprogrammations)
+- [x] Vue Web de la liste du jour d'un vendeur, avec un calendrier de 14 jours
+- [x] Règles de fréquence dans `packages/business-rules`, avec tests unitaires (exemple §22)
 
 ---
 

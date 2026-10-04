@@ -12,6 +12,7 @@ const NAV = [
   { href: '/app/clients', label: 'Clients', permission: 'customers.read' },
   { href: '/app/produits', label: 'Produits', permission: 'products.read' },
   { href: '/app/secteurs', label: 'Secteurs', permission: 'territories.read' },
+  { href: '/app/planning', label: 'Planning', permission: 'territories.read' },
   { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
   { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },
