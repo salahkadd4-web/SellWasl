@@ -6,7 +6,6 @@ import type {
   customerListQuerySchema,
   Page,
   ReviewReason,
-  TerritoryOption,
   updateCustomerSchema,
 } from '@sellwasl/validation';
 import { companySettingsSchema } from '@sellwasl/validation';
@@ -464,24 +463,5 @@ export class CustomersService {
         amount: Number(e.amount),
       })),
     };
-  }
-
-  /** Secteurs et parties, pour les filtres et le choix d'une partie. */
-  async territories(): Promise<TerritoryOption[]> {
-    const territories = await this.db.territory.findMany({
-      where: { deletedAt: null, isActive: true },
-      include: {
-        territoryCustomerTypes: true,
-        territoryParts: { where: { deletedAt: null }, orderBy: { number: 'asc' } },
-      },
-      orderBy: { code: 'asc' },
-    });
-    return territories.map((t) => ({
-      id: t.id,
-      code: t.code,
-      name: t.name,
-      customerTypeIds: t.territoryCustomerTypes.map((c) => c.customerTypeId),
-      parts: t.territoryParts.map((p) => ({ id: p.id, number: p.number, name: p.name })),
-    }));
   }
 }

@@ -15,7 +15,6 @@ import {
   type CustomerHistory,
   customerListQuerySchema,
   type Page,
-  type TerritoryOption,
   updateCustomerSchema,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
@@ -100,12 +99,5 @@ export class CustomersController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CustomerDto> {
     return this.customers.setStatus(user, id, 'ACTIVE');
-  }
-
-  /** Secteurs et parties, pour les filtres et le choix d'une partie. */
-  @RequirePermission('territories.read')
-  @Get('territories')
-  territories(): Promise<TerritoryOption[]> {
-    return this.customers.territories();
   }
 }

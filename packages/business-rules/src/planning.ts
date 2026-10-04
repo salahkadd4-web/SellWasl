@@ -46,3 +46,17 @@ export function nextScheduledDate(
   }
   return null;
 }
+
+/**
+ * Nouvelle date de référence quand les jours d'une partie changent : le premier jour, à partir
+ * de l'ancienne date incluse, qui est un des nouveaux jours. La semaine de départ est gardée,
+ * ce qui conserve la répartition des clients « tous les 15 jours » (BR-PLA-03).
+ */
+export function shiftToWeekdays(date: string, weekdays: readonly WeekdayCode[]): string | null {
+  if (weekdays.length === 0) return null;
+  for (let i = 0; i < 7; i += 1) {
+    const candidate = addDaysTo(date, i);
+    if (weekdays.includes(weekdayOf(candidate))) return candidate;
+  }
+  return null;
+}

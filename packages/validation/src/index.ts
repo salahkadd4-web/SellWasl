@@ -4,3 +4,4 @@ export * from './admin';
 export * from './devices';
 export * from './customers';
 export * from './catalog';
+export * from './territories';

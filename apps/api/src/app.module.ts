@@ -14,6 +14,7 @@ import { ModulesModule } from './modules/modules.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { FilesModule } from './files/files.module';
 import { CustomersModule } from './customers/customers.module';
+import { TerritoriesModule } from './territories/territories.module';
 import { AdminModule } from './settings/admin.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -55,6 +56,7 @@ import { PrismaModule } from './prisma/prisma.module';
     FilesModule,
     CustomersModule,
     CatalogModule,
+    TerritoriesModule,
     HealthModule,
   ],
   providers: [

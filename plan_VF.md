@@ -732,26 +732,26 @@ Dans le MVP, il n'y a pas de niveau Zone : le secteur est le niveau le plus haut
 ## Tâches
 
 - [ ] Créer une zone *(après le MVP)*
-- [ ] Créer un secteur
-- [ ] Définir le nombre de parties (configurable, non codé en dur)
-- [ ] Afficher la carte (OpenStreetMap + Leaflet/MapLibre)
-- [ ] Dessiner les polygones du secteur et des parties
-- [ ] Modifier et supprimer les polygones et les parties
-- [ ] Afficher les clients sur la carte
-- [ ] Affecter les clients aux parties (sélection de zone)
-- [ ] Affecter les pré-vendeurs aux secteurs (`SalesRepAssignment`)
-- [ ] Afficher le nombre de clients par partie
-- [ ] Afficher les pré-vendeurs et livreurs (dernière position connue)
+- [x] Créer un secteur
+- [x] Définir le nombre de parties (configurable, non codé en dur)
+- [x] Afficher la carte (OpenStreetMap + Leaflet sur le Web ; MapLibre sur le téléphone avec la phase 15)
+- [x] Dessiner les polygones du secteur et des parties
+- [x] Modifier et supprimer les polygones et les parties
+- [x] Afficher les clients sur la carte
+- [x] Affecter les clients aux parties (clic ou sélection de zone)
+- [x] Affecter les pré-vendeurs aux secteurs (champ vendeur du secteur)
+- [x] Afficher le nombre de clients par partie
+- [x] Afficher les pré-vendeurs et livreurs (dernière position connue ; envoyée par le téléphone avec la journée de travail)
 - [ ] Afficher les itinéraires *(après le MVP)*
 
 **Ajouts phase 0** (UC-50, UC-51)
 
-- [ ] Code libre du secteur (ex. `3101`) ; un vendeur par secteur (BR-ORG-01)
-- [ ] Types de clients servis par secteur : des secteurs de types différents peuvent se superposer, et le chevauchement d'un même type est signalé (BR-ORG-03)
-- [ ] Affectation automatique d'un client à sa partie selon sa position, partie forcée possible, état « hors partie » (BR-ORG-04, BR-ORG-05)
-- [ ] Réaffectation après modification d'un polygone, avec le nombre de clients déplacés (BR-ORG-06)
-- [ ] Même calcul sur le téléphone, hors connexion (GeoJSON et Turf dans `packages/business-rules`)
-- [ ] Affecter les livreurs aux secteurs, et les camions aux livreurs et aux vendeurs cash van
+- [x] Code libre du secteur (ex. `3101`) ; un vendeur par secteur (BR-ORG-01)
+- [x] Types de clients servis par secteur : des secteurs de types différents peuvent se superposer, et le chevauchement d'un même type est signalé (BR-ORG-03)
+- [x] Affectation automatique d'un client à sa partie selon sa position, partie forcée possible, état « hors partie » (BR-ORG-04, BR-ORG-05)
+- [x] Réaffectation après modification d'un polygone, avec le nombre de clients déplacés (BR-ORG-06)
+- [x] Même calcul sur le téléphone, hors connexion (GeoJSON dans `packages/business-rules`, sans Turf)
+- [x] Affecter les livreurs aux secteurs, et les camions aux livreurs et aux vendeurs cash van (camions : phase 9)
 
 ## Exemple
 
@@ -768,7 +768,7 @@ Secteur Oran Est
 
 ## Livrable
 
-- [ ] `docs/territories.md`
+- [x] `docs/territories.md`
 
 ---
 

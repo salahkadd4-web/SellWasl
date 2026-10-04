@@ -401,7 +401,7 @@ Format : **code de l'utilisateur + série de l'appareil + séquence**, par exemp
 
 - Stockés en **GeoJSON**, dans une colonne `jsonb`, avec quatre colonnes de boîte englobante (`min_lat`, `max_lat`, `min_lng`, `max_lng`) qui éliminent vite les parties trop éloignées.
 - Coordonnées en WGS 84. Attention à l'ordre : GeoJSON écrit **longitude puis latitude**, Leaflet attend latitude puis longitude. La conversion se fait à un seul endroit, dans `packages/business-rules/geo`.
-- Le calcul « dans quelle partie est ce client » (BR-ORG-04) utilise Turf, sur le serveur comme sur le téléphone.
+- Le calcul « dans quelle partie est ce client » (BR-ORG-04) et la détection des chevauchements sont écrits dans `packages/business-rules/geo` (point dans un polygone, croisement de segments), sans dépendance : le même code tourne sur le serveur et sur le téléphone. Turf n'a finalement pas été nécessaire.
 - Ordre de grandeur : quelques dizaines de parties par entreprise, quelques milliers de clients. Tout tient en mémoire, et PostGIS n'apporterait rien au MVP.
 
 ---

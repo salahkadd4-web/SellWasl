@@ -48,3 +48,13 @@ export function formatDate(date: string | null): string {
       })
     : '—';
 }
+
+export const WEEKDAY_LABELS: [string, string][] = [
+  ['SAT', 'Samedi'],
+  ['SUN', 'Dimanche'],
+  ['MON', 'Lundi'],
+  ['TUE', 'Mardi'],
+  ['WED', 'Mercredi'],
+  ['THU', 'Jeudi'],
+  ['FRI', 'Vendredi'],
+];

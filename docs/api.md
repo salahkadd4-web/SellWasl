@@ -167,11 +167,13 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 
 | Méthode | Chemin | Permission |
 |---|---|---|
-| `GET`, `POST` | `/territories` | `territories.read`, `territories.update` |
-| `GET`, `PATCH` | `/territories/{id}` | `territories.read`, `territories.update` — affectation du vendeur et du livreur, types de clients servis |
-| `PUT` | `/territories/{id}/parts` | `territories.update` — polygones ; réponse : chevauchements et nombre de clients déplacés (BR-ORG-06) ; `?dryRun=true` pour l'aperçu avant confirmation |
-| `PUT` | `/territories/{id}/schedule` | `territories.update` |
-| `GET` | `/territories/overlaps` | `territories.read` — chevauchements entre secteurs d'un même type (BR-ORG-03) |
+| `GET`, `POST` | `/territories` | `territories.read`, `territories.update` — liste avec parties (GeoJSON), planning, vendeur, livreur, types servis et nombre de clients par partie |
+| `PATCH` | `/territories/{id}` | `territories.update` — code, nom, types de clients servis, vendeur (un seul secteur par vendeur, BR-ORG-01), livreur, nombre de parties, activation |
+| `PUT` | `/territories/{id}/parts` | `territories.update` — toutes les parties (numéro, nom, polygone GeoJSON) ; une partie absente est supprimée. Parties d'un même secteur qui se chevauchent : `422`. Réponse : clients déplacés, chevauchements avec des secteurs d'un même type (signalés, non bloquants), parties supprimées (BR-ORG-06) ; `?dryRun=true` pour l'aperçu avant confirmation |
+| `PUT` | `/territories/{id}/schedule` | `territories.update` — `days: [{ weekday, partId }]` ; quand les jours d'une partie changent, la date de référence de ses clients passe au nouveau jour de la même semaine |
+| `GET` | `/territories/overlaps` | `territories.read` — chevauchements entre parties d'un même secteur, ou de secteurs qui servent un même type (BR-ORG-02, BR-ORG-03) |
+| `GET` | `/map/customers`, `/map/field-users` | `territories.read` — clients actifs avec position ; dernière position des vendeurs et livreurs en journée (moins de 24 h) |
+| `POST` | `/customers/assign-part` | `customers.update` — `customerIds`, `partId` : place des clients dans une partie (forcée) ; `partId: null` les rend au calcul automatique |
 | `GET`, `POST` | `/customers` | `customers.read`, `customers.create` — filtres : `q` (nom, code, téléphone, adresse), `territoryId`, `partId` (`none` : hors partie), `customerTypeId`, `status` (`ACTIVE` par défaut, `INACTIVE`, `ALL`), `toReview=true` (BR-CLI-05) ; tri par nom, réponse `{ data, nextCursor, total }`. Un utilisateur terrain ne voit que les clients de son secteur (vendeur) ou des secteurs qu'il livre (livreur). Créé par un vendeur : rattaché à son secteur, « nouveau », sans crédit, position obligatoire (BR-CLI-02, BR-CLI-03). Créé sur le Web : partie calculée parmi tous les secteurs qui servent le type, ou `partId` choisi (partie forcée) ; si plusieurs parties conviennent, `422 AMBIGUOUS_PART` avec `details.options` |
 | `GET`, `PATCH` | `/customers/{id}` | `customers.read`, `customers.update` — `partId` force la partie, `partId: null` la libère ; une nouvelle position ou un nouveau type recalcule la partie si elle n'est pas forcée ; un changement de partie recalcule la date de référence (BR-PLA-03) ; `isClosedPermanently: false` retire le signalement |
 | `POST` | `/customers/{id}/validate` | `customers.update` — valide un client créé par un vendeur : il n'est plus « nouveau » ni limité au comptant (BR-CLI-03) |
