@@ -135,7 +135,10 @@ describe('journée du vendeur (phase 15)', () => {
         op(p, 'workday.start', { workdayId: uuidv7(), date: '2026-10-12' }),
       ]);
       p.seq = seq;
-      expect(reply.body.results[0]!.status).toBe('GAP');
+      expect(reply.body.results[0]).toMatchObject({
+        status: 'GAP',
+        result: { expectedDeviceSeq: seq + 1 },
+      });
     });
 
     it('refuse un type inconnu sans bloquer les opérations suivantes', async () => {

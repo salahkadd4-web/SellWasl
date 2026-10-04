@@ -4,8 +4,15 @@ import Constants from 'expo-constants';
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { ApiClientError, request } from '@/api/client';
+import { readPosition } from '@/location/useLocation';
 
 const DEFAULT_INTERVAL_MIN = 5;
+
+/** La position n'est lue et envoyée que pendant une journée en cours (BR-JOU-09). */
+let sharePosition = false;
+export function setPositionSharing(enabled: boolean): void {
+  sharePosition = enabled;
+}
 
 async function batteryLevel(): Promise<number | null> {
   try {
@@ -19,7 +26,7 @@ async function batteryLevel(): Promise<number | null> {
 /**
  * Signal de vie (architecture §11.3, BR-JOU-09) : envoyé à l'ouverture, au retour au premier plan
  * puis à l'intervalle fixé par l'entreprise, tant que l'application est ouverte. Pas d'envoi en
- * arrière-plan dans le MVP. La position sera ajoutée avec la journée de travail.
+ * arrière-plan dans le MVP. La position s'y ajoute pendant une journée en cours.
  */
 export function useHeartbeat(active: boolean, onAuthError: (error: ApiClientError) => void): void {
   const onError = useRef(onAuthError);
@@ -42,6 +49,8 @@ export function useHeartbeat(active: boolean, onAuthError: (error: ApiClientErro
         pendingOps: 0, // file de synchronisation : phase de synchronisation
         appVersion: Constants.expoConfig?.version,
       };
+      const position = sharePosition ? await readPosition() : null;
+      if (position) body.position = { ...position, recordedAt: new Date().toISOString() };
       try {
         const reply = await request<HeartbeatResponse>('/devices/heartbeat', {
           method: 'POST',

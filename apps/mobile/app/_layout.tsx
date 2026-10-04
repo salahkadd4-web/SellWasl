@@ -17,17 +17,23 @@ const SCREENS_BY_STATUS = {
   loggedIn: ['home', 'printer-test'],
 } as const;
 
+/** Le pré-vendeur et le vendeur cash van ont leurs écrans (phase 15) ; les autres, l'accueil. */
+const SELLER_ROLES = ['PRE_VENDEUR', 'VENDEUR_CASH_VAN'];
+const SELLER_SCREENS = ['seller', 'printer-test'] as const;
+
 function AuthGate() {
-  const { status } = useAuth();
+  const { status, me, profile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const isSeller = SELLER_ROLES.includes(me?.role.code ?? profile?.roleCode ?? '');
 
   useEffect(() => {
     if (status === 'loading') return;
-    const allowed: readonly string[] = SCREENS_BY_STATUS[status];
+    const allowed: readonly string[] =
+      status === 'loggedIn' && isSeller ? SELLER_SCREENS : SCREENS_BY_STATUS[status];
     const current = segments[0] ?? 'index';
     if (!allowed.includes(current)) router.replace(`/${allowed[0]}`);
-  }, [status, segments, router]);
+  }, [status, isSeller, segments, router]);
 
   return null;
 }
@@ -59,6 +65,7 @@ export default function RootLayout() {
           options={{ title: 'Nouveau mot de passe', headerBackVisible: false }}
         />
         <Stack.Screen name="home" options={{ title: 'SellWasl' }} />
+        <Stack.Screen name="seller" options={{ headerShown: false }} />
         <Stack.Screen name="printer-test" options={{ title: "Test d'impression" }} />
       </Stack>
       <Intro />

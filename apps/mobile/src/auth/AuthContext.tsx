@@ -45,6 +45,7 @@ function profileFrom(me: MeResponse, series: string): DeviceProfile {
     lastName: me.user.lastName,
     companyName: me.company.name,
     roleName: me.role.name,
+    roleCode: me.role.code,
     series,
   };
 }

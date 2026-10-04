@@ -75,13 +75,14 @@ export class SyncService {
       if (gap || op.deviceSeq > expected) {
         // Une opération manque : le téléphone renverra la suite dans l'ordre
         gap = true;
-        results.push({ opId: op.opId, status: 'GAP' });
+        results.push({ opId: op.opId, status: 'GAP', result: { expectedDeviceSeq: expected } });
         continue;
       }
       if (op.deviceSeq < expected) {
         results.push({
           opId: op.opId,
           status: 'REJECTED',
+          result: { expectedDeviceSeq: expected },
           error: {
             code: 'DUPLICATE',
             message: "Numéro d'opération déjà utilisé sur cet appareil.",
