@@ -231,3 +231,16 @@ export function polygonsOverlap(
     (strictlyInside(center(ringB), b) && strictlyInside(center(ringB), a))
   );
 }
+
+const EARTH_RADIUS_M = 6_371_000;
+
+/** Distance à vol d'oiseau en mètres (haversine), arrondie au mètre : visite sur place (BR-VIS-02). */
+export function distanceMeters(a: LatLng, b: LatLng): number {
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = rad(b.latitude - a.latitude);
+  const dLng = rad(b.longitude - a.longitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h)));
+}
