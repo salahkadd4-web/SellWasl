@@ -1,3 +1,9 @@
 packages:
   - apps/*
   - packages/*
+
+# Une seule version de React dans tout le projet : Next.js exige que react et react-dom aient
+# exactement la même version, et Expo impose celle de l'application mobile.
+overrides:
+  react: 19.2.3
+  react-dom: 19.2.3

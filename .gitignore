@@ -17,4 +17,6 @@ apps/mobile/ios/
 
 # Fichiers générés par les outils
 /AGENTS.md
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
 next-env.d.ts
