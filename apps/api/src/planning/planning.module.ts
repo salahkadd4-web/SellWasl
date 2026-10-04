@@ -3,5 +3,9 @@ import { PlanningController } from './planning.controller';
 import { PlanningService } from './planning.service';
 
 /** Planification des visites (phase 14). */
-@Module({ controllers: [PlanningController], providers: [PlanningService] })
+@Module({
+  controllers: [PlanningController],
+  providers: [PlanningService],
+  exports: [PlanningService],
+})
 export class PlanningModule {}
