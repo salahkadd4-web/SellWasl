@@ -38,6 +38,8 @@ export default function OrderDetailScreen() {
       </Screen>
     );
 
+  // Le superviseur a traité une ligne en attente : la commande ne peut plus être refaite
+  const decided = order.lines.some((l) => l.kind === 'PENDING' && l.pendingStatus !== 'TO_PROCESS');
   const editable = order.status === 'CONFIRMED' && inProgress;
   const normal = order.lines.filter((l) => l.kind === 'NORMAL');
   const pending = order.lines.filter((l) => l.kind === 'PENDING');
@@ -111,14 +113,21 @@ export default function OrderDetailScreen() {
       {error ? <Message>{error}</Message> : null}
       {editable ? (
         <>
-          <PrimaryButton
-            title="Modifier"
-            onPress={() =>
-              router.push(
-                `/seller/order/${order.visitId ?? ''}?customerId=${order.customer.id}&orderId=${order.id}&date=${order.orderDate}`,
-              )
-            }
-          />
+          {decided ? (
+            <Message tone="info">
+              Une ligne en attente a été traitée par le superviseur : la commande ne peut plus être
+              modifiée.
+            </Message>
+          ) : (
+            <PrimaryButton
+              title="Modifier"
+              onPress={() =>
+                router.push(
+                  `/seller/order/${order.visitId ?? ''}?customerId=${order.customer.id}&orderId=${order.id}&date=${order.orderDate}`,
+                )
+              }
+            />
+          )}
           <PrimaryButton
             title="Annuler la commande"
             variant="secondary"

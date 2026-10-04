@@ -81,10 +81,19 @@ export class PendingLinesService {
       if (lines.length !== lineIds.length) throw invalidState('Ligne en attente introuvable.');
       const now = new Date();
       for (const line of lines) {
-        if (line.pendingStatus !== 'TO_PROCESS')
-          throw invalidState('Cette ligne a déjà été traitée.');
         if (!(OPEN_ORDERS as readonly string[]).includes(line.order.status))
           throw invalidState('La préparation de cette commande est lancée : trop tard.');
+        // Prise atomique : deux superviseurs simultanés ne traitent pas deux fois la même ligne
+        const claimed = await tx.orderLine.updateMany({
+          where: { id: line.id, pendingStatus: 'TO_PROCESS' },
+          data: {
+            pendingStatus: decision === 'ACCEPT' ? 'ACCEPTED' : 'REFUSED',
+            processedByUserId: actor.userId,
+            processedAt: now,
+            version: { increment: 1 },
+          },
+        });
+        if (claimed.count === 0) throw invalidState('Cette ligne a déjà été traitée.');
         if (decision === 'ACCEPT') await this.accept(tx, line, actor.companyId);
         else
           await tx.lostDemand.create({
@@ -102,15 +111,6 @@ export class PendingLinesService {
               occurredAt: now,
             },
           });
-        await tx.orderLine.update({
-          where: { id: line.id },
-          data: {
-            pendingStatus: decision === 'ACCEPT' ? 'ACCEPTED' : 'REFUSED',
-            processedByUserId: actor.userId,
-            processedAt: now,
-            version: { increment: 1 },
-          },
-        });
       }
       await this.audit.write(
         {
@@ -133,6 +133,7 @@ export class PendingLinesService {
     companyId: string,
   ) {
     const depot = await this.orders.depot(tx);
+    await this.orders.lockStock(tx, depot.id, [line.productVariantId]);
     const available = await this.orders.availableStock(tx);
     const take = Math.max(0, Math.min(line.orderedQty, available.get(line.productVariantId) ?? 0));
     if (take > 0)

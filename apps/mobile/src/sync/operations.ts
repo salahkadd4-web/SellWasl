@@ -54,6 +54,9 @@ const TYPE_LABELS: Record<string, string> = {
   'visit.close_no_order': 'clôture de visite',
   'customer.create': 'nouveau client',
   'payment.debt': 'encaissement',
+  'order.confirm': 'commande',
+  'order.update': 'modification de commande',
+  'order.cancel': 'annulation de commande',
 };
 
 /**

@@ -18,7 +18,8 @@ export interface CartEntry {
 export function entriesFromOrder(lines: OrderLineDto[]): CartEntry[] {
   const byProduct = new Map<string, CartEntry>();
   for (const l of lines) {
-    if (l.kind === 'BONUS') continue;
+    // Une ligne en attente acceptée est déjà dans la ligne normale ; refusée, elle n'est plus voulue
+    if (l.kind === 'BONUS' || (l.kind === 'PENDING' && l.pendingStatus !== 'TO_PROCESS')) continue;
     const entry = byProduct.get(l.productId) ?? {
       productId: l.productId,
       unitId: l.unitId,

@@ -240,9 +240,21 @@ export class OrderService implements OnModuleInit {
     return { lines: built, catalog };
   }
 
+  /**
+   * Verrouille les lignes de stock des articles avant de calculer le disponible : deux commandes
+   * simultanées ne réservent jamais plus que le stock physique.
+   */
+  async lockStock(tx: Tx, depotId: string, variantIds: string[]) {
+    if (variantIds.length === 0) return;
+    await tx.$queryRaw`SELECT id FROM stock WHERE warehouse_id = ${depotId}::uuid AND product_variant_id = ANY(${variantIds}::uuid[]) FOR UPDATE`;
+  }
+
   /** Réserve le stock du dépôt pour les lignes normales et bonus (BR-CMD-04). */
   private async reserve(tx: Tx, lines: BuiltLine[]) {
     const depot = await this.depot(tx);
+    await this.lockStock(tx, depot.id, [
+      ...new Set(lines.filter((l) => l.kind !== 'PENDING').map((l) => l.variantId)),
+    ]);
     const available = await this.availableStock(tx);
     const reserved = new Map<BuiltLine, number>();
     for (const l of lines) {
@@ -452,6 +464,15 @@ export class OrderService implements OnModuleInit {
 
   private async update(actor: AuthUser, tx: Tx, payload: UpdatePayload, occurredAt: Date) {
     const order = await this.editable(tx, actor, payload.orderId);
+    // Le superviseur a accepté ou refusé une ligne en attente : sa décision ne doit pas être défaite
+    if (
+      await tx.orderLine.findFirst({
+        where: { orderId: order.id, kind: 'PENDING', pendingStatus: { not: 'TO_PROCESS' } },
+      })
+    )
+      throw invalidState(
+        'Le superviseur a déjà traité une ligne en attente de cette commande : elle ne peut plus être modifiée.',
+      );
     await this.release(tx, order.id);
     await tx.orderLine.deleteMany({ where: { orderId: order.id } });
     const { lines } = await this.build(tx, actor, {

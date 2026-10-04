@@ -47,7 +47,9 @@ describe('supervision (phase 16)', () => {
     await raw.order.updateMany({
       where: {
         company: { code: 'DISTRI-ORAN' },
-        orderDate: { in: [new Date('2026-12-12T00:00:00Z'), new Date('2026-12-19T00:00:00Z')] },
+        orderDate: {
+          in: ['2026-12-12', '2026-12-19', '2026-12-26'].map((d) => new Date(`${d}T00:00:00Z`)),
+        },
       },
       data: { status: 'CANCELLED' },
     });
@@ -96,9 +98,33 @@ describe('supervision (phase 16)', () => {
         .find((v) => v.id === thon().variantId);
       expect(variant).toMatchObject({ quotaRemaining: 60, quotaReached: false });
 
+      // Sur le téléphone, chacun ne voit que ses quotas et ses objectifs
+      const v08 = await raw.user.findFirstOrThrow({
+        where: { code: 'V08', company: { code: 'DISTRI-ORAN' } },
+      });
+      await call(t.url, 'PUT', '/quotas', {
+        token: sup,
+        body: {
+          date,
+          entries: [
+            { userId: v08.id, productVariantId: thon().variantId, unitId: thon().cartonId, qty: 2 },
+          ],
+        },
+      });
+      const mine = await call<QuotaDto[]>(t.url, 'GET', `/quotas?date=${date}`, { token: p.token });
+      expect(mine.body.length).toBeGreaterThan(0);
+      expect(mine.body.every((q) => q.user.code === 'V07')).toBe(true);
+      const objectives = await call<ObjectiveDto[]>(t.url, 'GET', '/objectives?month=2026-10', {
+        token: p.token,
+      });
+      expect(objectives.body.length).toBeGreaterThan(0);
+      expect(objectives.body.every((o) => o.user.code === 'V07')).toBe(true);
+
       expect((await put(0)).status).toBe(200);
       const after = await call<QuotaDto[]>(t.url, 'GET', `/quotas?date=${date}`, { token: sup });
-      expect(after.body.some((q) => q.productVariantId === thon().variantId)).toBe(false);
+      expect(
+        after.body.some((q) => q.productVariantId === thon().variantId && q.user.code === 'V07'),
+      ).toBe(false);
     });
 
     it('refuse une date passée et un utilisateur sans droit', async () => {
@@ -195,7 +221,7 @@ describe('supervision (phase 16)', () => {
       });
       const p = await phones.get('V07');
       const workdayId = await phones.startDay(p, date);
-      const [c1, c2] = (await phones.today(p, date)).body.day.customers;
+      const [c1, c2, c3] = (await phones.today(p, date)).body.day.customers;
 
       const orderId = uuidv7();
       await phones.send(p, 'order.confirm', {
@@ -238,6 +264,12 @@ describe('supervision (phase 16)', () => {
         });
       }
       expect((await decide([thonLine.id], 'ACCEPT')).status).toBe(409);
+      // Une ligne en attente déjà traitée : le vendeur ne peut plus refaire la commande
+      const reedit = await phones.send(p, 'order.update', {
+        orderId,
+        lines: [{ variantId: thon().variantId, unitId: thon().cartonId, qty: 3 }],
+      });
+      expect(reedit).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
 
       const detail = await call<OrderDto>(t.url, 'GET', `/orders/${orderId}`, { token: sup });
       const normal = (name: string) =>
@@ -266,9 +298,28 @@ describe('supervision (phase 16)', () => {
           token: sup,
         })
       ).body.find((l) => l.orderId === second)!;
-      expect((await decide([line.id], 'REFUSE')).status).toBe(200);
+      // Deux superviseurs acceptent la même ligne au même moment : appliquée une seule fois
+      const twice = await Promise.all([decide([line.id], 'ACCEPT'), decide([line.id], 'ACCEPT')]);
+      expect(twice.map((r) => r.status).sort()).toEqual([200, 409]);
+      const secondDetail = await call<OrderDto>(t.url, 'GET', `/orders/${second}`, { token: sup });
       expect(
-        await raw.lostDemand.count({ where: { orderLineId: line.id, kind: 'LOST_SALE' } }),
+        secondDetail.body.lines.find((l) => l.kind === 'NORMAL' && l.productName === 'Thon tomate')
+          ?.enteredQty,
+      ).toBe(1);
+
+      const third = uuidv7();
+      await phones.send(p, 'order.confirm', {
+        orderId: third,
+        number: `V07-${p.series}0203`,
+        visitId: await phones.startVisit(p, c3!.id),
+        lines: [{ variantId: thon().variantId, unitId: thon().cartonId, qty: 1 }],
+      });
+      const refused = (
+        await call<PendingLineDto[]>(t.url, 'GET', `/pending-lines?date=${date}`, { token: sup })
+      ).body.find((l) => l.orderId === third)!;
+      expect((await decide([refused.id], 'REFUSE')).status).toBe(200);
+      expect(
+        await raw.lostDemand.count({ where: { orderLineId: refused.id, kind: 'LOST_SALE' } }),
       ).toBe(1);
 
       const history = await call<OrderDto[]>(
@@ -277,16 +328,21 @@ describe('supervision (phase 16)', () => {
         `/orders?date=${date}&sellerId=${v07.id}`,
         { token: sup },
       );
-      expect(history.body.map((o) => o.id).sort()).toEqual([orderId, second].sort());
+      expect(history.body.map((o) => o.id).sort()).toEqual([orderId, second, third].sort());
       // Sur le téléphone, un vendeur ne voit que ses commandes, même avec orders.read
       const v08 = await phones.get('V08');
       const others = await call<OrderDto[]>(t.url, 'GET', `/orders?date=${date}`, {
         token: v08.token,
       });
       expect(others.body.some((o) => o.id === orderId)).toBe(false);
-      const forced = await call<OrderDto[]>(t.url, 'GET', `/orders?date=${date}&sellerId=${v07.id}`, {
-        token: v08.token,
-      });
+      const forced = await call<OrderDto[]>(
+        t.url,
+        'GET',
+        `/orders?date=${date}&sellerId=${v07.id}`,
+        {
+          token: v08.token,
+        },
+      );
       expect(forced.body.some((o) => o.id === orderId)).toBe(false);
       expect((await call(t.url, 'GET', `/orders/${orderId}`, { token: v08.token })).status).toBe(
         404,
@@ -367,6 +423,55 @@ describe('supervision (phase 16)', () => {
       expect(byCode.V07).toMatchObject({ status: 'CLOSED', isForceClosed: true });
       expect(byCode.V08).toMatchObject({ status: 'CLOSED', reopenCount: 1, ordersCount: 1 });
       expect(byCode.V08!.visits.done).toBe(1);
+    });
+  });
+  describe('réservations simultanées', () => {
+    it('ne réserve jamais plus que le stock, même pour deux commandes au même instant', async () => {
+      const date = '2026-12-26';
+      const bimo = products.find((x) => x.reference === 'BIMO')!;
+      const variantId = bimo.variants.find((v) => v.reference === 'BIMO-FRA')!.id;
+      const unitId = bimo.units.find((u) => u.name === 'carton')!.id;
+      const stock = await raw.stock.findFirstOrThrow({
+        where: { productVariantId: variantId, warehouse: { type: 'DEPOT' } },
+      });
+      // Un seul carton disponible
+      await raw.stock.update({
+        where: { id: stock.id },
+        data: { reservedQty: stock.physicalQty - 24 },
+      });
+      try {
+        const sellers = await Promise.all([phones.get('V07'), phones.get('V08')]);
+        const prepared = [];
+        for (const p of sellers) {
+          const workdayId = await phones.startDay(p, date);
+          const customer = (await phones.today(p, date)).body.day.customers[0]!;
+          const visitId = await phones.startVisit(p, customer.id);
+          prepared.push({ p, workdayId, visitId });
+        }
+        const replies = await Promise.all(
+          prepared.map(({ p, visitId }, i) =>
+            phones.send(p, 'order.confirm', {
+              orderId: uuidv7(),
+              number: `C${i}-${p.series}0401`,
+              visitId,
+              lines: [{ variantId, unitId, qty: 1 }],
+            }),
+          ),
+        );
+        expect(replies.map((r) => r.status)).toEqual(['APPLIED', 'APPLIED']);
+        const stockouts = replies.filter(
+          (r) => (r.result?.stockouts as unknown[] | undefined)?.length,
+        );
+        expect(stockouts).toHaveLength(1);
+        const after = await raw.stock.findUniqueOrThrow({ where: { id: stock.id } });
+        expect(after.reservedQty).toBe(after.physicalQty);
+        for (const { p, workdayId } of prepared) await phones.closeDay(p, workdayId);
+      } finally {
+        await raw.stock.update({
+          where: { id: stock.id },
+          data: { reservedQty: stock.reservedQty },
+        });
+      }
     });
   });
 });

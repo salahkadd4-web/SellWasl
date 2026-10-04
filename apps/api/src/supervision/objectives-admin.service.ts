@@ -20,8 +20,8 @@ export class ObjectivesAdminService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(month: string): Promise<ObjectiveDto[]> {
-    const rows = await this.objectives.forMonth(month);
+  async list(month: string, userId?: string): Promise<ObjectiveDto[]> {
+    const rows = await this.objectives.forMonth(month, userId);
     const users = await this.db.user.findMany({
       where: { id: { in: [...new Set(rows.map((r) => r.userId))] } },
     });

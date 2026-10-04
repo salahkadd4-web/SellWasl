@@ -22,11 +22,11 @@ export class QuotasService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(date: string): Promise<QuotaDto[]> {
+  async list(date: string, userId?: string): Promise<QuotaDto[]> {
     const tx = this.db as unknown as Prisma.TransactionClient;
     const [quotas, settings] = await Promise.all([
       this.db.quota.findMany({
-        where: { date: toDate(date), deletedAt: null },
+        where: { date: toDate(date), deletedAt: null, ...(userId ? { userId } : {}) },
         include: { user: true, productVariant: { include: { product: true } }, enteredUnit: true },
         orderBy: [{ user: { code: 'asc' } }, { productVariant: { reference: 'asc' } }],
       }),

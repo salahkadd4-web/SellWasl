@@ -5,16 +5,23 @@ interface Action {
   payload: unknown;
 }
 
-/** Champs créés à chaque essai par le téléphone : ils ne distinguent pas deux actions. */
-const GENERATED_FIELDS = new Set(['paymentId', 'visitId', 'number']);
+/**
+ * Champs créés par le téléphone à chaque essai, par type d'opération : ils ne distinguent pas deux
+ * envois de la même action. Ailleurs, le même nom désigne la cible (la visite d'une commande).
+ */
+const GENERATED_FIELDS: Record<string, readonly string[]> = {
+  'workday.start': ['workdayId'],
+  'visit.start': ['visitId'],
+  'customer.create': ['customerId'],
+  'payment.debt': ['paymentId', 'number'],
+  'order.confirm': ['orderId', 'number'],
+};
 
 function signature(action: Action): string {
   const payload = (action.payload ?? {}) as Record<string, unknown>;
-  // Pour une création de client, son identifiant est lui aussi créé à chaque essai
-  const generated = (key: string) =>
-    GENERATED_FIELDS.has(key) || (action.type === 'customer.create' && key === 'customerId');
+  const generated = GENERATED_FIELDS[action.type] ?? [];
   const kept = Object.keys(payload)
-    .filter((key) => !generated(key))
+    .filter((key) => !generated.includes(key))
     .sort()
     .map((key) => [key, payload[key]]);
   return JSON.stringify([action.type, kept]);

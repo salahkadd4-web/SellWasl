@@ -39,7 +39,7 @@ import { WorkdaysAdminService } from './workdays-admin.service';
 type Out<T extends z.ZodType> = z.output<T>;
 
 /** Sur le téléphone, un vendeur ne consulte que ses propres commandes (BR-SYN-04). */
-const ownOnPhone = (actor: AuthUser) =>
+const ownOnPhone = (actor: AuthUser): { sellerUserId?: string } =>
   actor.channel === 'MOBILE' ? { sellerUserId: actor.userId } : {};
 
 /** Écrans Web du superviseur pour la prévente (phase 16, docs/api.md §5.4). */
@@ -131,9 +131,10 @@ export class SupervisionController {
   @RequirePermission('quotas.read')
   @Get('quotas')
   listQuotas(
+    @CurrentUser() actor: AuthUser,
     @Query(new ZodValidationPipe(quotasQuerySchema)) query: Out<typeof quotasQuerySchema>,
   ): Promise<QuotaDto[]> {
-    return this.quotas.list(query.date);
+    return this.quotas.list(query.date, ownOnPhone(actor).sellerUserId);
   }
 
   @RequirePermission('quotas.update')
@@ -148,9 +149,10 @@ export class SupervisionController {
   @RequirePermission('objectives.read')
   @Get('objectives')
   listObjectives(
+    @CurrentUser() actor: AuthUser,
     @Query(new ZodValidationPipe(objectivesQuerySchema)) query: Out<typeof objectivesQuerySchema>,
   ): Promise<ObjectiveDto[]> {
-    return this.objectives.list(query.month);
+    return this.objectives.list(query.month, ownOnPhone(actor).sellerUserId);
   }
 
   @RequirePermission('objectives.update')

@@ -50,4 +50,30 @@ describe('renvoi d’une action restée sans réponse', () => {
       ),
     ).toBe(false);
   });
+
+  it('reconnaît la même commande malgré un nouvel identifiant et un nouveau numéro', () => {
+    const lines = [{ variantId: 'v', unitId: 'u', qty: 3 }];
+    expect(
+      isSameAction(
+        {
+          type: 'order.confirm',
+          payload: { orderId: 'o1', number: 'V07-B0001', visitId: 'x', lines },
+        },
+        {
+          type: 'order.confirm',
+          payload: { orderId: 'o2', number: 'V07-B0002', visitId: 'x', lines },
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it('distingue deux commandes de visites différentes', () => {
+    const lines = [{ variantId: 'v', unitId: 'u', qty: 3 }];
+    expect(
+      isSameAction(
+        { type: 'order.confirm', payload: { orderId: 'o1', number: 'N1', visitId: 'x', lines } },
+        { type: 'order.confirm', payload: { orderId: 'o2', number: 'N2', visitId: 'y', lines } },
+      ),
+    ).toBe(false);
+  });
 });
