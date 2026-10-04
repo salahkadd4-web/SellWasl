@@ -373,4 +373,80 @@ describe('journée du vendeur (phase 15)', () => {
       await closeDay(p, workdayId);
     });
   });
+  describe('client et dette', () => {
+    it('crée un client par opération, avec l’identifiant du téléphone (BR-CLI-02, BR-CLI-03)', async () => {
+      const p = await phone('V07');
+      const workdayId = await startDay(p, '2026-10-17');
+      const types = await call<{ id: string; code: string }[]>(t.url, 'GET', '/customer-types', {
+        token: p.token,
+      });
+      const customerId = uuidv7();
+      const create = op(p, 'customer.create', {
+        customerId,
+        name: 'Kiosque du Rond-Point',
+        phone: '0550 00 00 00',
+        customerTypeId: types.body.find((x) => x.code === 'DETAIL')!.id,
+        latitude: 35.69,
+        longitude: -0.63,
+        frequency: 'WEEKLY',
+      });
+      const first = await push(p, [create]);
+      expect(first.body.results[0]).toMatchObject({
+        status: 'APPLIED',
+        result: { customerId, partName: 'Partie 2' },
+      });
+      expect((await push(p, [create])).body.results[0]).toEqual(first.body.results[0]);
+      const fiche = await call<CustomerDto>(t.url, 'GET', `/customers/${customerId}`, {
+        token: p.token,
+      });
+      expect(fiche.body).toMatchObject({ isNew: true, isCreditAllowed: false });
+      await closeDay(p, workdayId);
+    });
+
+    it('encaisse une dette, au plus égale à la dette (BR-PAY-04, BR-PAY-05)', async () => {
+      const sup = sups['DISTRI-ORAN']!;
+      const all = await call<Page<CustomerDto>>(t.url, 'GET', '/customers?limit=100', {
+        token: sup,
+      });
+      const debtor = all.body.data.find((c) => c.debtAmount === 42000)!;
+      const p = await phone(debtor.territory!.code === '3101' ? 'V07' : 'V08');
+      const pay = (amount: number, number: string) =>
+        send(p, 'payment.debt', { paymentId: uuidv7(), number, customerId: debtor.id, amount });
+
+      const noDay = await pay(1000, `X-${p.series}0001`);
+      expect(noDay).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_STATE' } });
+
+      const date = '2026-10-18';
+      const workdayId = await startDay(p, date);
+      expect(await pay(50_000, `X-${p.series}0002`)).toMatchObject({
+        status: 'REJECTED',
+        error: { code: 'BUSINESS_RULE' },
+      });
+      expect(await pay(0, `X-${p.series}0003`)).toMatchObject({
+        status: 'REJECTED',
+        error: { code: 'VALIDATION_ERROR' },
+      });
+      expect(await pay(12_000, `X-${p.series}0004`)).toMatchObject({
+        status: 'APPLIED',
+        result: { debtAmount: 30_000 },
+      });
+      expect(await pay(1000, `X-${p.series}0004`)).toMatchObject({
+        status: 'REJECTED',
+        error: { code: 'DUPLICATE' },
+      });
+
+      const fiche = await call<CustomerDto>(t.url, 'GET', `/customers/${debtor.id}`, {
+        token: sup,
+      });
+      expect(fiche.body.debtAmount).toBe(30_000);
+      const history = await call<CustomerHistory>(t.url, 'GET', `/customers/${debtor.id}/history`, {
+        token: sup,
+      });
+      expect(history.body.payments).toContainEqual(
+        expect.objectContaining({ number: `X-${p.series}0004` }),
+      );
+      expect((await today(p, date)).body.counters.collectedAmount).toBe(12_000);
+      await closeDay(p, workdayId);
+    });
+  });
 });

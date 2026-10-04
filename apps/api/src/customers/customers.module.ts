@@ -10,6 +10,6 @@ import { PlacementService } from './placement.service';
 @Module({
   controllers: [CustomersController, ImportsController],
   providers: [CustomersService, PlacementService, ImportsService, ProductImportService],
-  exports: [PlacementService],
+  exports: [PlacementService, CustomersService],
 })
 export class CustomersModule {}

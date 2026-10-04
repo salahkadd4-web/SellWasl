@@ -199,7 +199,12 @@ export class CustomersService {
    * calculée dans ce secteur, marqué « nouveau », sans crédit, au comptant seul si P-09 le veut.
    * Par le superviseur ou l'admin (UC-53) : partie calculée parmi tous les secteurs, ou choisie.
    */
-  async create(actor: AuthUser, input: CreateInput): Promise<CustomerDto> {
+  async create(
+    actor: AuthUser,
+    input: CreateInput,
+    /** Depuis une opération du téléphone : identifiant choisi par le téléphone, et sa transaction. */
+    from?: { id: string; tx: Prisma.TransactionClient },
+  ): Promise<CustomerDto> {
     await this.assertType(input.customerTypeId);
     await this.assertCodeFree(input.code);
     const point =
@@ -239,8 +244,8 @@ export class CustomersService {
       toDate(input.referenceDate) ??
       this.placement.referenceDate(await this.placement.calendar(), placement.partId);
 
-    const id = uuidv7();
-    const created = await this.db.$transaction(async (tx) => {
+    const id = from?.id ?? uuidv7();
+    const write = async (tx: Prisma.TransactionClient) => {
       const row = await tx.customer.create({
         data: {
           id,
@@ -277,7 +282,10 @@ export class CustomersService {
         tx,
       );
       return row;
-    });
+    };
+    const created = from
+      ? await write(from.tx)
+      : await this.db.$transaction((tx) => write(tx as unknown as Prisma.TransactionClient));
     return toCustomerDto(created);
   }
 
