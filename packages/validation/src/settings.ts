@@ -25,6 +25,8 @@ export const companySettingsSchema = z.object({
   outOfZoneDistanceM: z.number().int().min(10).max(5000).default(100),
   ticketWidthMm: z.union([z.literal(58), z.literal(80)]).default(58),
   positionIntervalMin: z.number().int().min(1).max(60).default(5),
+  /** Plafond des primes d'objectifs, décidé par la direction (BR-OBJ-01) ; null : pas de plafond. */
+  objectiveCapPercent: z.number().int().min(100).max(500).nullable().default(120),
   receiptHeader: z
     .object({
       name: z.string().max(60).default(''),

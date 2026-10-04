@@ -32,8 +32,8 @@ export default function ObjectivesScreen() {
           <Text style={styles.line}>Réalisé : {formatDA(o.realizedAmount)}</Text>
           <Text style={styles.line}>Cible : {formatDA(o.targetAmount)}</Text>
           <Text style={styles.line}>
-            Prime estimée : {formatDA(o.estimatedBonus)} sur {formatDA(o.bonusAmount)} (plafond{' '}
-            {o.capPercent} %)
+            Prime estimée : {formatDA(o.estimatedBonus)} sur {formatDA(o.bonusAmount)} (
+            {o.capPercent === null ? 'sans plafond' : `plafond ${o.capPercent} %`})
           </Text>
         </Card>
       ))}

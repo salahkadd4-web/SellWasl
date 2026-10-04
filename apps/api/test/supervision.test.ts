@@ -199,6 +199,91 @@ describe('supervision (phase 16)', () => {
       ).toBe(403);
     });
   });
+  describe('plafond des primes de l’entreprise (BR-OBJ-01)', () => {
+    /** Mois décalé de n par rapport au mois courant, « AAAA-MM ». */
+    const monthOffset = (n: number) => {
+      const d = new Date();
+      d.setUTCDate(1);
+      d.setUTCMonth(d.getUTCMonth() + n);
+      return d.toISOString().slice(0, 7);
+    };
+
+    it('fixe un seul plafond, appliqué aux mois en cours et futurs, jamais aux mois passés', async () => {
+      const capOf = async () =>
+        (await call<{ capPercent: number | null }>(t.url, 'GET', '/objectives/cap', { token: sup }))
+          .body.capPercent;
+      expect(await capOf()).toBe(120);
+
+      const ranges = await call<ProductRangeDto[]>(t.url, 'GET', '/product-ranges', { token: sup });
+      const thonRange = ranges.body.find((r) => r.code === 'THON')!;
+      const past = monthOffset(-1);
+      const future = monthOffset(2);
+      await raw.objective.create({
+        data: {
+          id: uuidv7(),
+          companyId: (await raw.company.findUniqueOrThrow({ where: { code: 'DISTRI-ORAN' } })).id,
+          userId: v07.id,
+          rangeId: thonRange.id,
+          month: new Date(`${past}-01T00:00:00Z`),
+          targetAmount: 1_000_000n,
+          bonusAmount: 10_000n,
+          capPercent: 120,
+        },
+      });
+      // Cible seule : la prime et le plafond viennent de l'entreprise
+      expect(
+        (
+          await call(t.url, 'PUT', '/objectives', {
+            token: sup,
+            body: {
+              month: future,
+              entries: [
+                {
+                  userId: v07.id,
+                  rangeId: thonRange.id,
+                  targetAmount: 2_000_000,
+                  bonusAmount: 12_000,
+                },
+              ],
+            },
+          })
+        ).status,
+      ).toBe(200);
+
+      const p = await phones.get('V07');
+      const refused = await call(t.url, 'PUT', '/objectives/cap', {
+        token: p.token,
+        body: { capPercent: 150 },
+      });
+      expect(refused.status).toBe(403);
+
+      try {
+        expect(
+          (await call(t.url, 'PUT', '/objectives/cap', { token: sup, body: { capPercent: 150 } }))
+            .status,
+        ).toBe(200);
+        expect(await capOf()).toBe(150);
+        const cap = async (month: string) =>
+          (
+            await call<ObjectiveDto[]>(t.url, 'GET', `/objectives?month=${month}`, { token: sup })
+          ).body.find((o) => o.user.code === 'V07' && o.range.code === 'THON')?.capPercent;
+        expect(await cap(future)).toBe(150);
+        expect(await cap(past)).toBe(120);
+
+        // Pas de plafond : la prime suit le taux sans limite
+        expect(
+          (await call(t.url, 'PUT', '/objectives/cap', { token: sup, body: { capPercent: null } }))
+            .status,
+        ).toBe(200);
+        expect(await capOf()).toBeNull();
+        expect(await cap(future)).toBeNull();
+        expect(await cap(past)).toBe(120);
+      } finally {
+        await call(t.url, 'PUT', '/objectives/cap', { token: sup, body: { capPercent: 120 } });
+      }
+    });
+  });
+
   describe('lignes en attente et historique (UC-60)', () => {
     const date = '2026-12-12';
 

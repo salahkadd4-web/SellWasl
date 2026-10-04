@@ -158,6 +158,7 @@ export interface MyObjective {
   realizedAmount: number;
   rate: number;
   bonusAmount: number;
-  capPercent: number;
+  /** null : pas de plafond. */
+  capPercent: number | null;
   estimatedBonus: number;
 }

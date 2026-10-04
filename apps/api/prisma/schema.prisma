@@ -1206,7 +1206,8 @@ model Objective {
   month             DateTime     @db.Date
   targetAmount      BigInt       @map("target_amount")
   bonusAmount       BigInt       @map("bonus_amount")
-  capPercent        Int          @default(120) @map("cap_percent")
+  /// null : pas de plafond (choix de l'entreprise, BR-OBJ-01)
+  capPercent        Int?         @default(120) @map("cap_percent")
   companyId         String       @map("company_id") @db.Uuid
   userId            String       @map("user_id") @db.Uuid
   rangeId           String       @map("range_id") @db.Uuid

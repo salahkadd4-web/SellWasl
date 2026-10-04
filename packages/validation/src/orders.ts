@@ -178,12 +178,18 @@ export const putObjectivesSchema = z.object({
         rangeId: z.uuid(),
         targetAmount: amount,
         bonusAmount: amount,
-        capPercent: z.number().int().min(100).max(500),
+        /** Ignoré : le plafond est celui de l'entreprise (BR-OBJ-01). */
+        capPercent: z.number().int().min(100).max(500).optional(),
       }),
     )
     .min(1)
     .max(500),
 });
+/** null : pas de plafond. */
+export const objectiveCapSchema = z.object({
+  capPercent: z.number().int().min(100).max(500).nullable(),
+});
+
 export interface ObjectiveDto extends MyObjective {
   id: string;
   user: { id: string; code: string; name: string };

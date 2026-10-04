@@ -21,19 +21,21 @@ export function visitCounters(
 
 /**
  * Objectif du mois (BR-OBJ-03) : taux = réalisé ÷ cible (en %, une décimale) ;
- * prime estimée = prime × min(taux, plafond), arrondie au dinar.
+ * prime estimée = prime × min(taux, plafond), arrondie au dinar. Plafond null : pas de plafond.
  */
 export function objectiveProgress(o: {
   targetAmount: number;
   realizedAmount: number;
   bonusAmount: number;
-  capPercent: number;
+  capPercent: number | null;
 }): { rate: number; estimatedBonus: number } {
   if (o.targetAmount <= 0) return { rate: 0, estimatedBonus: 0 };
   const ratio = o.realizedAmount / o.targetAmount;
   return {
     rate: Math.round(ratio * 1000) / 10,
-    estimatedBonus: Math.round(o.bonusAmount * Math.min(ratio, o.capPercent / 100)),
+    estimatedBonus: Math.round(
+      o.bonusAmount * (o.capPercent === null ? ratio : Math.min(ratio, o.capPercent / 100)),
+    ),
   };
 }
 

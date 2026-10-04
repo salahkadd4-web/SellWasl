@@ -2,7 +2,7 @@
 
 import type { ObjectiveDto, ProductRangeDto, TerritoryDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Button, Card, Field, PageTitle } from '@/components/ui';
+import { Alert, Button, Card, Field, PageTitle, Toggle } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
 import { formatDA, todayDate } from '@/lib/labels';
@@ -10,14 +10,13 @@ import { formatDA, todayDate } from '@/lib/labels';
 interface Row {
   targetAmount: string;
   bonusAmount: string;
-  capPercent: string;
 }
 
 const key = (userId: string, rangeId: string) => `${userId}:${rangeId}`;
 
 /**
- * Objectifs du mois par vendeur et par gamme (UC-56, BR-OBJ) : cible, prime et plafond ; réalisé
- * sur le chiffre d'affaires livré et prime due.
+ * Objectifs du mois par vendeur et par gamme (UC-56, BR-OBJ) : cible et prime de chacun, plafond
+ * unique de l'entreprise ; réalisé sur le chiffre d'affaires livré et prime due.
  */
 export default function ObjectivesPage() {
   const { can } = CompanyAuth.useAuth();
@@ -26,6 +25,9 @@ export default function ObjectivesPage() {
   const [month, setMonth] = useState(() => todayDate().slice(0, 7));
   const [objectives, setObjectives] = useState<ObjectiveDto[] | null>(null);
   const [rows, setRows] = useState<Record<string, Row>>({});
+  const [cap, setCap] = useState('');
+  const [uncapped, setUncapped] = useState(false);
+  const [commonBonus, setCommonBonus] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +52,13 @@ export default function ObjectivesPage() {
     setError(null);
     setSaved(false);
     try {
-      const list = await api<ObjectiveDto[]>('company', `/objectives?month=${month}`);
+      const [list, companyCap] = await Promise.all([
+        api<ObjectiveDto[]>('company', `/objectives?month=${month}`),
+        api<{ capPercent: number | null }>('company', '/objectives/cap'),
+      ]);
       setObjectives(list);
+      setUncapped(companyCap.capPercent === null);
+      setCap(companyCap.capPercent === null ? '' : String(companyCap.capPercent));
       setRows(
         Object.fromEntries(
           list.map((o) => [
@@ -59,7 +66,6 @@ export default function ObjectivesPage() {
             {
               targetAmount: String(o.targetAmount),
               bonusAmount: String(o.bonusAmount),
-              capPercent: String(o.capPercent),
             },
           ]),
         ),
@@ -84,7 +90,6 @@ export default function ObjectivesPage() {
           rangeId,
           targetAmount: Number(r.targetAmount),
           bonusAmount: Number(r.bonusAmount || '0'),
-          capPercent: Number(r.capPercent || '120'),
         };
       });
     if (entries.length === 0) return setError('Saisissez au moins une cible.');
@@ -103,6 +108,40 @@ export default function ObjectivesPage() {
     }
   }
 
+  /** Plafond unique de l'entreprise, appliqué au mois en cours et aux suivants (BR-OBJ-01). */
+  async function saveCap() {
+    setError(null);
+    const value = uncapped ? null : Number(cap);
+    if (value !== null && (!Number.isInteger(value) || value < 100 || value > 500))
+      return setError('Le plafond doit être un nombre entier entre 100 et 500 %.');
+    setBusy(true);
+    try {
+      await api('company', '/objectives/cap', {
+        method: 'PUT',
+        body: JSON.stringify({ capPercent: value }),
+      });
+      await load();
+      setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Même prime pour tous les vendeurs d'une gamme : remplit leurs lignes. */
+  function applyCommonBonus(rangeId: string) {
+    const bonus = commonBonus[rangeId] ?? '';
+    setRows((current) => {
+      const next = { ...current };
+      for (const s of sellers) {
+        const k = key(s.id, rangeId);
+        next[k] = { targetAmount: next[k]?.targetAmount ?? '', bonusAmount: bonus };
+      }
+      return next;
+    });
+  }
+
   const editable = can('objectives.update');
   const field = (k: string, name: keyof Row, label: string) => (
     <Field
@@ -117,7 +156,6 @@ export default function ObjectivesPage() {
           [k]: {
             targetAmount: '',
             bonusAmount: '',
-            capPercent: '120',
             ...r[k],
             [name]: e.target.value,
           },
@@ -145,14 +183,63 @@ export default function ObjectivesPage() {
           Objectifs enregistrés.
         </p>
       )}
-      <Card className="grid gap-3 sm:grid-cols-[1fr_2fr]">
+      <Card className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <Field
           label="Mois"
           type="month"
           value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)}
         />
+        <div className="flex flex-col gap-1">
+          <Field
+            label="Plafond de l'entreprise (%)"
+            type="number"
+            min={100}
+            max={500}
+            value={uncapped ? '' : cap}
+            disabled={!editable || uncapped}
+            onChange={(e) => setCap(e.target.value)}
+            hint="Le même pour tous les vendeurs ; appliqué au mois en cours et aux suivants."
+          />
+          <Toggle
+            label="Sans plafond"
+            description="La prime suit le taux sans limite."
+            checked={uncapped}
+            disabled={!editable}
+            onChange={setUncapped}
+          />
+        </div>
+        {editable && (
+          <Button variant="secondary" onClick={() => void saveCap()} disabled={busy}>
+            Enregistrer le plafond
+          </Button>
+        )}
       </Card>
+      {editable && ranges.length > 0 && sellers.length > 0 && (
+        <Card className="flex flex-col gap-3">
+          <h2 className="font-semibold text-text-dark">Prime commune par gamme</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {ranges.map((r) => (
+              <div key={r.id} className="flex items-end gap-2">
+                <Field
+                  label={`${r.name} : prime (DA)`}
+                  type="number"
+                  min={0}
+                  value={commonBonus[r.id] ?? ''}
+                  onChange={(e) => setCommonBonus((c) => ({ ...c, [r.id]: e.target.value }))}
+                />
+                <Button variant="secondary" onClick={() => applyCommonBonus(r.id)}>
+                  Appliquer
+                </Button>
+              </div>
+            ))}
+          </div>
+          <p className="text-sm text-muted">
+            Remplit la prime de tous les vendeurs ; il ne reste qu'à saisir leurs cibles puis à
+            enregistrer.
+          </p>
+        </Card>
+      )}
       {sellers.length === 0 && (
         <Card>
           <p className="text-sm text-muted">
@@ -171,15 +258,14 @@ export default function ObjectivesPage() {
                 return (
                   <div
                     key={r.id}
-                    className="grid gap-2 border-b border-border px-3 py-2 last:border-0 lg:grid-cols-[1fr_1fr_1fr_1fr_2fr] lg:items-end"
+                    className="grid gap-2 border-b border-border px-3 py-2 last:border-0 lg:grid-cols-[1fr_1fr_1fr_2fr] lg:items-end"
                   >
                     <span className="font-medium text-text-dark">{r.name}</span>
                     {field(k, 'targetAmount', 'Cible (DA)')}
                     {field(k, 'bonusAmount', 'Prime (DA)')}
-                    {field(k, 'capPercent', 'Plafond (%)')}
                     <span className="text-sm text-muted">
                       {o
-                        ? `Réalisé ${formatDA(o.realizedAmount)} · ${o.rate} % · prime due ${formatDA(o.estimatedBonus)}`
+                        ? `Réalisé ${formatDA(o.realizedAmount)} · ${o.rate} % · prime due ${formatDA(o.estimatedBonus)} (${o.capPercent === null ? 'sans plafond' : `plafond ${o.capPercent} %`})`
                         : 'Pas d’objectif'}
                     </span>
                   </div>

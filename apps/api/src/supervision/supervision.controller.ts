@@ -16,6 +16,7 @@ import {
   type PendingLineDto,
   pendingLinesQuerySchema,
   type ObjectiveDto,
+  objectiveCapSchema,
   objectivesQuerySchema,
   putObjectivesSchema,
   putQuotasSchema,
@@ -153,6 +154,21 @@ export class SupervisionController {
     @Query(new ZodValidationPipe(objectivesQuerySchema)) query: Out<typeof objectivesQuerySchema>,
   ): Promise<ObjectiveDto[]> {
     return this.objectives.list(query.month, ownOnPhone(actor).sellerUserId);
+  }
+
+  @RequirePermission('objectives.read')
+  @Get('objectives/cap')
+  async objectivesCap(): Promise<{ capPercent: number | null }> {
+    return { capPercent: await this.objectives.cap() };
+  }
+
+  @RequirePermission('objectives.update')
+  @Put('objectives/cap')
+  putObjectivesCap(
+    @CurrentUser() actor: AuthUser,
+    @Body(new ZodValidationPipe(objectiveCapSchema)) body: Out<typeof objectiveCapSchema>,
+  ): Promise<{ capPercent: number | null }> {
+    return this.objectives.setCap(actor, body.capPercent);
   }
 
   @RequirePermission('objectives.update')

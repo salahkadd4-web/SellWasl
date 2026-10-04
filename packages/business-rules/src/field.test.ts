@@ -50,6 +50,37 @@ describe('terrain', () => {
     ).toEqual({ rate: 0, estimatedBonus: 0 });
   });
 
+  it('applique le plafond de l’entreprise, par exemple 150 % (BR-OBJ-01)', () => {
+    // Deux vendeurs, cibles différentes, même prime : chacun selon son propre taux
+    expect(
+      objectiveProgress({
+        targetAmount: 2_800_000,
+        realizedAmount: 2_800_000,
+        bonusAmount: 12_000,
+        capPercent: 150,
+      }),
+    ).toEqual({ rate: 100, estimatedBonus: 12_000 });
+    expect(
+      objectiveProgress({
+        targetAmount: 3_200_000,
+        realizedAmount: 5_120_000,
+        bonusAmount: 12_000,
+        capPercent: 150,
+      }),
+    ).toEqual({ rate: 160, estimatedBonus: 18_000 });
+  });
+
+  it('sans plafond, la prime suit le taux sans limite', () => {
+    expect(
+      objectiveProgress({
+        targetAmount: 3_200_000,
+        realizedAmount: 5_120_000,
+        bonusAmount: 12_000,
+        capPercent: null,
+      }),
+    ).toEqual({ rate: 160, estimatedBonus: 19_200 });
+  });
+
   it('numérote les reçus : code + série + séquence (ARC-11)', () => {
     expect(paymentNumber('V07', 'B', 42)).toBe('V07-B0042');
   });
