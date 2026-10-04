@@ -61,7 +61,18 @@ describe('commandes (phase 16)', () => {
     products = (await call<ProductDto[]>(t.url, 'GET', '/products?status=ACTIVE', { token: sup }))
       .body;
   });
-  afterAll(() => t.close());
+  afterAll(async () => {
+    // Commandes de test annulées : modules.test.ts change le mode de l'entreprise, ce qu'une
+    // commande non livrée empêche (docs/modules.md §8)
+    await raw.order.updateMany({
+      where: {
+        company: { code: 'DISTRI-ORAN' },
+        orderDate: { in: [new Date(`${DAY}T00:00:00Z`), new Date('2026-11-14T00:00:00Z')] },
+      },
+      data: { status: 'CANCELLED' },
+    });
+    await t.close();
+  });
 
   describe('confirmation (order.confirm)', () => {
     let p: Phone;

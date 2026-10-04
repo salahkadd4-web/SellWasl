@@ -98,6 +98,8 @@ Le mot de passe oublié d'un utilisateur d'entreprise est réinitialisé par l'a
 | `PUT` | `/devices/push-token` | Enregistrer le jeton de notification push |
 | `GET` | `/me/today?date=AAAA-MM-JJ` | `workdays.own` — journée du vendeur à la date du téléphone : état de la journée, liste du jour (secteur, partie, clients), visites du jour, compteurs x/N et hors programme, encaissé du jour, visite en cours, règles utiles (distance hors zone, P-01, P-02), code et série pour les reçus (phase 15) |
 | `GET` | `/me/objectives?month=AAAA-MM` | `objectives.read` — objectifs du mois par gamme : cible, réalisé, taux, prime estimée (BR-OBJ-04) |
+| `GET` | `/me/visit-catalog?customerId=…&date=…` | `orders.own` — articles proposables au client (prix de son type, stock disponible au dépôt), grille de prix, quota restant par article ; aucune quantité de stock (BR-CMD-06) |
+| `GET` | `/me/orders?date=…` | `orders.own` — commandes du vendeur à cette date, avec leurs lignes |
 
 ### 3.3 Appareils, côté Web
 
@@ -197,6 +199,18 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `POST` | `/workdays/{id}/reopen` | `workdays.reopen` — motif obligatoire ; `409 INVALID_STATE` si l'étape suivante a commencé (BR-JOU-08) |
 | `POST` | `/workdays/{id}/force-close` | `workdays.force_close` — motif obligatoire (BR-JOU-10) |
 | `GET` | `/workdays/{id}/summary` | `workdays.read` — récapitulatif de journée (BR-PAY-07) |
+
+Phase 16 (réalisé) :
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET`, `PUT` | `/quotas?date=…` / `/quotas` | `quotas.read`, `quotas.update` — `{ date, entries: [{ userId, productVariantId, unitId, qty }] }`, `qty = 0` supprime ; pas de date passée |
+| `GET`, `PUT` | `/objectives?month=…` / `/objectives` | `objectives.read`, `objectives.update` — avec réalisé et prime due |
+| `GET` | `/pending-lines?date=…` | `pending_lines.process` |
+| `POST` | `/pending-lines/decide` | `pending_lines.process` — `{ lineIds, decision: ACCEPT \| REFUSE }` ; accepter fusionne dans la ligne normale et réserve ; refuser crée une vente perdue |
+| `GET` | `/orders?date=&sellerId=&status=`, `/orders/{id}` | `orders.read` — sur le téléphone, limité aux commandes du vendeur |
+| `GET` | `/workdays?date=…` | `workdays.read` — une ligne par utilisateur terrain (visites, commandes, encaissé) |
+| `POST` | `/workdays/{id}/reopen`, `/workdays/{id}/force-close` | `workdays.reopen`, `workdays.force_close` — `{ reason }` |
 
 ### 5.5 Commandes, ventes, préparation, livraison
 

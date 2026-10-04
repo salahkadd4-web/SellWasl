@@ -41,7 +41,18 @@ describe('supervision (phase 16)', () => {
       where: { code: 'V07', company: { code: 'DISTRI-ORAN' } },
     });
   });
-  afterAll(() => t.close());
+  afterAll(async () => {
+    // Commandes de test annulées : modules.test.ts change le mode de l'entreprise, ce qu'une
+    // commande non livrée empêche (docs/modules.md §8)
+    await raw.order.updateMany({
+      where: {
+        company: { code: 'DISTRI-ORAN' },
+        orderDate: { in: [new Date('2026-12-12T00:00:00Z'), new Date('2026-12-19T00:00:00Z')] },
+      },
+      data: { status: 'CANCELLED' },
+    });
+    await t.close();
+  });
 
   describe('quotas du jour (UC-55)', () => {
     const date = '2026-12-05';

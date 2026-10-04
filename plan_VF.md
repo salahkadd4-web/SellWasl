@@ -844,8 +844,8 @@ Login · Tableau de bord · Clients du jour (liste / carte) · Fiche client · A
 - [x] Ajouter un client avec la position GPS (UC-12)
 - [x] Démarrer une visite : **sur place** (distance calculée, « hors zone » signalé mais non bloquant) ou **par téléphone** (BR-VIS-02, BR-VIS-03)
 - [x] Clore une visite sans commande avec un motif configurable (UC-16)
-- [ ] Prendre une commande depuis la visite (phase 16, UC-14)
-- [ ] Modifier ou annuler ses commandes jusqu'à la clôture (UC-17) *(avec les commandes, phase 16)*
+- [x] Prendre une commande depuis la visite (UC-14, réalisée en phase 16)
+- [x] Modifier ou annuler ses commandes jusqu'à la clôture (UC-17, réalisée en phase 16)
 - [x] Encaisser une dette (UC-19) — *impression du reçu avec la phase 20 ; numérotation déjà en place (ARC-11)*
 - [x] Objectifs : cible, réalisé, taux, prime estimée (UC-20) — *réalisé à 0 tant qu'aucune livraison n'existe (phases 19-20)*
 - [x] Catalogue sans prix (UC-21)
@@ -879,27 +879,27 @@ CANCELLED (avant la clôture) ; LOCKED → CONFIRMED si le superviseur rouvre la
 
 ## Tâches
 
-- [ ] Créer un panier
-- [ ] Ajouter des produits (unité au choix) et modifier les quantités ; le produit ajouté quitte la liste
-- [ ] Calculer le total : prix par type de client, paliers, bonus automatiques (BR-CAT)
-- [ ] Valider et confirmer une commande ; prix figés (BR-CAT-09)
-- [ ] Annuler une commande avant la clôture
-- [ ] Associer la commande à une visite et un pré-vendeur
+- [x] Créer un panier (téléphone, pendant la visite)
+- [x] Ajouter des produits (unité au choix) et modifier les quantités ; le produit ajouté quitte la liste
+- [x] Calculer le total : prix par type de client, paliers, bonus automatiques (BR-CAT) — *sur le téléphone, recalculé et figé par le serveur*
+- [x] Valider et confirmer une commande ; prix figés (BR-CAT-09)
+- [x] Annuler une commande avant la clôture (et la modifier)
+- [x] Associer la commande à une visite et un pré-vendeur
 - [ ] Saisie au bureau de commandes sans visite (téléphone, WhatsApp…) *(après le MVP)*
-- [ ] Réserver le stock à la confirmation ; « rupture » si le stock est insuffisant (BR-CMD-04)
-- [ ] Historique
-- [ ] Machine à états des statuts dans `packages/business-rules` (BR-CMD-02)
+- [x] Réserver le stock à la confirmation ; « rupture » si le stock est insuffisant (BR-CMD-04) — *dépôt actif de l'entreprise*
+- [x] Historique (Web : page Commandes ; téléphone : commandes du jour)
+- [x] Machine à états des statuts dans `packages/business-rules` (BR-CMD-02)
 
 **Ajouts phase 0**
 
-- [ ] Commandes figées à la clôture de la journée (`LOCKED`) ; réouverture par le superviseur (BR-JOU-07, BR-JOU-08)
-- [ ] **Quotas** par jour, article (parfum ou produit) et vendeur ; saisie Web par le superviseur (BR-QUO-01, UC-55)
-- [ ] Ligne scindée et **ligne en attente** au-delà du quota ; produit grisé « quota atteint » (BR-QUO-03)
-- [ ] Excédent de quota transformé en « en attente » à la synchronisation (BR-QUO-05)
-- [ ] Traitement des lignes en attente par le superviseur ; refus = vente perdue (BR-QUO-06, UC-60)
-- [ ] Date de livraison = jour ouvré suivant (BR-CMD-05)
-- [ ] Numéro de commande unique généré hors connexion (BR-CMD-07)
-- [ ] **Objectifs** mensuels par vendeur et par gamme, sur le CA livré, prime plafonnée (BR-OBJ, UC-56)
+- [x] Commandes figées à la clôture de la journée (`LOCKED`) ; réouverture par le superviseur (BR-JOU-07, BR-JOU-08), et clôture d'office (BR-JOU-10)
+- [x] **Quotas** par jour, article (parfum ou produit) et vendeur ; saisie Web par le superviseur (BR-QUO-01, UC-55)
+- [x] Ligne scindée et **ligne en attente** au-delà du quota ; produit grisé « quota atteint » (BR-QUO-03)
+- [x] Excédent de quota transformé en « en attente » à la synchronisation (BR-QUO-05) — *le serveur recalcule le quota à la réception ; notification au vendeur avec la phase 24*
+- [x] Traitement des lignes en attente par le superviseur ; refus = vente perdue (BR-QUO-06, UC-60)
+- [x] Date de livraison = jour ouvré suivant (BR-CMD-05)
+- [x] Numéro de commande unique généré par le téléphone (BR-CMD-07) — *hors connexion avec la phase 23*
+- [x] **Objectifs** mensuels par vendeur et par gamme, sur le CA livré, prime plafonnée (BR-OBJ, UC-56)
 
 ---
 
