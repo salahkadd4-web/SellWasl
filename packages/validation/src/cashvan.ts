@@ -85,6 +85,12 @@ export interface ReceiptPrintDto {
   reprints: number;
 }
 
+/** Format du ticket imprimé par le téléphone (BR-IMP-01). */
+export interface TicketSettingsDto {
+  widthMm: 58 | 80;
+  header: { name: string; address: string; phone: string };
+}
+
 export interface DaySummaryDto {
   date: string;
   user: { id: string; code: string; name: string };

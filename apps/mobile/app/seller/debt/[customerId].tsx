@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
 import { ApiClientError, request } from '@/api/client';
+import { printAfter } from '@/printing/printer';
 import { errorMessage, formatDA } from '@/seller/format';
 import { WorkdayGuard } from '@/seller/WorkdayGuard';
 import { newId, nextReceiptNumber } from '@/sync/operations';
@@ -58,6 +59,7 @@ export default function DebtScreen() {
         'Encaissement enregistré',
         `Reçu ${result.number} : ${formatDA(value)}.\nNouvelle dette : ${formatDA(result.debtAmount)}.`,
       );
+      printAfter(result.number);
       router.back();
     } catch (e) {
       setError(errorMessage(e));

@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { ApiClientError, request } from '@/api/client';
+import { printAfter } from '@/printing/printer';
 import { type CartEntry, entriesFromOrder, useCart } from '@/seller/cart';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { ProductSheet } from '@/seller/ProductSheet';
@@ -129,6 +130,7 @@ export default function OrderScreen() {
               }),
             );
             showSale(sale);
+            printAfter(sale.number);
             router.dismissTo('/seller');
             return;
           }

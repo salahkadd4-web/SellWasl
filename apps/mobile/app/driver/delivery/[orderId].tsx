@@ -19,6 +19,7 @@ import {
 import { request } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { readPosition } from '@/location/useLocation';
+import { printAfter } from '@/printing/printer';
 import { errorMessage, formatDA } from '@/seller/format';
 import { newId, nextDeliveryNumber, sendOperation } from '@/sync/operations';
 import { Card, Input, Message, PrimaryButton, Screen, Title } from '@/ui';
@@ -131,12 +132,13 @@ export default function DeliveryScreen() {
     try {
       const position = await readPosition();
       const userCode = me?.user.code ?? profile!.userCode;
+      const number = await nextDeliveryNumber(userCode, profile!.series);
       await sendOperation(
         'delivery.confirm',
         {
           ...body,
           deliveryId: newId(),
-          number: await nextDeliveryNumber(userCode, profile!.series),
+          number,
           cashAmount: amount,
           latitude: position?.latitude ?? null,
           longitude: position?.longitude ?? null,
@@ -144,6 +146,7 @@ export default function DeliveryScreen() {
         route.workday.id,
       );
       Alert.alert('Livraison enregistrée', `Encaissé : ${formatDA(amount)}`);
+      printAfter(number);
       router.back();
     } catch (e) {
       setError(errorMessage(e));

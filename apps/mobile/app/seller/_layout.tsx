@@ -27,6 +27,7 @@ export default function SellerLayout() {
         <Stack.Screen name="catalog" options={{ title: 'Catalogue' }} />
         <Stack.Screen name="truck-check" options={{ title: 'Pointer le camion' }} />
         <Stack.Screen name="truck" options={{ title: 'Stock du camion' }} />
+        <Stack.Screen name="receipts" options={{ title: 'Bons du jour' }} />
         <Stack.Screen name="profile" options={{ title: 'Profil' }} />
       </Stack>
     </TodayProvider>

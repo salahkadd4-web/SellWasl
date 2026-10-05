@@ -1,9 +1,11 @@
 import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import { daySummary, localDate } from '@sellwasl/business-rules';
 import {
+  companySettingsSchema,
   type DaySummaryDto,
   type ReceiptPrintDto,
   receiptReprintPayload,
+  type TicketSettingsDto,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -145,6 +147,13 @@ export class ReceiptsService implements OnModuleInit {
       tx,
     );
     return { number: payload.number };
+  }
+
+  /** Largeur et en-tête des tickets, réglés par l'administrateur (BR-IMP-01). */
+  async ticket(): Promise<TicketSettingsDto> {
+    const row = await this.db.companySettings.findFirst({ orderBy: { version: 'desc' } });
+    const settings = companySettingsSchema.parse(row?.data ?? {});
+    return { widthMm: settings.ticketWidthMm, header: settings.receiptHeader };
   }
 
   private async today(actor: AuthUser): Promise<string> {

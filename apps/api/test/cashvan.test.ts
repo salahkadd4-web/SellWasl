@@ -6,6 +6,7 @@ import type {
   ProductDto,
   ReceiptPrintDto,
   SettlementRowDto,
+  TicketSettingsDto,
   TruckCheckLine,
   TruckStockDto,
   VisitCatalog,
@@ -378,6 +379,19 @@ describe('cash van (phase 20)', () => {
       expect(summary.body.receipts).toBeGreaterThanOrEqual(1);
       expect(summary.body.expected).toBe(summary.body.cashSales + summary.body.cashDebts);
       expect(summary.body.expected).toBeGreaterThan(0);
+    });
+
+    it("donne au téléphone la largeur et l'en-tête du ticket (BR-IMP-01)", async () => {
+      const ticket = await call<TicketSettingsDto>(t.url, 'GET', '/me/ticket', {
+        token: seller.token,
+      });
+      expect(ticket.status).toBe(200);
+      expect([58, 80]).toContain(ticket.body.widthMm);
+      expect(ticket.body.header).toEqual({
+        name: expect.any(String),
+        address: expect.any(String),
+        phone: expect.any(String),
+      });
     });
   });
 

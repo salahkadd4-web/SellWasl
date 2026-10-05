@@ -156,6 +156,11 @@ export default function SellerDashboard() {
       </Card>
 
       <PrimaryButton
+        title="Bons du jour"
+        variant="secondary"
+        onPress={() => router.push('/seller/receipts')}
+      />
+      <PrimaryButton
         title="Objectifs"
         variant="secondary"
         onPress={() => router.push('/seller/objectives')}

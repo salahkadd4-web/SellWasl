@@ -6,6 +6,7 @@ import {
   type DriverRouteDto,
   type ReceiptPrintDto,
   receiptsQuerySchema,
+  type TicketSettingsDto,
   type TruckCheckLine,
   type TruckStockDto,
 } from '@sellwasl/validation';
@@ -73,5 +74,12 @@ export class DeliveryController {
   @Get('day-summary')
   daySummary(@CurrentUser() actor: AuthUser): Promise<DaySummaryDto> {
     return this.prints.mySummary(actor);
+  }
+
+  /** Largeur et en-tête des tickets (BR-IMP-01). */
+  @RequirePermission('workdays.own')
+  @Get('ticket')
+  ticket(): Promise<TicketSettingsDto> {
+    return this.prints.ticket();
   }
 }

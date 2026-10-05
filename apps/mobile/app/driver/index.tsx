@@ -167,6 +167,11 @@ export default function DriverDashboard() {
       </Card>
 
       <PrimaryButton
+        title="Bons du jour"
+        variant="secondary"
+        onPress={() => router.push('/driver/receipts')}
+      />
+      <PrimaryButton
         title="Objectifs"
         variant="secondary"
         onPress={() => router.push('/driver/objectives')}
