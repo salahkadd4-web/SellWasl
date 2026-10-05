@@ -928,16 +928,16 @@ Stock physique − Stock réservé = Stock disponible
 
 ## Tâches
 
-- [ ] Dépôts et camions (`TRUCK`) ; emplacements *(après le MVP)*
-- [ ] Stock par produit et entrepôt, en unité de base
-- [ ] Entrées au dépôt (UC-40)
-- [ ] Chargement (dépôt → camion) et déchargement (camion → dépôt)
-- [ ] Réservation à la confirmation, libération à l'annulation
-- [ ] Sortie du camion à la livraison ou à la vente
-- [ ] Inventaire du dépôt et ajustements (UC-44)
-- [ ] Transactions pour toutes les opérations de stock ; stock jamais négatif (BR-STK-04, BR-STK-05)
-- [ ] Alertes de stock faible
-- [ ] Traçabilité et audit des mouvements importants
+- [x] Dépôts et camions (`TRUCK`) ; emplacements *(après le MVP)*
+- [x] Stock par produit et entrepôt, en unité de base
+- [x] Entrées au dépôt (UC-40)
+- [x] Chargement (dépôt → camion) et déchargement (camion → dépôt), écart signé avec motif, P-06 et P-07
+- [x] Réservation à la confirmation, libération à l'annulation (mouvements tracés)
+- [x] Sortie du camion à la livraison ou à la vente (mouvement `OUT` prêt, branché aux phases 19 et 20)
+- [x] Inventaire du dépôt et ajustements (UC-44)
+- [x] Transactions pour toutes les opérations de stock ; stock jamais négatif (BR-STK-04, BR-STK-05)
+- [x] Alertes de stock faible (seuil par article ; notifications en phase 24)
+- [x] Traçabilité et audit des mouvements importants
 - [ ] Transferts entre dépôts *(après le MVP)*
 
 ---
@@ -1005,6 +1005,8 @@ Après le MVP : IN_TRANSIT   ARRIVED   CANCELLED
 - [ ] Marchandise non livrée rendue au dépôt au déchargement (BR-LIV-05)
 - [ ] Preuves : GPS et heure ; signature et photo *(après le MVP)*
 - [ ] Encaissement (`Payment`) : espèces, ou crédit dans la limite du plafond (BR-PAY-03)
+- [ ] Vente des produits refusés : le livreur ajoute la marchandise refusée aux commandes d'autres clients de sa tournée, pour vendre plus et ramener moins de retours (règles à définir : prix et paliers, quota, plafond de crédit, clients concernés)
+- [ ] Objectif du livreur : taux de retour (quantité retournée au déchargement ÷ quantité chargée, par jour et par mois) et critères notés par le superviseur (nettoyage du camion, etc.), avec une prime
 
 ---
 

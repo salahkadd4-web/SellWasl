@@ -21,6 +21,7 @@ import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
 import { PricingService } from '../catalog/pricing.service';
 import type { Prisma } from '../generated/prisma/client';
+import { StockLedger, type Move } from '../stock/stock-ledger.service';
 import { SyncHandlers } from '../sync/sync.handlers';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { dateOnly, invalidState, rule, toDate } from './field-errors';
@@ -73,6 +74,7 @@ export class OrderService implements OnModuleInit {
     private readonly visits: VisitService,
     private readonly audit: AuditService,
     private readonly handlers: SyncHandlers,
+    private readonly ledger: StockLedger,
   ) {}
 
   onModuleInit(): void {
@@ -88,13 +90,8 @@ export class OrderService implements OnModuleInit {
   }
 
   /** Dépôt de l'entreprise : stock proposable, bonus limités, réservations. */
-  async depot(tx: Pick<Tx, 'warehouse'>) {
-    const depot = await tx.warehouse.findFirst({
-      where: { type: 'DEPOT', isActive: true, deletedAt: null },
-      orderBy: { code: 'asc' },
-    });
-    if (!depot) throw rule("Aucun dépôt actif : contactez l'administrateur.");
-    return depot;
+  depot(tx: Pick<Tx, 'warehouse'>) {
+    return this.ledger.mainDepot(tx);
   }
 
   /** Stock disponible au dépôt par article, en unité de base (physique − réservé). */
@@ -241,57 +238,58 @@ export class OrderService implements OnModuleInit {
   }
 
   /**
-   * Verrouille les lignes de stock des articles avant de calculer le disponible : deux commandes
-   * simultanées ne réservent jamais plus que le stock physique.
+   * Réserve le stock du dépôt pour les lignes normales et bonus (BR-CMD-04) : la partie non
+   * couverte reste en rupture. Passe par le registre, qui verrouille et trace la réservation.
    */
-  async lockStock(tx: Tx, depotId: string, variantIds: string[]) {
-    if (variantIds.length === 0) return;
-    await tx.$queryRaw`SELECT id FROM stock WHERE warehouse_id = ${depotId}::uuid AND product_variant_id = ANY(${variantIds}::uuid[]) FOR UPDATE`;
-  }
-
-  /** Réserve le stock du dépôt pour les lignes normales et bonus (BR-CMD-04). */
-  private async reserve(tx: Tx, lines: BuiltLine[]) {
+  private async reserve(
+    tx: Tx,
+    actor: AuthUser,
+    orderId: string,
+    lines: BuiltLine[],
+    occurredAt: Date,
+  ) {
     const depot = await this.depot(tx);
-    await this.lockStock(tx, depot.id, [
-      ...new Set(lines.filter((l) => l.kind !== 'PENDING').map((l) => l.variantId)),
-    ]);
-    const available = await this.availableStock(tx);
+    const ids = [...new Set(lines.filter((l) => l.kind !== 'PENDING').map((l) => l.variantId))];
+    const balances = await this.ledger.balances(tx, actor.companyId, depot.id, ids);
+    const available = new Map(
+      ids.map((id) => [id, balances.get(id)!.physical - balances.get(id)!.reserved]),
+    );
     const reserved = new Map<BuiltLine, number>();
+    const moves: Move[] = [];
     for (const l of lines) {
       if (l.kind === 'PENDING') continue;
       const take = Math.max(0, Math.min(l.baseQty, available.get(l.variantId) ?? 0));
       reserved.set(l, take);
       if (take === 0) continue;
       available.set(l.variantId, (available.get(l.variantId) ?? 0) - take);
-      await tx.stock.update({
-        where: {
-          companyId_warehouseId_productVariantId: {
-            companyId: depot.companyId,
-            warehouseId: depot.id,
-            productVariantId: l.variantId,
-          },
-        },
-        data: { reservedQty: { increment: take } },
+      moves.push({
+        type: 'RESERVATION',
+        variantId: l.variantId,
+        qty: take,
+        toWarehouseId: depot.id,
+        source: { type: 'ORDER', id: orderId },
       });
     }
+    await this.ledger.apply(tx, actor, moves, occurredAt);
     return reserved;
   }
 
   /** Libère le stock réservé par les lignes d'une commande. */
-  private async release(tx: Tx, orderId: string) {
+  private async release(tx: Tx, actor: AuthUser, orderId: string, occurredAt: Date) {
     const depot = await this.depot(tx);
     const lines = await tx.orderLine.findMany({ where: { orderId, reservedQty: { gt: 0 } } });
-    for (const l of lines)
-      await tx.stock.update({
-        where: {
-          companyId_warehouseId_productVariantId: {
-            companyId: depot.companyId,
-            warehouseId: depot.id,
-            productVariantId: l.productVariantId,
-          },
-        },
-        data: { reservedQty: { decrement: l.reservedQty } },
-      });
+    await this.ledger.apply(
+      tx,
+      actor,
+      lines.map((l) => ({
+        type: 'RELEASE' as const,
+        variantId: l.productVariantId,
+        qty: l.reservedQty,
+        fromWarehouseId: depot.id,
+        source: { type: 'ORDER' as const, id: orderId },
+      })),
+      occurredAt,
+    );
   }
 
   /** Identifiants des paliers appliqués, pour les retrouver sur les lignes. */
@@ -323,7 +321,7 @@ export class OrderService implements OnModuleInit {
     lines: BuiltLine[],
     occurredAt: Date,
   ) {
-    const reserved = await this.reserve(tx, lines);
+    const reserved = await this.reserve(tx, actor, orderId, lines, occurredAt);
     const tierId = await this.tierIds(tx, lines);
     await tx.orderLine.createMany({
       data: lines.map((l) => {
@@ -473,7 +471,7 @@ export class OrderService implements OnModuleInit {
       throw invalidState(
         'Le superviseur a déjà traité une ligne en attente de cette commande : elle ne peut plus être modifiée.',
       );
-    await this.release(tx, order.id);
+    await this.release(tx, actor, order.id, occurredAt);
     await tx.orderLine.deleteMany({ where: { orderId: order.id } });
     const { lines } = await this.build(tx, actor, {
       customerTypeId: order.customerTypeId,
@@ -505,7 +503,7 @@ export class OrderService implements OnModuleInit {
 
   private async cancel(actor: AuthUser, tx: Tx, orderId: string, occurredAt: Date) {
     const order = await this.editable(tx, actor, orderId);
-    await this.release(tx, order.id);
+    await this.release(tx, actor, order.id, occurredAt);
     await tx.orderLine.updateMany({ where: { orderId: order.id }, data: { reservedQty: 0 } });
     await tx.order.update({
       where: { id: order.id },

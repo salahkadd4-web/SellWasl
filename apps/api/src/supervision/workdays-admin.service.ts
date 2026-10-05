@@ -109,6 +109,9 @@ export class WorkdaysAdminService {
       const workday = await tx.workday.findFirst({ where: { id, deletedAt: null } });
       if (!workday) throw notFound('Journée introuvable.');
       if (workday.status !== 'CLOSED') throw invalidState("Cette journée n'est pas clôturée.");
+      // Après le déchargement, le stock du camion est soldé : la journée est définitive (BR-JOU-08)
+      if (await tx.unload.findFirst({ where: { workdayId: id } }))
+        throw invalidState('Le camion est déjà déchargé : la journée ne peut plus être rouverte.');
       if (
         await tx.order.findFirst({
           where: { workdayId: id, status: { in: [...PREPARED] }, deletedAt: null },

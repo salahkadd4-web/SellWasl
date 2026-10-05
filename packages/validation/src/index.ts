@@ -8,3 +8,4 @@ export * from './territories';
 export * from './planning';
 export * from './sync';
 export * from './orders';
+export * from './stock';

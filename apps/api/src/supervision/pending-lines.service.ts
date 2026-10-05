@@ -6,6 +6,7 @@ import { uuidv7 } from '../common/uuid';
 import { dateOnly, invalidState, toDate } from '../field/field-errors';
 import { OrderService } from '../field/order.service';
 import type { Prisma } from '../generated/prisma/client';
+import { StockLedger } from '../stock/stock-ledger.service';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 
 /** Commandes dont les lignes en attente peuvent encore être traitées (avant la préparation). */
@@ -22,6 +23,7 @@ export class PendingLinesService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly orders: OrderService,
     private readonly audit: AuditService,
+    private readonly ledger: StockLedger,
   ) {}
 
   async list(date?: string): Promise<PendingLineDto[]> {
@@ -94,7 +96,7 @@ export class PendingLinesService {
           },
         });
         if (claimed.count === 0) throw invalidState('Cette ligne a déjà été traitée.');
-        if (decision === 'ACCEPT') await this.accept(tx, line, actor.companyId);
+        if (decision === 'ACCEPT') await this.accept(tx, line, actor, now);
         else
           await tx.lostDemand.create({
             data: {
@@ -130,23 +132,30 @@ export class PendingLinesService {
   private async accept(
     tx: Prisma.TransactionClient,
     line: Prisma.OrderLineGetPayload<{ include: { order: true } }>,
-    companyId: string,
+    actor: AuthUser,
+    now: Date,
   ) {
+    const companyId = actor.companyId;
     const depot = await this.orders.depot(tx);
-    await this.orders.lockStock(tx, depot.id, [line.productVariantId]);
-    const available = await this.orders.availableStock(tx);
-    const take = Math.max(0, Math.min(line.orderedQty, available.get(line.productVariantId) ?? 0));
+    const balance = (
+      await this.ledger.balances(tx, companyId, depot.id, [line.productVariantId])
+    ).get(line.productVariantId)!;
+    const take = Math.max(0, Math.min(line.orderedQty, balance.physical - balance.reserved));
     if (take > 0)
-      await tx.stock.update({
-        where: {
-          companyId_warehouseId_productVariantId: {
-            companyId,
-            warehouseId: depot.id,
-            productVariantId: line.productVariantId,
+      await this.ledger.apply(
+        tx,
+        actor,
+        [
+          {
+            type: 'RESERVATION',
+            variantId: line.productVariantId,
+            qty: take,
+            toWarehouseId: depot.id,
+            source: { type: 'ORDER', id: line.orderId },
           },
-        },
-        data: { reservedQty: { increment: take } },
-      });
+        ],
+        now,
+      );
 
     const normal = await tx.orderLine.findFirst({
       where: { orderId: line.orderId, productVariantId: line.productVariantId, kind: 'NORMAL' },

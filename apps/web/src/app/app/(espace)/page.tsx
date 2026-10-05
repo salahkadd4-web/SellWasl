@@ -1,7 +1,10 @@
 'use client';
 
+import type { StockAlertDto } from '@sellwasl/validation';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui';
+import { api } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
 
 const MODULE_NAMES: Record<string, string> = {
@@ -14,6 +17,16 @@ const MODULE_NAMES: Record<string, string> = {
 
 export default function CompanyHomePage() {
   const { me, can } = CompanyAuth.useAuth();
+  const canStock = !!me && can('stock.read');
+  const [alerts, setAlerts] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!canStock) return;
+    api<StockAlertDto[]>('company', '/stock/alerts')
+      .then((list) => setAlerts(list.length))
+      .catch(() => setAlerts(null));
+  }, [canStock]);
+
   if (!me) return null;
 
   return (
@@ -42,6 +55,19 @@ export default function CompanyHomePage() {
             {me.permissions.length} permissions accordées par votre rôle.
           </p>
         </Card>
+        {canStock && alerts !== null && (
+          <Card>
+            <h2 className="font-semibold text-text-dark">Stock faible</h2>
+            <p className="mt-1 text-sm text-muted">
+              {alerts > 0
+                ? `${alerts} article(s) sous leur seuil dans un dépôt.`
+                : 'Aucun article sous son seuil.'}
+            </p>
+            <Link href="/app/stock" className="mt-3 inline-block font-semibold text-deep-blue">
+              Voir le stock →
+            </Link>
+          </Card>
+        )}
         {can('devices.read') && (
           <Card>
             <h2 className="font-semibold text-text-dark">Appareils</h2>

@@ -18,6 +18,7 @@ const NAV = [
   { href: '/app/attente', label: 'Lignes en attente', permission: 'pending_lines.process' },
   { href: '/app/quotas', label: 'Quotas', permission: 'quotas.read' },
   { href: '/app/objectifs', label: 'Objectifs', permission: 'objectives.read' },
+  { href: '/app/stock', label: 'Stock', permission: 'stock.read' },
   { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
   { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },

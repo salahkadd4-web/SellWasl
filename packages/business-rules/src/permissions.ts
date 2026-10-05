@@ -131,8 +131,13 @@ const ADMIN_AND_SUPERVISOR_SHARED = [
   'orders.read',
   'pending_lines.process',
   'stock.read',
+  // Opérations du magasinier aussi sur le Web, pour les entreprises sans magasinier (phase 17)
+  'stock.receive',
+  'inventory.count',
   'loads.read',
   'loads.plan',
+  'loads.load',
+  'unloads.validate',
   'preparation.launch',
   'deliveries.read',
   'payments.read',
