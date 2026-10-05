@@ -112,6 +112,11 @@ describe('stock (phase 17)', () => {
       where: { company: { code: 'DISTRI-ORAN' }, date: new Date(`${DAY}T00:00:00Z`) },
       data: { status: 'CLOSED', closedAt: new Date() },
     });
+    // Chargements de la suite reçus : un chargement en attente apparaît chez le livreur
+    await raw.load.updateMany({
+      where: { date: new Date('2027-01-11T00:00:00Z') },
+      data: { status: 'RECEIVED', receivedAt: new Date() },
+    });
     await raw.warehouse.updateMany({
       where: { id: { in: testWarehouses } },
       data: { isActive: false, deletedAt: new Date() },

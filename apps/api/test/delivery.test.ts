@@ -188,7 +188,8 @@ describe('livraison (phase 19)', () => {
       });
       expect(statuses.every((o) => o.status === 'OUT_FOR_DELIVERY')).toBe(true);
       const view = await myRoute();
-      expect(view).toMatchObject({ loadToReceive: null, route: { status: 'OUT_FOR_DELIVERY' } });
+      expect(view.loadToReceive?.id).not.toBe(load.id);
+      expect(view.route).toMatchObject({ status: 'OUT_FOR_DELIVERY' });
       expect(view.deliveries).toHaveLength(5);
     });
   });
