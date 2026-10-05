@@ -53,6 +53,7 @@ export class LoadsService {
         actor.companyId,
         depot.id,
         lines.map((l) => l.variantId),
+        [truck.id],
       );
       for (const l of lines) {
         const b = balances.get(l.variantId)!;

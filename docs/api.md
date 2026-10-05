@@ -235,6 +235,23 @@ Phase 16 (réalisé) :
 | `POST` | `/loads` | `loads.plan` — chargement d'un vendeur cash van ou rechargement (UC-62, P-07) |
 | `GET` | `/inventory-counts` | `stock.read` |
 
+Phase 17 (réalisé) — toute variation passe par le registre de stock (verrou, BR-STK-04, mouvement) ; quantités saisies `{ variantId, unitId, qty }`, stockées en unité de base :
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET` | `/stock?warehouseId=` | `stock.read` — physique, réservé, disponible, seuil, `isLow` ; dépôt principal par défaut |
+| `GET` | `/stock/movements?warehouseId=&variantId=&type=&from=&to=` | `stock.read` — 200 derniers |
+| `GET` | `/stock/alerts` | `stock.read` — articles sous leur seuil dans un dépôt actif |
+| `PUT` | `/stock/thresholds` | `products.write` — `{ entries: [{ variantId, lowStockQty \| null }] }` |
+| `GET`, `POST` | `/stock/receipts?from=&to=`, `/stock/receipts/{id}` | `stock.read`, `stock.receive` — entrée au dépôt (UC-40) : un `IN` par ligne |
+| `GET`, `POST` | `/inventories`, `/inventories/{id}` | `stock.read`, `inventory.count` — un brouillon par dépôt |
+| `PUT` | `/inventories/{id}/lines` | `inventory.count` — remplace le comptage du brouillon |
+| `POST` | `/inventories/{id}/validate` | `inventory.count` — `ADJUSTMENT` par écart ; compté sous le réservé : réservations des commandes les plus récentes réduites, lignes en rupture (UC-44) |
+| `DELETE` | `/inventories/{id}` | `inventory.count` — brouillon seulement |
+| `GET`, `POST` | `/loads?date=`, `/loads/{id}` | `loads.read`, `loads.load` — transfert dépôt → camion sur le disponible ; `CASH_VAN`, `RELOAD` (P-07) ou `ROUTE` (UC-42) |
+| `GET` | `/unloads/pending`, `/unloads/preview?workdayId=`, `/unloads?date=` | `loads.read` |
+| `POST` | `/unloads` | `unloads.validate` — journée clôturée ; écart signé avec motif `ADJUSTMENT` ; retour au dépôt ou stock gardé (P-06) ; la journée ne peut plus être rouverte (UC-43, BR-JOU-08) |
+
 ### 5.7 Argent
 
 | Méthode | Chemin | Permission |

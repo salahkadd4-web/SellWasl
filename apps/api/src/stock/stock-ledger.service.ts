@@ -51,17 +51,22 @@ export class StockLedger {
     return depot;
   }
 
-  /** Soldes verrouillés d'un entrepôt par article (les lignes manquantes sont créées à 0). */
+  /**
+   * Soldes verrouillés d'un entrepôt par article (les lignes manquantes sont créées à 0).
+   * `alsoLock` : autres entrepôts que l'opération touchera, verrouillés dans le même ordre global
+   * pour que deux opérations croisées (chargement, déchargement) ne s'attendent pas mutuellement.
+   */
   async balances(
     tx: Tx,
     companyId: string,
     warehouseId: string,
     variantIds: string[],
+    alsoLock: string[] = [],
   ): Promise<Map<string, StockBalance>> {
     const rows = await this.lock(
       tx,
       companyId,
-      variantIds.map((v) => [warehouseId, v]),
+      [warehouseId, ...alsoLock].flatMap((w) => variantIds.map((v) => [w, v] as const)),
     );
     return new Map(variantIds.map((v) => [v, rows.get(key(warehouseId, v))!]));
   }
@@ -126,6 +131,9 @@ export class StockLedger {
     if (unique.length === 0) return new Map();
     const warehouses = unique.map((p) => p[0]);
     const variants = unique.map((p) => p[1]);
+    // Un article inconnu est refusé clairement, plutôt que par la clé étrangère de la base
+    const known = await tx.productVariant.count({ where: { id: { in: [...new Set(variants)] } } });
+    if (known !== new Set(variants).size) throw rule('Article introuvable.');
     const ids = unique.map(() => uuidv7());
     await tx.$executeRaw`
       INSERT INTO stock (id, company_id, warehouse_id, product_variant_id, updated_at)

@@ -250,17 +250,27 @@ describe('stock (phase 17)', () => {
     });
 
     it("crée la ligne de stock d'un article jamais entré dans ce dépôt", async () => {
-      const second = await testWarehouse('DISTRI-ORAN', 'ZZ-DEPOT', 'DEPOT');
-      const thon = item('THON-TOM');
+      // Dépôt de test chez CASHVAN-EST : il reste en base (mouvements en ajout seul) et ne doit
+      // pas devenir « le dépôt » que lisent les suites de DISTRI-ORAN
+      const supB = await webLogin(t.url, 'CASHVAN-EST', 'B-SUP');
+      const productsB = (
+        await call<ProductDto[]>(t.url, 'GET', '/products?status=ACTIVE', { token: supB })
+      ).body;
+      const product = productsB.find((p) => p.variants.some((v) => v.reference === 'THON-TOM'))!;
+      const thon = {
+        variantId: product.variants.find((v) => v.reference === 'THON-TOM')!.id,
+        unit: product.units.find((u) => u.name === 'carton')!,
+      };
+      const second = await testWarehouse('CASHVAN-EST', 'ZZ-DEPOT', 'DEPOT');
       const created = await call(t.url, 'POST', '/stock/receipts', {
-        token: sup,
+        token: supB,
         body: {
           warehouseId: second.id,
-          lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+          lines: [{ variantId: thon.variantId, unitId: thon.unit.id, qty: 1 }],
         },
       });
       expect(created.status).toBe(201);
-      expect(await physical(second.id, thon.variantId)).toBe(thon.baseQty);
+      expect(await physical(second.id, thon.variantId)).toBe(thon.unit.baseQty);
     });
 
     it("refuse l'unité d'un autre produit, un camion et le pré-vendeur", async () => {
@@ -547,7 +557,7 @@ describe('stock (phase 17)', () => {
       const truck = await truckOf('CASHVAN-EST', 'TRUCK-02');
       const thon = itemB('THON-TOM');
       const depot = await raw.warehouse.findFirstOrThrow({
-        where: { company: { code: 'CASHVAN-EST' }, type: 'DEPOT' },
+        where: { company: { code: 'CASHVAN-EST' }, type: 'DEPOT', code: 'DEPOT' },
       });
       const stock = await raw.stock.findFirstOrThrow({
         where: { warehouseId: depot.id, productVariantId: thon.variantId },
@@ -699,6 +709,16 @@ describe('stock (phase 17)', () => {
         token: supB,
       });
       expect(list.body.map((u) => u.id)).toContain(done.body.id);
+    });
+
+    it('refuse un article inconnu par un refus clair', async () => {
+      const workdayId = await workdayOf('C01', '2027-01-14');
+      const lines = await preview(workdayId);
+      const reply = await unload(workdayId, [
+        ...lines.map((l) => ({ variantId: l.variantId, countedQty: l.theoretical })),
+        { variantId: uuidv7(), countedQty: 1, reasonId: await reason('Retour client') },
+      ]);
+      expect(reply.status).toBe(422);
     });
 
     it('refuse une journée en cours', async () => {

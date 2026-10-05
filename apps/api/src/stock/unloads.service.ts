@@ -93,13 +93,19 @@ export class UnloadsService {
         throw rule('Comptez chaque article du camion : il en manque.');
       const variantIds = [...new Set([...expected.map((l) => l.variantId), ...counted.keys()])];
       // Le théorique est relu sous verrou : rien ne bouge pendant la validation
-      const balances = await this.ledger.balances(tx, actor.companyId, truck.id, variantIds);
-      const reasons = await tx.reason.findMany({
-        where: { kind: 'ADJUSTMENT', isActive: true, deletedAt: null },
-      });
       const settingsRow = await tx.companySettings.findFirst({ orderBy: { version: 'desc' } });
       const fullUnload = companySettingsSchema.parse(settingsRow?.data ?? {}).rules.P06_fullUnload;
       const depot = fullUnload ? await this.ledger.mainDepot(tx) : null;
+      const balances = await this.ledger.balances(
+        tx,
+        actor.companyId,
+        truck.id,
+        variantIds,
+        depot ? [depot.id] : [],
+      );
+      const reasons = await tx.reason.findMany({
+        where: { kind: 'ADJUSTMENT', isActive: true, deletedAt: null },
+      });
 
       const moves: Move[] = [];
       const rows = variantIds.map((variantId) => {

@@ -15,7 +15,7 @@ import { type Move, StockLedger } from './stock-ledger.service';
 type Tx = Prisma.TransactionClient;
 
 /** Commandes dont la réservation tient encore au dépôt. */
-const RESERVING = ['CONFIRMED', 'LOCKED', 'PREPARING'] as const;
+const RESERVING = ['CONFIRMED', 'LOCKED', 'PREPARING', 'READY'] as const;
 
 const DETAIL = {
   warehouse: true,
