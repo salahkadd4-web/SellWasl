@@ -149,6 +149,13 @@ export default function RoutesPage() {
                     </div>
                   ))}
                 </div>
+                {r.progress && (
+                  <p className="text-sm text-muted">
+                    Livrées {r.progress.delivered} · partielles {r.progress.partial} · échecs{' '}
+                    {r.progress.failed} · à livrer {r.progress.pending} · encaissé{' '}
+                    {formatDA(r.progress.collected)}
+                  </p>
+                )}
                 {r.blockers.length > 0 && (
                   <ul className="flex flex-col gap-1 text-sm text-error">
                     {r.blockers.map((b) => (
