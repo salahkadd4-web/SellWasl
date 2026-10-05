@@ -457,5 +457,29 @@ describe('cash van (phase 20)', () => {
       expect(csv.headers.get('content-type')).toContain('text/csv');
       expect(await csv.text()).toContain(sale.number);
     });
+
+    it("neutralise une formule dans l'export CSV (injection de formule)", async () => {
+      const payment = await raw.payment.findFirstOrThrow({
+        where: { workdayId, kind: 'DELIVERY_PAYMENT' },
+        include: { customer: true },
+      });
+      await raw.customer.update({
+        where: { id: payment.customerId },
+        data: { name: '=HYPERLINK("http://x")' },
+      });
+      try {
+        const csv = await fetch(`${t.url}/payments/export?from=${DAY}&to=${DAY}`, {
+          headers: { Authorization: `Bearer ${accountant}` },
+        });
+        const text = await csv.text();
+        expect(text).not.toMatch(/;"?=HYPERLINK/);
+        expect(text).toContain(`"'=HYPERLINK(""http://x"")"`);
+      } finally {
+        await raw.customer.update({
+          where: { id: payment.customerId },
+          data: { name: payment.customer.name },
+        });
+      }
+    });
   });
 });

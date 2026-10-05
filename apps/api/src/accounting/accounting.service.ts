@@ -18,10 +18,14 @@ import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 
 type Tx = Prisma.TransactionClient;
 
-/** Une cellule de CSV : guillemets doublés, entre guillemets si besoin. */
+/**
+ * Une cellule de CSV : un texte qui commence comme une formule (=, +, -, @, tabulation) est
+ * précédé d'une apostrophe pour qu'Excel l'affiche sans l'exécuter ; guillemets doublés.
+ */
 const cell = (value: string | number) => {
-  const text = String(value);
-  return /[";\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  let text = String(value);
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
 /**
