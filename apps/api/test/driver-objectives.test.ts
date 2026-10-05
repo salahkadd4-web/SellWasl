@@ -72,10 +72,10 @@ describe('objectifs du livreur (phase 19)', () => {
     await t.close();
   });
 
-  const settings = (body?: DriverObjectivesSettings) =>
-    body
-      ? call(t.url, 'PUT', '/driver-objectives/settings', { token: sup, body })
-      : call<DriverObjectivesSettings>(t.url, 'GET', '/driver-objectives/settings', { token: sup });
+  const readSettings = () =>
+    call<DriverObjectivesSettings>(t.url, 'GET', '/driver-objectives/settings', { token: sup });
+  const saveSettings = (body: DriverObjectivesSettings) =>
+    call(t.url, 'PUT', '/driver-objectives/settings', { token: sup, body });
   const tiers = [
     { maxRate: 5, score: 100 },
     { maxRate: 8, score: 70 },
@@ -83,13 +83,13 @@ describe('objectifs du livreur (phase 19)', () => {
   ];
 
   it('règles par défaut : 100 % sur le taux de retour, trois paliers', async () => {
-    const current = await settings();
+    const current = await readSettings();
     expect(current.body).toMatchObject({ returnWeight: 100, criteria: [] });
     expect(current.body.returnTiers).toEqual(tiers);
   });
 
   it('refuse des poids dont la somme ne fait pas 100', async () => {
-    const refused = await settings({
+    const refused = await saveSettings({
       returnWeight: 60,
       returnTiers: tiers,
       criteria: [{ id: cleanliness, name: 'Propreté du camion', weight: 30 }],
@@ -98,7 +98,7 @@ describe('objectifs du livreur (phase 19)', () => {
   });
 
   it('calcule le taux de retour, le score pondéré et la prime due', async () => {
-    const saved = await settings({
+    const saved = await saveSettings({
       returnWeight: 60,
       returnTiers: tiers,
       criteria: [
