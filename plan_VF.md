@@ -960,15 +960,15 @@ Login · Tableau de bord · Entrées · Préparations · Chargements · Décharg
 
 ## Fonctionnalités
 
-- [ ] Lancement de la préparation par tournée sur le Web, désactivé tant que des journées sont encore en cours ou en attente de synchronisation, ou que des lignes en attente ne sont pas traitées (BR-PRE-01, BR-PRE-02, UC-61)
-- [ ] Changer le livreur d'un secteur avant le lancement (BR-PRE-01)
-- [ ] Liste de chargement (total par produit) et détail par commande (BR-PRE-03, UC-41)
-- [ ] Saisir les quantités préparées ; une rupture réduit la ligne, avec recalcul des paliers et bonus (BR-CAT-10)
-- [ ] Valider la préparation
-- [ ] Charger le camion du livreur (UC-42)
-- [ ] Décharger un camion : comptage, écart, retour au dépôt (BR-STK-07, UC-43)
-- [ ] Consulter le stock
-- [ ] Effectuer un inventaire
+- [x] Lancement de la préparation par tournée sur le Web, désactivé tant que des journées sont encore en cours ou en attente de synchronisation, ou que des lignes en attente ne sont pas traitées (BR-PRE-01, BR-PRE-02, UC-61)
+- [x] Changer le livreur d'un secteur avant le lancement (BR-PRE-01)
+- [x] Liste de chargement (total par produit) et détail par commande (BR-PRE-03, UC-41)
+- [x] Saisir les quantités préparées ; une rupture réduit la ligne, avec recalcul des paliers et bonus (BR-CAT-10)
+- [x] Valider la préparation
+- [x] Charger le camion du livreur (UC-42)
+- [x] Décharger un camion : comptage, écart, retour au dépôt (BR-STK-07, UC-43)
+- [x] Consulter le stock
+- [x] Effectuer un inventaire
 - [ ] Lecture des codes-barres *(après le MVP)*
 
 ---
