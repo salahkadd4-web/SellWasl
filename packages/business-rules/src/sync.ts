@@ -17,6 +17,8 @@ const GENERATED_FIELDS: Record<string, readonly string[]> = {
   'order.confirm': ['orderId', 'number'],
   'delivery.confirm': ['deliveryId', 'number'],
   'delivery.fail': ['deliveryId', 'number'],
+  'sale.confirm': ['orderId', 'number'],
+  'lost_demand.create': ['lostDemandId'],
 };
 
 function signature(action: Action): string {

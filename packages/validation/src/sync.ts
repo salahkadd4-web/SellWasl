@@ -22,6 +22,10 @@ export const OPERATION_TYPES = [
   'load.receive',
   'delivery.confirm',
   'delivery.fail',
+  'truck.check',
+  'sale.confirm',
+  'lost_demand.create',
+  'receipt.reprint',
 ] as const;
 export type OperationType = (typeof OPERATION_TYPES)[number];
 

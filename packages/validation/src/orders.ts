@@ -74,6 +74,8 @@ export interface VisitCatalog {
     }[];
   }[];
   rules: { P03_bonusConsumesQuota: boolean };
+  /** Vendeur cash van : stock du camion par article, en unité de base (BR-CV-03). */
+  truckStock?: Record<string, number>;
 }
 
 export type OrderLineKindValue = 'NORMAL' | 'PENDING' | 'BONUS';
