@@ -3,6 +3,7 @@ import {
   launchRouteSchema,
   type PrepareResult,
   prepareRouteSchema,
+  type LoadDto,
   type RouteCandidateDto,
   type RoutePreparationDto,
   type RouteSummaryDto,
@@ -12,6 +13,7 @@ import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PreparationService } from './preparation.service';
+import { RouteLoadService } from './route-load.service';
 import { RoutesService } from './routes.service';
 
 type Out<T extends z.ZodType> = z.output<T>;
@@ -22,6 +24,7 @@ export class PreparationController {
   constructor(
     private readonly routes: RoutesService,
     private readonly preparation: PreparationService,
+    private readonly routeLoads: RouteLoadService,
   ) {}
 
   @RequirePermission('preparation.launch')
@@ -62,5 +65,14 @@ export class PreparationController {
     @Body(new ZodValidationPipe(prepareRouteSchema)) body: Out<typeof prepareRouteSchema>,
   ): Promise<PrepareResult> {
     return this.preparation.prepare(actor, id, body);
+  }
+
+  @RequirePermission('loads.load')
+  @Post(':id/load')
+  load(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<LoadDto> {
+    return this.routeLoads.load(actor, id);
   }
 }

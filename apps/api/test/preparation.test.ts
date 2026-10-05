@@ -1,5 +1,6 @@
 import type {
   CustomerDto,
+  LoadDto,
   ProductDto,
   RouteCandidateDto,
   RoutePreparationDto,
@@ -396,6 +397,52 @@ describe('préparation (phase 18)', () => {
         });
         expect(reserved.map((m) => m.qty)).toContain(2 * thon.baseQty);
       });
+    });
+  });
+
+  describe('chargement de la tournée (UC-42)', () => {
+    it('transfère le préparé vers le camion du livreur en consommant la réservation', async () => {
+      const truck = await raw.warehouse.findFirstOrThrow({
+        where: { company: { code: 'DISTRI-ORAN' }, code: 'TRUCK-01' },
+      });
+      const lines = await raw.orderLine.findMany({
+        where: { order: { routeId }, kind: { in: ['NORMAL', 'BONUS'] } },
+      });
+      const expected = new Map<string, number>();
+      for (const l of lines)
+        expected.set(l.productVariantId, (expected.get(l.productVariantId) ?? 0) + l.preparedQty!);
+      const before = await raw.stock.findMany({ where: { warehouseId: truck.id } });
+
+      const loaded = await call<LoadDto>(t.url, 'POST', `/routes/${routeId}/load`, { token: sup });
+      expect(loaded.status).toBe(201);
+      expect(loaded.body).toMatchObject({
+        kind: 'ROUTE',
+        status: 'LOADED',
+        truck: expect.objectContaining({ code: 'TRUCK-01' }),
+      });
+      const after = await raw.stock.findMany({ where: { warehouseId: truck.id } });
+      for (const [variantId, qty] of expected) {
+        const was = before.find((s) => s.productVariantId === variantId)?.physicalQty ?? 0;
+        expect(after.find((s) => s.productVariantId === variantId)?.physicalQty).toBe(was + qty);
+      }
+      const load = await raw.load.findUniqueOrThrow({ where: { id: loaded.body.id } });
+      expect(load.routeId).toBe(routeId);
+      expect(
+        await raw.orderLine.count({
+          where: { order: { routeId }, kind: { in: ['NORMAL', 'BONUS'] }, reservedQty: { gt: 0 } },
+        }),
+      ).toBe(0);
+      expect(
+        await raw.stockMovement.count({ where: { type: 'TRANSFER', sourceId: loaded.body.id } }),
+      ).toBe(expected.size);
+      const route = await raw.deliveryRoute.findUniqueOrThrow({ where: { id: routeId } });
+      expect(route.status).toBe('LOADED');
+    });
+
+    it('une tournée déjà chargée ne se charge pas deux fois', async () => {
+      expect((await call(t.url, 'POST', `/routes/${routeId}/load`, { token: sup })).status).toBe(
+        409,
+      );
     });
   });
 });
