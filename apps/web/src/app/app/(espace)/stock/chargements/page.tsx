@@ -1,6 +1,6 @@
 'use client';
 
-import type { LoadDto, ProductDto, StockRowDto } from '@sellwasl/validation';
+import type { LoadDto, ProductDto, RouteSummaryDto, StockRowDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
 import { emptyLine, type StockLine, StockLinesEditor, toPayload } from '@/components/stock-lines';
@@ -22,7 +22,10 @@ export default function LoadsPage() {
   const [loads, setLoads] = useState<LoadDto[] | null>(null);
   const [detail, setDetail] = useState<LoadDto | null>(null);
   const [creating, setCreating] = useState(false);
+  const [readyRoutes, setReadyRoutes] = useState<RouteSummaryDto[]>([]);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canRoutes = can('preparation.do');
 
   useEffect(() => {
     api<ProductDto[]>('company', '/products?status=ACTIVE')
@@ -34,10 +37,33 @@ export default function LoadsPage() {
     setError(null);
     try {
       setLoads(await api<LoadDto[]>('company', `/loads?date=${date}`));
+      if (canRoutes)
+        setReadyRoutes(
+          (await api<RouteSummaryDto[]>('company', '/routes/preparing')).filter(
+            (r) => r.status === 'READY',
+          ),
+        );
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
-  }, [date]);
+  }, [date, canRoutes]);
+
+  /** Tournée préparée : le préparé part vers le camion du livreur (BR-PRE-04). */
+  async function loadRoute(route: RouteSummaryDto) {
+    if (!confirm(`Charger le camion de ${route.driver.name} avec les quantités préparées ?`))
+      return;
+    setError(null);
+    setBusy(true);
+    try {
+      const created = await api<LoadDto>('company', `/routes/${route.id}/load`, { method: 'POST' });
+      setDate(created.date);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -55,6 +81,33 @@ export default function LoadsPage() {
       />
       <StockTabs />
       {(error ?? warehousesError) && <Alert>{error ?? warehousesError}</Alert>}
+      {readyRoutes.length > 0 && (
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-text-dark">Tournées prêtes à charger</h2>
+          <div className="overflow-hidden rounded-xl border border-border">
+            {readyRoutes.map((r) => (
+              <div
+                key={r.id}
+                className="flex flex-col gap-2 border-b border-border px-3 py-2 last:border-0 lg:flex-row lg:items-center lg:justify-between"
+              >
+                <span className="flex flex-col">
+                  <span className="font-medium text-text-dark">
+                    {r.driver.name} · {r.truck ? warehouseLabel(r.truck) : 'Pas de camion'}
+                  </span>
+                  <span className="text-xs text-muted">
+                    Livraison du {formatDate(r.deliveryDate)} · {r.ordersCount} commande(s)
+                  </span>
+                </span>
+                {can('loads.load') && (
+                  <Button variant="secondary" disabled={busy} onClick={() => void loadRoute(r)}>
+                    Charger le camion
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       {creating && (
         <NewLoad
           warehouses={warehouses}
