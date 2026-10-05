@@ -1021,43 +1021,43 @@ Login · Tableau de bord · Réception du chargement · Ma tournée (liste / car
 
 ## Fonctionnalités du livreur
 
-- [ ] Journée de travail : démarrer et clôturer (UC-03, UC-05)
-- [ ] Confirmer la réception du chargement ou signaler un écart (UC-30)
-- [ ] Liste des livraisons du jour, carte, itinéraire (UC-31)
-- [ ] Détail de la commande et dette du client
-- [ ] Confirmer une livraison, totale ou partielle (UC-32)
-- [ ] Échec avec motif : client absent, refus, fermé, autre (UC-33)
-- [ ] Encaissement en espèces ou à crédit (BR-PAY-03)
-- [ ] Géolocalisation pendant la journée (BR-JOU-09)
+- [x] Journée de travail : démarrer et clôturer (UC-03, UC-05)
+- [x] Confirmer la réception du chargement ou signaler un écart (UC-30)
+- [x] Liste des livraisons du jour, carte, itinéraire (UC-31)
+- [x] Détail de la commande et dette du client
+- [x] Confirmer une livraison, totale ou partielle (UC-32)
+- [x] Échec avec motif : client absent, refus, fermé, autre (UC-33)
+- [x] Encaissement en espèces ou à crédit (BR-PAY-03)
+- [x] Géolocalisation pendant la journée (BR-JOU-09)
 - [ ] Photo et signature *(après le MVP)*
 
 ## Vendeur cash van (UC-15, UC-18, UC-62)
 
-- [ ] Chargement du matin préparé sur le Web ou saisi par le magasinier, puis réception confirmée par le vendeur (BR-CV-01, BR-CV-02)
-- [ ] Mêmes journée, clients du jour, carte et visites que le pré-vendeur (phase 15) ; visite toujours sur place
-- [ ] Produits proposés = stock du camion, avec un contrôle exact hors connexion (BR-CV-03)
-- [ ] Vente = livraison immédiate, statut `DELIVERED`, stock du camion mis à jour (BR-CV-04)
-- [ ] Vente définitive, sans modification ni annulation (BR-CV-05)
-- [ ] Quota épuisé → produit grisé et demande perdue (BR-QUO-04)
-- [ ] Encaissement des dettes (BR-CV-07)
-- [ ] Déchargement du soir : comptage, écart, retour au dépôt ou stock gardé dans le camion selon P-06 (BR-CV-06, BR-STK-07)
-- [ ] Rechargement en cours de journée, selon P-07 (BR-CV-01)
+- [x] Chargement du matin préparé sur le Web ou saisi par le magasinier, puis réception confirmée par le vendeur (BR-CV-01, BR-CV-02)
+- [x] Mêmes journée, clients du jour, carte et visites que le pré-vendeur (phase 15) ; visite toujours sur place
+- [x] Produits proposés = stock du camion, avec un contrôle exact hors connexion (BR-CV-03)
+- [x] Vente = livraison immédiate, statut `DELIVERED`, stock du camion mis à jour (BR-CV-04)
+- [x] Vente définitive, sans modification ni annulation (BR-CV-05)
+- [x] Quota épuisé → produit grisé et demande perdue (BR-QUO-04)
+- [x] Encaissement des dettes (BR-CV-07)
+- [x] Déchargement du soir : comptage, écart, retour au dépôt ou stock gardé dans le camion selon P-06 (BR-CV-06, BR-STK-07)
+- [x] Rechargement en cours de journée, selon P-07 (BR-CV-01)
 
 ## Impression Bluetooth (UC-34, UC-35)
 
-- [ ] Imprimante thermique 58 ou 80 mm (paramètre de l'entreprise) (BR-IMP-01)
-- [ ] Bon de livraison ou de vente : entreprise, client, lignes, « GRATUIT », total, payé, reste, dette (BR-IMP-02)
-- [ ] Réimpression marquée « DUPLICATA » et tracée (BR-IMP-03)
-- [ ] Numéro de bon unique généré hors connexion (BR-IMP-04)
-- [ ] Livraison jamais bloquée sans imprimante (BR-IMP-05)
-- [ ] Récapitulatif de journée imprimé (BR-IMP-06)
+- [x] Imprimante thermique 58 ou 80 mm (paramètre de l'entreprise) (BR-IMP-01)
+- [x] Bon de livraison ou de vente : entreprise, client, lignes, « GRATUIT », total, payé, reste, dette (BR-IMP-02)
+- [x] Réimpression marquée « DUPLICATA » et tracée (BR-IMP-03)
+- [x] Numéro de bon unique généré hors connexion (BR-IMP-04)
+- [x] Livraison jamais bloquée sans imprimante (BR-IMP-05)
+- [x] Récapitulatif de journée imprimé (BR-IMP-06)
 
 ## Dettes et versements (UC-19, UC-70, UC-71)
 
-- [ ] Dette par client, plafond, encaissement des dettes par le pré-vendeur et le vendeur cash van (BR-PAY-04, BR-PAY-05)
-- [ ] Récapitulatif de journée avec le montant attendu (BR-PAY-07)
-- [ ] Web comptable : saisie du versement, calcul de l'écart, notification au superviseur (BR-PAY-08)
-- [ ] Web comptable : dettes et paiements, exports
+- [x] Dette par client, plafond, encaissement des dettes par le pré-vendeur et le vendeur cash van (BR-PAY-04, BR-PAY-05)
+- [x] Récapitulatif de journée avec le montant attendu (BR-PAY-07)
+- [x] Web comptable : saisie du versement, calcul de l'écart (BR-PAY-08) ; notification au superviseur en phase 24
+- [x] Web comptable : dettes et paiements, exports
 
 ---
 

@@ -268,11 +268,24 @@ Phase 19 (réalisé) — livraison et objectifs du livreur. Opérations du tél�
 | Méthode | Chemin | Permission |
 |---|---|---|
 | `GET` | `/me/route` | `deliveries.own` — journée, chargement à recevoir, tournée du jour, livraisons (client, dette, lignes), avancement |
-| `GET` | `/me/truck-stock` | `deliveries.own` — stock du camion, pour les ventes ajoutées |
+| `GET` | `/me/truck-stock` | `stock.read` — stock du camion, consultable à tout moment (livreur et cash van) |
 | `POST` | `/me/deliveries/preview` | `deliveries.own` — `{ orderId, lines, added }` : lignes chiffrées, bonus, dû, minimum à encaisser (BR-PAY-03) |
 | `GET` | `/me/driver-objectives` | `deliveries.own` — objectif du mois (et du mois précédent si versement décalé) |
 | `GET`, `PUT` | `/driver-objectives/settings` | `objectives.read`, `objectives.update` — `{ returnWeight, returnTiers: [{ maxRate, score }], criteria: [{ id, name, weight }] }`, poids de somme 100 |
 | `GET`, `PUT` | `/driver-objectives?month=` / `/driver-objectives` | `objectives.read`, `objectives.update` — prime et notes (0 à 10) par livreur ; taux de retour, score, prime due |
+
+Phase 20 (réalisé) — cash van, pointage du camion et bons. Opérations du téléphone : `truck.check` (`loads.receive`), `sale.confirm` (`sales.own`), `lost_demand.create` (`lost_demands.own`), `receipt.reprint` (`workdays.own`). Rien ne se livre ni ne se vend tant qu'un chargement `LOADED` du camion n'est pas pointé.
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET` | `/me/truck-check` | `loads.receive` — tout le stock du camion à pointer : reste de la veille et chargements du jour (BR-CV-02) |
+| `GET` | `/me/receipts?date=` | `workdays.own` — bons du jour (livraison, vente, reçu de dette) avec de quoi les imprimer, nombre de réimpressions |
+| `GET` | `/me/day-summary` | `workdays.own` — récapitulatif de la journée : bons, vendu, espèces, crédit, montant attendu (BR-PAY-07) |
+| `GET` | `/me/ticket` | `workdays.own` — largeur du ticket (58 ou 80 mm) et en-tête de l'entreprise (BR-IMP-01) |
+| `POST` | `/loads/plan` | `loads.plan` — `{ truckId, date, lines }` : chargement cash van préparé, `PLANNED` ; P-07 pour un second chargement (UC-62) |
+| `GET` | `/loads/planned` | `loads.read` — chargements préparés à valider |
+| `GET` | `/loads/last?truckId=` | `loads.read` — dernier chargement du camion, pour le reprendre |
+| `POST` | `/loads/{id}/validate` | `loads.load` — `{ lines: [{ variantId, loadedQty }] }` en unité de base : transfert dépôt → camion, `LOADED` (BR-CV-01) |
 
 ### 5.7 Argent
 
@@ -282,6 +295,17 @@ Phase 19 (réalisé) — livraison et objectifs du livreur. Opérations du tél�
 | `GET` | `/debts` | `payments.read` — dettes par client, filtres par secteur et vendeur |
 | `GET` | `/settlements?date=…` | `settlements.read` — journées à verser, montant attendu |
 | `POST` | `/settlements` | `settlements.create` — journée et montant remis → écart (BR-PAY-08) |
+
+Phase 20 (réalisé) :
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET` | `/workdays/{id}/summary` | `workdays.read` — récapitulatif d'une journée (BR-PAY-07) |
+| `GET` | `/settlements?date=` | `settlements.read` — journées du jour : attendu, remis, écart signé (remis − attendu) |
+| `POST` | `/settlements` | `settlements.create` — `{ workdayId, remittedAmount }` : journée clôturée, un seul versement (`409` sinon), audité |
+| `GET` | `/debtors` | `payments.read` — clients endettés, plafond |
+| `GET` | `/payments?from=&to=` | `payments.read` — paiements des journées de la période |
+| `GET` | `/payments/export?from=&to=` | `payments.read` — CSV (`;`), formules neutralisées |
 
 ### 5.8 Analyse
 
@@ -401,14 +425,15 @@ Chaque type a un schéma Zod dans `packages/validation/sync`. Le serveur vérifi
 | `visit.close_no_order` | Idem | `visits.own` | Visite `COMPLETED` avec motif ; « fermé définitivement » → client à revoir |
 | `order.confirm` | Pré-vendeur | `orders.own` | Prix figés ; scission des lignes au-delà du quota ; réservation au dépôt ; rupture ; bonus (BR-CMD, BR-QUO-03) |
 | `order.update`, `order.cancel` | Pré-vendeur | `orders.own` | Seulement tant que la journée est en cours (BR-CMD-02) ; ajuste ou libère la réservation |
-| `sale.create` | Cash van | `sales.own` | Vente `DELIVERED`, sortie du stock du camion, bon (BR-CV-04) |
+| `sale.confirm` | Cash van | `sales.own` | Vente définitive `DELIVERED` sur place, quota refusé (BR-QUO-04), sortie du stock du camion, paiement et bon (BR-CV-03 à 05) |
 | `lost_demand.create` | Cash van | `lost_demands.own` | Demande perdue (BR-QUO-04) |
 | `payment.delivery` | Livreur, cash van | `payments.collect_delivery` | Paiement, crédit dans la limite du plafond, écriture de dette (BR-PAY-03) |
 | `payment.debt` | Pré-vendeur, cash van, livreur (P-08) | `payments.collect_debt` | Encaissement de dette ; excédent en avance si double encaissement (BR-PAY-04) |
 | `load.receive` | Livreur, cash van | `loads.receive` | Réception ; écart signalé au superviseur (BR-PRE-05) |
+| `truck.check` | Livreur, cash van | `loads.receive` | Pointage de tout le camion : écarts ajustés (« Marchandise manquante », « Autre »), chargements `RECEIVED`, tournées démarrées (BR-CV-02) |
 | `delivery.complete` | Livreur | `deliveries.own` | Livrée ou partielle, recalcul selon P-04, sortie du stock du camion |
 | `delivery.fail` | Livreur | `deliveries.own` | Échec avec motif ; reprogrammation selon P-05 (BR-LIV-06) |
-| `print.log` | Livreur, cash van, pré-vendeur | — (ses propres bons) | Trace d'impression ; copie numérotée « DUPLICATA » (BR-IMP-03) |
+| `receipt.reprint` | Livreur, cash van, pré-vendeur | `workdays.own` (ses propres bons) | Réimpression tracée dans l'audit ; le téléphone imprime « DUPLICATA » (BR-IMP-03) |
 | `stock_receipt.create` | Magasinier | `stock.receive` | Entrée au dépôt (`IN`) |
 | `preparation.submit` | Magasinier | `preparation.do` | Quantités préparées ; ruptures ; commandes `READY` (BR-PRE-03) |
 | `load.validate` | Magasinier | `loads.load` | Transfert dépôt → camion ; la réservation est remplacée (BR-PRE-04) |
