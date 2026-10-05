@@ -836,6 +836,8 @@ model ProductVariant {
   photoKey                String?              @map("photo_key")
   isActive                Boolean              @default(true) @map("is_active")
   sortOrder               Int                  @default(0) @map("sort_order")
+  /// Seuil de stock faible, en unité de base (phase 17).
+  lowStockQty             Int?                 @map("low_stock_qty")
   companyId               String               @map("company_id") @db.Uuid
   productId               String               @map("product_id") @db.Uuid
   deletedAt               DateTime?            @map("deleted_at") @db.Timestamptz(3)

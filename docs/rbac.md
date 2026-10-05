@@ -156,7 +156,7 @@ Chacun lit et marque comme lues ses propres notifications sans permission partic
 
 ## 5. Matrice rôles × permissions
 
-✓ : accordée · ✓ᵖ : accordée sur son périmètre (§6) · ⚙ : selon un paramètre (§7) · — : refusée
+✓ : accordée · ✓ᵖ : accordée sur son périmètre (§6) · ⚙ : selon un paramètre (§7) · — : refusée · ✓ʷ : opération du magasinier faite sur le Web, pour les entreprises sans magasinier (phase 17)
 
 | Permission | Admin | Superviseur | Comptable | Pré-vendeur | Cash van | Livreur | Magasinier |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -193,10 +193,10 @@ Chacun lit et marque comme lues ses propres notifications sans permission partic
 | `pending_lines.process` | ✓ | ✓ | — | — | — | — | — |
 | `sales.own`, `lost_demands.own` | — | — | — | — | ✓ | — | — |
 | `stock.read` | ✓ | ✓ | — | — | ✓ᵖ | ✓ᵖ | ✓ |
-| `stock.receive`, `inventory.count` | — | — | — | — | — | — | ✓ |
+| `stock.receive`, `inventory.count` | ✓ʷ | ✓ʷ | — | — | — | — | ✓ |
 | `loads.read` | ✓ | ✓ | ✓ | — | ✓ᵖ | ✓ᵖ | ✓ |
 | `loads.plan` | ✓ | ✓ | — | — | — | — | — |
-| `loads.load`, `unloads.validate` | — | — | — | — | — | — | ✓ |
+| `loads.load`, `unloads.validate` | ✓ʷ | ✓ʷ | — | — | — | — | ✓ |
 | `loads.receive` | — | — | — | — | ✓ | ✓ | — |
 | `preparation.launch` | ✓ | ✓ | — | — | — | — | — |
 | `preparation.do` | — | — | — | — | — | — | ✓ |

@@ -27,6 +27,8 @@ export const DEFAULT_REASONS: { kind: ReasonKind; label: string; systemCode?: Re
     { kind: 'DELIVERY_FAILURE', label: 'Autre', systemCode: 'OTHER' },
     { kind: 'ADJUSTMENT', label: 'Casse' },
     { kind: 'ADJUSTMENT', label: 'Erreur de comptage' },
+    { kind: 'ADJUSTMENT', label: 'Retour client' },
+    { kind: 'ADJUSTMENT', label: 'Marchandise manquante' },
     { kind: 'ADJUSTMENT', label: 'Autre', systemCode: 'OTHER' },
     { kind: 'FORCED_CLOSE', label: 'Téléphone perdu' },
     { kind: 'FORCED_CLOSE', label: 'Téléphone en panne' },
