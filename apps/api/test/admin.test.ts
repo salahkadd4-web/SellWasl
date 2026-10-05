@@ -55,7 +55,8 @@ describe('administration de la plateforme et de l’entreprise', () => {
     admin = (await login(t, 'TEST-MIXTE', 'ali@test.dz', PASSWORD)).body.accessToken;
 
     const reasons = await call<unknown[]>(t.url, 'GET', '/reasons', { token: admin });
-    expect(reasons.body.length).toBe(18);
+    // Motifs par défaut, dont « Retour client » et « Marchandise manquante » (phase 17)
+    expect(reasons.body.length).toBe(20);
   });
 
   it('refuse un code d’entreprise déjà utilisé', async () => {

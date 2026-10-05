@@ -106,6 +106,12 @@ describe('stock (phase 17)', () => {
       where: { company: { code: 'DISTRI-ORAN' }, orderDate: new Date(`${DAY}T00:00:00Z`) },
       data: { status: 'CANCELLED' },
     });
+    // Journées des pré-vendeurs clôturées : une journée en cours bloque les autres suites
+    // (nouvelle journée, position des appareils, changement de mode)
+    await raw.workday.updateMany({
+      where: { company: { code: 'DISTRI-ORAN' }, date: new Date(`${DAY}T00:00:00Z`) },
+      data: { status: 'CLOSED', closedAt: new Date() },
+    });
     await raw.warehouse.updateMany({
       where: { id: { in: testWarehouses } },
       data: { isActive: false, deletedAt: new Date() },

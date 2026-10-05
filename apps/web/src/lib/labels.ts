@@ -95,3 +95,23 @@ export function todayDate(): string {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 }
+
+export const MOVEMENT_TYPE: Record<string, string> = {
+  IN: 'Entrée',
+  OUT: 'Sortie',
+  TRANSFER: 'Transfert',
+  RESERVATION: 'Réservation',
+  RELEASE: 'Libération',
+  ADJUSTMENT: 'Ajustement',
+};
+
+export const LOAD_KIND: Record<string, string> = {
+  ROUTE: 'Tournée',
+  CASH_VAN: 'Cash van',
+  RELOAD: 'Rechargement',
+};
+
+/** Article affiché : produit, puis parfum s'il y en a un. */
+export function articleLabel(a: { productName: string; variantName: string | null }): string {
+  return a.variantName ? `${a.productName} ${a.variantName}` : a.productName;
+}
