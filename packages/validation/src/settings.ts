@@ -29,6 +29,22 @@ export const companySettingsSchema = z.object({
   objectiveCapPercent: z.number().int().min(100).max(500).nullable().default(120),
   /** Versement des primes : 0 = fin du mois de l'objectif, 1 = fin du mois suivant. */
   objectivePaymentDelayMonths: z.union([z.literal(0), z.literal(1)]).default(0),
+  /** Objectif du livreur : paliers du taux de retour et critères notés (phase 19). */
+  driverObjectives: z
+    .object({
+      returnWeight: z.number().int(),
+      returnTiers: z.array(z.object({ maxRate: z.number(), score: z.number().int() })),
+      criteria: z.array(z.object({ id: z.string(), name: z.string(), weight: z.number().int() })),
+    })
+    .default({
+      returnWeight: 100,
+      returnTiers: [
+        { maxRate: 5, score: 100 },
+        { maxRate: 8, score: 70 },
+        { maxRate: 12, score: 40 },
+      ],
+      criteria: [],
+    }),
   receiptHeader: z
     .object({
       name: z.string().max(60).default(''),

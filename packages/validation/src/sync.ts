@@ -19,6 +19,9 @@ export const OPERATION_TYPES = [
   'order.confirm',
   'order.update',
   'order.cancel',
+  'load.receive',
+  'delivery.confirm',
+  'delivery.fail',
 ] as const;
 export type OperationType = (typeof OPERATION_TYPES)[number];
 
