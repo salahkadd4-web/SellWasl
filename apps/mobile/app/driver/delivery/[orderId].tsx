@@ -214,6 +214,9 @@ export default function DeliveryScreen() {
       {open && !working ? <Message tone="info">Démarrez la journée pour livrer.</Message> : null}
 
       <Card title="Quantités livrées">
+        {open && working ? (
+          <Text style={styles.muted}>Mettez 0 pour retirer un produit de la commande.</Text>
+        ) : null}
         {delivery.lines.map((l) => (
           <View key={l.lineId} style={styles.row}>
             <View style={styles.rowText}>

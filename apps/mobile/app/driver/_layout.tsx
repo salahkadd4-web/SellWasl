@@ -14,6 +14,7 @@ export default function DriverLayout() {
       <Stack.Screen name="index" options={{ title: 'SellWasl' }} />
       <Stack.Screen name="receive" options={{ title: 'Réception du chargement' }} />
       <Stack.Screen name="route" options={{ title: 'Ma tournée' }} />
+      <Stack.Screen name="truck" options={{ title: 'Stock du camion' }} />
       <Stack.Screen name="delivery/[orderId]" options={{ title: 'Livraison' }} />
       <Stack.Screen name="objectives" options={{ title: 'Objectifs' }} />
       <Stack.Screen name="profile" options={{ title: 'Profil' }} />

@@ -144,6 +144,11 @@ export default function DriverDashboard() {
             </Text>
             <Text style={styles.value}>Encaissé : {formatDA(progress?.collected ?? 0)}</Text>
             <PrimaryButton title="Ma tournée" onPress={() => router.push('/driver/route')} />
+            <PrimaryButton
+              title="Stock du camion"
+              variant="secondary"
+              onPress={() => router.push('/driver/truck')}
+            />
           </>
         ) : (
           <Text style={styles.muted}>Aucune tournée aujourd'hui.</Text>
