@@ -1,4 +1,4 @@
-import type { ProductDto, TruckCheckLine, TruckStockDto } from '@sellwasl/validation';
+import type { LoadDto, ProductDto, TruckCheckLine, TruckStockDto } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -109,6 +109,78 @@ describe('cash van (phase 20)', () => {
         lines: lines.slice(1).map((l) => ({ variantId: l.variantId, countedQty: l.inTruck })),
       });
       expect(partial.status).toBe('REJECTED');
+    });
+  });
+
+  describe('chargement cash van préparé puis validé (UC-62, BR-CV-01)', () => {
+    let truck2: string;
+    let loadId: string;
+    beforeAll(async () => {
+      truck2 = (
+        await raw.warehouse.findFirstOrThrow({
+          where: { company: { code: 'CASHVAN-EST' }, code: 'TRUCK-02' },
+        })
+      ).id;
+    });
+
+    it('le superviseur prépare le chargement, sans bouger le stock', async () => {
+      const bimo = item('BIMO-CHOC');
+      const planned = await call<LoadDto>(t.url, 'POST', '/loads/plan', {
+        token: supB,
+        body: {
+          truckId: truck2,
+          date: DAY,
+          lines: [{ variantId: bimo.variantId, unitId: bimo.unitId, qty: 2 }],
+        },
+      });
+      expect(planned.status, JSON.stringify(planned.body)).toBe(201);
+      expect(planned.body).toMatchObject({ status: 'PLANNED', kind: 'CASH_VAN' });
+      loadId = planned.body.id;
+      expect(await raw.stockMovement.count({ where: { sourceId: loadId } })).toBe(0);
+      const list = await call<LoadDto[]>(t.url, 'GET', '/loads/planned', { token: supB });
+      expect(list.body.map((l) => l.id)).toContain(loadId);
+      const seller = await phones.get('C02', 'CASHVAN-EST');
+      expect(
+        (
+          await call(t.url, 'POST', '/loads/plan', {
+            token: seller.token,
+            body: { truckId: truck2, date: DAY, lines: [] },
+          })
+        ).status,
+      ).toBe(403);
+    });
+
+    it('le magasinier valide les quantités réellement chargées : transfert vers le camion', async () => {
+      const bimo = item('BIMO-CHOC');
+      const before =
+        (
+          await raw.stock.findFirst({
+            where: { warehouseId: truck2, productVariantId: bimo.variantId },
+          })
+        )?.physicalQty ?? 0;
+      // Un seul carton chargé sur les deux prévus
+      const validated = await call<LoadDto>(t.url, 'POST', `/loads/${loadId}/validate`, {
+        token: supB,
+        body: { lines: [{ variantId: bimo.variantId, loadedQty: bimo.baseQty }] },
+      });
+      expect(validated.status, JSON.stringify(validated.body)).toBe(200);
+      expect(validated.body).toMatchObject({ status: 'LOADED' });
+      const after = await raw.stock.findFirstOrThrow({
+        where: { warehouseId: truck2, productVariantId: bimo.variantId },
+      });
+      expect(after.physicalQty).toBe(before + bimo.baseQty);
+      expect(
+        (
+          await call(t.url, 'POST', `/loads/${loadId}/validate`, {
+            token: supB,
+            body: { lines: [{ variantId: bimo.variantId, loadedQty: 1 }] },
+          })
+        ).status,
+      ).toBe(409);
+      const last = await call<LoadDto>(t.url, 'GET', `/loads/last?truckId=${truck2}`, {
+        token: supB,
+      });
+      expect(last.body.id).toBe(loadId);
     });
   });
 });
