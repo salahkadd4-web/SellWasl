@@ -1005,6 +1005,8 @@ Après le MVP : IN_TRANSIT   ARRIVED   CANCELLED
 - [ ] Marchandise non livrée rendue au dépôt au déchargement (BR-LIV-05)
 - [ ] Preuves : GPS et heure ; signature et photo *(après le MVP)*
 - [ ] Encaissement (`Payment`) : espèces, ou crédit dans la limite du plafond (BR-PAY-03)
+- [ ] Vente des produits refusés : le livreur ajoute la marchandise refusée aux commandes d'autres clients de sa tournée, pour vendre plus et ramener moins de retours (règles à définir : prix et paliers, quota, plafond de crédit, clients concernés)
+- [ ] Objectif du livreur : taux de retour (quantité retournée au déchargement ÷ quantité chargée, par jour et par mois) et critères notés par le superviseur (nettoyage du camion, etc.), avec une prime
 
 ---
 
