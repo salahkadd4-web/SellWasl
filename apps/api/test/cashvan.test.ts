@@ -1,8 +1,11 @@
 import type {
   DaySummaryDto,
+  DebtorDto,
   LoadDto,
+  PaymentRowDto,
   ProductDto,
   ReceiptPrintDto,
+  SettlementRowDto,
   TruckCheckLine,
   TruckStockDto,
   VisitCatalog,
@@ -375,6 +378,84 @@ describe('cash van (phase 20)', () => {
       expect(summary.body.receipts).toBeGreaterThanOrEqual(1);
       expect(summary.body.expected).toBe(summary.body.cashSales + summary.body.cashDebts);
       expect(summary.body.expected).toBeGreaterThan(0);
+    });
+  });
+
+  describe('versements et comptabilité (UC-70, UC-71, BR-PAY-08)', () => {
+    let accountant: string;
+    let expected: number;
+
+    beforeAll(async () => {
+      accountant = await webLogin(t.url, 'CASHVAN-EST', 'B-CPT');
+    });
+
+    it('refuse un versement tant que la journée est en cours', async () => {
+      const refused = await call(t.url, 'POST', '/settlements', {
+        token: accountant,
+        body: { workdayId, remittedAmount: 0 },
+      });
+      expect(refused.status).toBe(422);
+    });
+
+    it('récapitulatif sur le Web, puis versement avec écart, une seule fois', async () => {
+      // La visite de la demande perdue est restée ouverte : on la termine avant la clôture
+      await raw.visit.updateMany({
+        where: { workdayId, status: 'IN_PROGRESS' },
+        data: { status: 'COMPLETED', endedAt: new Date() },
+      });
+      await phones.closeDay(seller, workdayId);
+      const summary = await call<DaySummaryDto>(t.url, 'GET', `/workdays/${workdayId}/summary`, {
+        token: supB,
+      });
+      expect(summary.status).toBe(200);
+      expected = summary.body.expected;
+      const rows = await call<SettlementRowDto[]>(t.url, 'GET', `/settlements?date=${DAY}`, {
+        token: accountant,
+      });
+      expect(rows.body.find((r) => r.workdayId === workdayId)).toMatchObject({
+        expected,
+        remitted: null,
+        gap: null,
+      });
+      const settled = await call<SettlementRowDto>(t.url, 'POST', '/settlements', {
+        token: accountant,
+        body: { workdayId, remittedAmount: expected - 500 },
+      });
+      expect(settled.status, JSON.stringify(settled.body)).toBe(201);
+      expect(settled.body).toMatchObject({ expected, remitted: expected - 500, gap: -500 });
+      const again = await call(t.url, 'POST', '/settlements', {
+        token: accountant,
+        body: { workdayId, remittedAmount: expected },
+      });
+      expect(again.status).toBe(409);
+      expect(
+        (
+          await call(t.url, 'POST', '/settlements', {
+            token: seller.token,
+            body: { workdayId, remittedAmount: 1 },
+          })
+        ).status,
+      ).toBe(403);
+    });
+
+    it('dettes des clients, paiements et export CSV', async () => {
+      const debtors = await call<DebtorDto[]>(t.url, 'GET', '/debtors', { token: accountant });
+      expect(debtors.status).toBe(200);
+      expect(debtors.body.every((d) => d.debtAmount > 0)).toBe(true);
+      const payments = await call<PaymentRowDto[]>(
+        t.url,
+        'GET',
+        `/payments?from=${DAY}&to=${DAY}`,
+        { token: accountant },
+      );
+      const sale = payments.body.find((p) => p.kind === 'DELIVERY_PAYMENT')!;
+      expect(sale).toBeTruthy();
+      const csv = await fetch(`${t.url}/payments/export?from=${DAY}&to=${DAY}`, {
+        headers: { Authorization: `Bearer ${accountant}` },
+      });
+      expect(csv.status).toBe(200);
+      expect(csv.headers.get('content-type')).toContain('text/csv');
+      expect(await csv.text()).toContain(sale.number);
     });
   });
 });
