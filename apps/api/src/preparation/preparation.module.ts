@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CatalogModule } from '../catalog/catalog.module';
 import { StockModule } from '../stock/stock.module';
 import { PreparationController } from './preparation.controller';
+import { OrderRepricer } from './order-repricer.service';
 import { PreparationService } from './preparation.service';
 import { RouteLoadService } from './route-load.service';
 import { RoutesService } from './routes.service';
@@ -10,6 +11,7 @@ import { RoutesService } from './routes.service';
 @Module({
   imports: [StockModule, CatalogModule],
   controllers: [PreparationController],
-  providers: [RoutesService, PreparationService, RouteLoadService],
+  providers: [RoutesService, PreparationService, RouteLoadService, OrderRepricer],
+  exports: [OrderRepricer, RoutesService],
 })
 export class PreparationModule {}

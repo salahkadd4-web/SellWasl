@@ -19,6 +19,16 @@ import { dateOnly, frDate, invalidState, rule, toDate } from './field-errors';
 
 /** Au-delà d'une heure d'écart entre le téléphone et le serveur, l'horloge est signalée (BR-JOU-11). */
 const CLOCK_SKEW_MS = 60 * 60 * 1000;
+/** Rôles qui ont des clients planifiés (BR-PLA). */
+const SELLER_ROLES = ['PRE_VENDEUR', 'VENDEUR_CASH_VAN'];
+
+/** Effet ajouté à la clôture d'une journée par un autre module (livraison : BR-LIV-04). */
+export type CloseHook = (
+  tx: Prisma.TransactionClient,
+  workday: { id: string; companyId: string; userId: string; date: Date },
+  at: Date,
+  by: { byUserId: string; deviceId: string | null },
+) => Promise<void>;
 
 export function toTodayVisit(v: Visit): TodayVisit {
   return {
@@ -82,11 +92,14 @@ export class WorkdayService implements OnModuleInit {
     occurredAt: Date,
   ) {
     const { workdayId, date } = payload;
-    const [day, settings] = await Promise.all([
-      this.planning.day(actor.userId, date),
+    // Le livreur n'a pas de clients planifiés : seul le calendrier compte
+    const [status, settings] = await Promise.all([
+      SELLER_ROLES.includes(actor.roleCode)
+        ? this.planning.day(actor.userId, date).then((d) => d.status)
+        : this.planning.calendarDay(date),
       this.settings(),
     ]);
-    if (day.status !== 'WORKING' && !settings.data.rules.P01_workOnNonWorkingDays)
+    if (status !== 'WORKING' && !settings.data.rules.P01_workOnNonWorkingDays)
       throw rule("L'entreprise n'autorise pas le travail les jours non travaillés ou fériés.", {
         rule: 'BR-JOU-03',
       });
@@ -189,14 +202,21 @@ export class WorkdayService implements OnModuleInit {
     by: { byUserId: string; deviceId: string | null },
     extra: Prisma.WorkdayUpdateInput = {},
   ): Promise<number> {
-    const day = await this.planning.day(workday.userId, dateOnly(workday.date));
+    const user = await tx.user.findFirstOrThrow({
+      where: { id: workday.userId },
+      include: { role: true },
+    });
+    // Seul un vendeur a des clients du jour à marquer manqués
+    const day = SELLER_ROLES.includes(user.role.code)
+      ? await this.planning.day(workday.userId, dateOnly(workday.date))
+      : null;
     // Un client visité, ou déjà marqué manqué (clôture après une réouverture), n'est pas recompté
     const known = await tx.visit.findMany({
       where: { workdayId: workday.id, status: { in: ['COMPLETED', 'MISSED'] }, deletedAt: null },
       select: { customerId: true },
     });
     const missed = missedCustomers(
-      day.customers.map((c) => ({ customerId: c.id, reason: c.reason })),
+      (day?.customers ?? []).map((c) => ({ customerId: c.id, reason: c.reason })),
       known.map((v) => v.customerId),
     );
     if (missed.length > 0)
@@ -220,11 +240,19 @@ export class WorkdayService implements OnModuleInit {
       where: { workdayId: workday.id, status: 'CONFIRMED', deletedAt: null },
       data: { status: 'LOCKED', lockedAt: at },
     });
+    for (const hook of this.closeHooks) await hook(tx, workday, at, by);
     await tx.workday.update({
       where: { id: workday.id },
       data: { status: 'CLOSED', closedAt: at, version: { increment: 1 }, ...extra },
     });
     return missed.length;
+  }
+
+  private readonly closeHooks: CloseHook[] = [];
+
+  /** Ajoute un effet à chaque clôture, normale ou d'office. */
+  onClose(hook: CloseHook): void {
+    this.closeHooks.push(hook);
   }
 
   /** Journée du vendeur connecté à la date du téléphone (UC-02, UC-10). */

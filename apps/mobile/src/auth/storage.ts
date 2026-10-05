@@ -16,6 +16,8 @@ const KEYS = {
   receiptSeq: 'sellwasl.receiptSeq',
   /** Dernière séquence des commandes de cet appareil (BR-CMD-07). */
   orderSeq: 'sellwasl.orderSeq',
+  /** Dernière séquence des bons de livraison de cet appareil (BR-IMP-04). */
+  deliverySeq: 'sellwasl.deliverySeq',
 } as const;
 
 /** Ce que l'écran de connexion affiche sans réseau : à qui appartient ce téléphone. */
@@ -43,10 +45,10 @@ export const secureStorage = {
   },
   setRefreshToken: (token: string) => SecureStore.setItemAsync(KEYS.refreshToken, token),
   clearRefreshToken: () => SecureStore.deleteItemAsync(KEYS.refreshToken),
-  async getNumber(key: 'deviceSeq' | 'receiptSeq' | 'orderSeq'): Promise<number> {
+  async getNumber(key: 'deviceSeq' | 'receiptSeq' | 'orderSeq' | 'deliverySeq'): Promise<number> {
     return Number((await SecureStore.getItemAsync(KEYS[key])) ?? '0') || 0;
   },
-  setNumber: (key: 'deviceSeq' | 'receiptSeq' | 'orderSeq', value: number) =>
+  setNumber: (key: 'deviceSeq' | 'receiptSeq' | 'orderSeq' | 'deliverySeq', value: number) =>
     SecureStore.setItemAsync(KEYS[key], String(value)),
   getPendingOp: () => SecureStore.getItemAsync(KEYS.pendingOp),
   setPendingOp: (value: string | null) =>

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { FieldModule } from '../field/field.module';
 import { PlanningModule } from '../planning/planning.module';
 import { StockModule } from '../stock/stock.module';
+import { DriverObjectivesService } from './driver-objectives.service';
 import { ObjectivesAdminService } from './objectives-admin.service';
 import { PendingLinesService } from './pending-lines.service';
 import { QuotasService } from './quotas.service';
@@ -12,6 +13,12 @@ import { SupervisionController } from './supervision.controller';
 @Module({
   imports: [FieldModule, PlanningModule, StockModule],
   controllers: [SupervisionController],
-  providers: [QuotasService, ObjectivesAdminService, PendingLinesService, WorkdaysAdminService],
+  providers: [
+    QuotasService,
+    ObjectivesAdminService,
+    PendingLinesService,
+    WorkdaysAdminService,
+    DriverObjectivesService,
+  ],
 })
 export class SupervisionModule {}

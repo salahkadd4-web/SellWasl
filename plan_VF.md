@@ -992,21 +992,21 @@ Après le MVP : IN_TRANSIT   ARRIVED   CANCELLED
 
 ## Tournées
 
-- [ ] Tournée = commandes figées des secteurs du livreur, pour une date de livraison (BR-PRE-01)
-- [ ] Affecter un livreur à des secteurs
-- [ ] Liste triée par distance, carte, itinéraire Google Maps (BR-LIV-01)
+- [x] Tournée = commandes figées des secteurs du livreur, pour une date de livraison (BR-PRE-01)
+- [x] Affecter un livreur à des secteurs
+- [x] Liste triée par distance, carte, itinéraire Google Maps (BR-LIV-01)
 - [ ] Ordre de passage optimisé *(après le MVP)*
 
 ## Tâches
 
-- [ ] Mise à jour de la commande selon la livraison : livrée, partielle (avec recalcul), échec (BR-LIV-02)
-- [ ] Livraisons non traitées en échec à la clôture (BR-LIV-04)
-- [ ] Reprogrammation d'une livraison échouée au jour ouvré suivant, selon P-05 (BR-LIV-06)
-- [ ] Marchandise non livrée rendue au dépôt au déchargement (BR-LIV-05)
-- [ ] Preuves : GPS et heure ; signature et photo *(après le MVP)*
-- [ ] Encaissement (`Payment`) : espèces, ou crédit dans la limite du plafond (BR-PAY-03)
-- [ ] Vente des produits refusés : le livreur ajoute la marchandise refusée (retour d'un client) aux commandes existantes d'autres clients de sa tournée, sans créer de client, pour vendre plus et ramener moins de retours (règles à définir : prix et paliers, quota, plafond de crédit)
-- [ ] Objectif du livreur : taux de retour (quantité retournée au déchargement ÷ quantité chargée, par jour et par mois) et critères notés par le superviseur (nettoyage du camion, etc.), avec une prime
+- [x] Mise à jour de la commande selon la livraison : livrée, partielle (avec recalcul), échec (BR-LIV-02)
+- [x] Livraisons non traitées en échec à la clôture (BR-LIV-04)
+- [x] Reprogrammation d'une livraison échouée au jour ouvré suivant, selon P-05 (BR-LIV-06)
+- [x] Marchandise non livrée rendue au dépôt au déchargement (BR-LIV-05)
+- [x] Preuves : GPS et heure ; signature et photo *(après le MVP)*
+- [x] Encaissement (`Payment`) : espèces, ou crédit dans la limite du plafond (BR-PAY-03)
+- [x] Vente des produits refusés : le livreur ajoute la marchandise refusée (retour d'un client) aux commandes existantes d'autres clients de sa tournée, sans créer de client : prix et paliers du type du client, pas de quota, plafond de crédit respecté
+- [x] Objectif du livreur : paliers du taux de retour (quantité retournée au déchargement ÷ quantité chargée, sur le mois) et critères notés sur 10 et pondérés (propreté du camion, etc.), réglés par l'admin ou le superviseur, avec une prime
 
 ---
 

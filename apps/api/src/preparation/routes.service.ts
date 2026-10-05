@@ -7,6 +7,7 @@ import { uuidv7 } from '../common/uuid';
 import { dateOnly, invalidState, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { fullName, warehouseRef } from '../stock/stock-helpers';
+import { routeProgress } from './route-progress';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 
 type Tx = Prisma.TransactionClient;
@@ -50,7 +51,7 @@ export class RoutesService {
           o.customer.territory ? [[o.customer.territory.id, o.customer.territory] as const] : [],
         ),
       );
-      return {
+      const candidate: RouteCandidateDto = {
         routeId: r.id,
         status: r.status,
         deliveryDate: dateOnly(r.deliveryDate),
@@ -70,8 +71,10 @@ export class RoutesService {
           0,
         ),
         blockers: [],
-      } satisfies RouteCandidateDto;
+      };
+      return { ...candidate, routeId: r.id };
     });
+    for (const r of launched) r.progress = await routeProgress(tx, r.routeId);
     return [...drafts, ...launched];
   }
 

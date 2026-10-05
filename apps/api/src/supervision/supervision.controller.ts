@@ -11,6 +11,11 @@ import {
 } from '@nestjs/common';
 import {
   decidePendingSchema,
+  type DriverObjectiveDto,
+  type DriverObjectivesSettings,
+  driverObjectivesQuerySchema,
+  driverObjectivesSettingsSchema,
+  putDriverObjectivesSchema,
   type OrderDto,
   ordersQuerySchema,
   type PendingLineDto,
@@ -34,6 +39,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { toDate } from '../field/field-errors';
 import { ObjectivesService } from '../field/objectives.service';
 import { OrderService } from '../field/order.service';
+import { DriverObjectivesService } from './driver-objectives.service';
 import { ObjectivesAdminService } from './objectives-admin.service';
 import { PendingLinesService } from './pending-lines.service';
 import { QuotasService } from './quotas.service';
@@ -55,6 +61,7 @@ export class SupervisionController {
     private readonly orders: OrderService,
     private readonly workdays: WorkdaysAdminService,
     private readonly objectivesCalc: ObjectivesService,
+    private readonly driverObjectives: DriverObjectivesService,
   ) {}
 
   @RequirePermission('objectives.read')
@@ -196,5 +203,47 @@ export class SupervisionController {
     @Body(new ZodValidationPipe(putObjectivesSchema)) body: Out<typeof putObjectivesSchema>,
   ): Promise<ObjectiveDto[]> {
     return this.objectives.put(actor, body);
+  }
+
+  @RequirePermission('objectives.read')
+  @Get('driver-objectives/settings')
+  driverObjectivesSettings(): Promise<DriverObjectivesSettings> {
+    return this.driverObjectives.settings();
+  }
+
+  @RequirePermission('objectives.update')
+  @Put('driver-objectives/settings')
+  putDriverObjectivesSettings(
+    @CurrentUser() actor: AuthUser,
+    @Body(new ZodValidationPipe(driverObjectivesSettingsSchema))
+    body: Out<typeof driverObjectivesSettingsSchema>,
+  ): Promise<DriverObjectivesSettings> {
+    return this.driverObjectives.setSettings(actor, body);
+  }
+
+  @RequirePermission('objectives.read')
+  @Get('driver-objectives')
+  listDriverObjectives(
+    @Query(new ZodValidationPipe(driverObjectivesQuerySchema))
+    query: Out<typeof driverObjectivesQuerySchema>,
+  ): Promise<DriverObjectiveDto[]> {
+    return this.driverObjectives.list(query.month);
+  }
+
+  @RequirePermission('objectives.update')
+  @Put('driver-objectives')
+  putDriverObjectives(
+    @CurrentUser() actor: AuthUser,
+    @Body(new ZodValidationPipe(putDriverObjectivesSchema))
+    body: Out<typeof putDriverObjectivesSchema>,
+  ): Promise<DriverObjectiveDto[]> {
+    return this.driverObjectives.put(actor, body);
+  }
+
+  /** Objectif du livreur sur son téléphone. */
+  @RequirePermission('deliveries.own')
+  @Get('me/driver-objectives')
+  myDriverObjectives(@CurrentUser() actor: AuthUser): Promise<DriverObjectiveDto[]> {
+    return this.driverObjectives.mine(actor);
   }
 }

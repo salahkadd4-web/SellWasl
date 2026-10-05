@@ -263,6 +263,17 @@ Phase 18 (réalisé) — tournées et préparation :
 | `POST` | `/routes/{id}/prepare` | `preparation.do` — `{ lines: [{ lineId, preparedQty }] }` dans l'unité de la ligne ; rupture : paliers et bonus recalculés (P-04), réservation ajustée ; commandes et tournée `READY` |
 | `POST` | `/routes/{id}/load` | `loads.load` — réservation consommée, transfert dépôt → camion du livreur, tournée `LOADED` (UC-42) |
 
+Phase 19 (réalisé) — livraison et objectifs du livreur. Opérations du téléphone (`POST /sync/push`) : `load.receive` (`loads.receive`), `delivery.confirm` et `delivery.fail` (`deliveries.own`) ; à la clôture du livreur, les livraisons non faites échouent « non livrée » et ses tournées se terminent.
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET` | `/me/route` | `deliveries.own` — journée, chargement à recevoir, tournée du jour, livraisons (client, dette, lignes), avancement |
+| `GET` | `/me/truck-stock` | `deliveries.own` — stock du camion, pour les ventes ajoutées |
+| `POST` | `/me/deliveries/preview` | `deliveries.own` — `{ orderId, lines, added }` : lignes chiffrées, bonus, dû, minimum à encaisser (BR-PAY-03) |
+| `GET` | `/me/driver-objectives` | `deliveries.own` — objectif du mois (et du mois précédent si versement décalé) |
+| `GET`, `PUT` | `/driver-objectives/settings` | `objectives.read`, `objectives.update` — `{ returnWeight, returnTiers: [{ maxRate, score }], criteria: [{ id, name, weight }] }`, poids de somme 100 |
+| `GET`, `PUT` | `/driver-objectives?month=` / `/driver-objectives` | `objectives.read`, `objectives.update` — prime et notes (0 à 10) par livreur ; taux de retour, score, prime due |
+
 ### 5.7 Argent
 
 | Méthode | Chemin | Permission |

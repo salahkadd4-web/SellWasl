@@ -3,6 +3,7 @@ import {
   addDaysTo,
   dayList,
   dayStatus,
+  weekdayOf,
   localDate,
   type PlannedCustomer,
   type PlanningCalendar,
@@ -48,6 +49,16 @@ export class PlanningService {
       workingDays: companySettingsSchema.parse(settings?.data ?? {}).workingDays as WeekdayCode[],
       holidays: holidays.map((h) => ({ date: dateOnly(h.date), label: h.label })),
     };
+  }
+
+  /**
+   * Statut d'un jour d'après le calendrier de l'entreprise seulement : pour les utilisateurs du
+   * terrain qui n'ont pas de clients planifiés (livreur, magasinier).
+   */
+  async calendarDay(date: string): Promise<'WORKING' | 'NON_WORKING' | 'HOLIDAY'> {
+    const company = await this.companyCalendar();
+    if (company.holidays.some((h) => h.date === date)) return 'HOLIDAY';
+    return company.workingDays.includes(weekdayOf(date)) ? 'WORKING' : 'NON_WORKING';
   }
 
   /** Secteur du vendeur, ses parties, son planning et ses clients. */

@@ -1,5 +1,6 @@
 // Préparation des tournées (phase 18) : lancement, préparation, chargement
 import { z } from 'zod';
+import type { RouteProgress } from './delivery';
 import type { WarehouseRef } from './stock';
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format AAAA-MM-JJ');
@@ -49,6 +50,8 @@ export interface RouteCandidateDto {
   /** Lignes dont la réservation ne couvre pas la quantité commandée. */
   stockouts: number;
   blockers: LaunchBlockerCode[];
+  /** Avancement d'une tournée lancée (phase 19). */
+  progress?: RouteProgress;
 }
 
 export interface RouteSummaryDto {

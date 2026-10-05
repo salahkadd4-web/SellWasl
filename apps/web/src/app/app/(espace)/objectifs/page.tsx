@@ -2,6 +2,7 @@
 
 import type { ObjectiveDto, ProductRangeDto, TerritoryDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
+import { ObjectivesTabs } from '@/components/objectives-tabs';
 import { Alert, Button, Card, Field, PageTitle, Select, Toggle } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
@@ -196,6 +197,7 @@ export default function ObjectivesPage() {
           )
         }
       />
+      <ObjectivesTabs />
       {error && <Alert>{error}</Alert>}
       {saved && (
         <p className="rounded-xl border border-synced/30 bg-synced/10 p-3 text-sm text-synced">
