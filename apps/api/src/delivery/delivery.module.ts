@@ -4,6 +4,7 @@ import { PreparationModule } from '../preparation/preparation.module';
 import { StockModule } from '../stock/stock.module';
 import { SyncModule } from '../sync/sync.module';
 import { DeliveryController } from './delivery.controller';
+import { DeliveryService } from './delivery.service';
 import { DriverRouteService } from './driver-route.service';
 import { LoadReceiveService } from './load-receive.service';
 
@@ -11,6 +12,6 @@ import { LoadReceiveService } from './load-receive.service';
 @Module({
   imports: [FieldModule, StockModule, SyncModule, PreparationModule],
   controllers: [DeliveryController],
-  providers: [DriverRouteService, LoadReceiveService],
+  providers: [DriverRouteService, LoadReceiveService, DeliveryService],
 })
 export class DeliveryModule {}

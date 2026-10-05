@@ -192,4 +192,142 @@ describe('livraison (phase 19)', () => {
       expect(view.deliveries).toHaveLength(5);
     });
   });
+
+  describe('livraison (UC-32, BR-LIV-02, BR-PAY-03)', () => {
+    const deliveryOf = async (key: string) =>
+      (await myRoute()).deliveries.find((d) => d.orderId === orders[key]!.id)!;
+    /** Lignes normales avec leur quantité livrée (par défaut, tout le préparé). */
+    const normalLines = (
+      d: Awaited<ReturnType<typeof deliveryOf>>,
+      qty: Record<string, number> = {},
+    ) =>
+      d.lines
+        .filter((l) => l.kind === 'NORMAL')
+        .map((l) => ({ lineId: l.lineId, qty: qty[l.variantId] ?? l.preparedQty }));
+    const truckMoves = (deliveryId: string) =>
+      raw.stockMovement.findMany({
+        where: { type: 'OUT', sourceType: 'DELIVERY', sourceId: deliveryId },
+      });
+
+    it('refuse un encaissement sous le dû sans crédit ; livraison partielle : palier perdu, bonus réduit', async () => {
+      const a = await deliveryOf('A');
+      const thon = item('THON-TOM');
+      const lines = normalLines(a, { [thon.variantId]: 8 });
+      const priced = await preview({ orderId: a.orderId, lines, added: [] });
+      expect(priced.status).toBe(200);
+      const bimoPrice = a.lines.find((l) => l.variantId === item('BIMO-CHOC').variantId)!.unitPrice;
+      // 8 cartons : sous le palier de 10, prix de base 5 800 ; 8 × 4 = 32 triplettes offertes
+      expect(priced.body.dueAmount).toBe(8 * 5800 + 2 * bimoPrice);
+      expect(priced.body.minimumCash).toBe(priced.body.dueAmount);
+      expect(priced.body.lines.find((l) => l.kind === 'BONUS')).toMatchObject({ qty: 32 });
+
+      const base = { orderId: a.orderId, lines, added: [] };
+      const short = await phones.send(driver, 'delivery.confirm', {
+        ...base,
+        deliveryId: uuidv7(),
+        number: nextNumber(),
+        cashAmount: priced.body.dueAmount - 1,
+      });
+      expect(short.status).toBe('REJECTED');
+
+      const deliveryId = uuidv7();
+      const done = await phones.send(driver, 'delivery.confirm', {
+        ...base,
+        deliveryId,
+        number: nextNumber(),
+        cashAmount: priced.body.dueAmount,
+      });
+      expect(done.status, JSON.stringify(done)).toBe('APPLIED');
+      const order = await raw.order.findUniqueOrThrow({ where: { id: a.orderId } });
+      expect(order).toMatchObject({
+        status: 'PARTIALLY_DELIVERED',
+        totalAmount: BigInt(priced.body.dueAmount),
+      });
+      expect(await raw.delivery.findUniqueOrThrow({ where: { id: deliveryId } })).toMatchObject({
+        result: 'PARTIAL',
+        deliveredAmount: BigInt(priced.body.dueAmount),
+      });
+      const payment = await raw.payment.findFirstOrThrow({ where: { deliveryId } });
+      expect(payment).toMatchObject({
+        cashAmount: BigInt(priced.body.dueAmount),
+        creditAmount: 0n,
+      });
+      const moves = await truckMoves(deliveryId);
+      expect(moves.find((m) => m.productVariantId === thon.variantId)?.qty).toBe(8 * thon.baseQty);
+      expect(moves.find((m) => m.productVariantId === item('THON-HUI').variantId)?.qty).toBe(32);
+    });
+
+    it('vend à un autre client les produits revenus dans le camion, avec crédit', async () => {
+      const b = await deliveryOf('B');
+      await raw.customer.update({
+        where: { id: orders.B!.customer.id },
+        data: { isCreditAllowed: true, creditLimitAmount: 1_000_000n },
+      });
+      const before = await raw.customer.findUniqueOrThrow({ where: { id: orders.B!.customer.id } });
+      const thon = item('THON-TOM');
+      // Deux des cartons refusés par le client A rejoignent la commande de B (5 → 7 cartons)
+      const body = {
+        orderId: b.orderId,
+        lines: normalLines(b),
+        added: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 2 }],
+      };
+      const priced = await preview(body);
+      expect(priced.status).toBe(200);
+      expect(priced.body.lines.find((l) => l.kind === 'NORMAL')).toMatchObject({ qty: 7 });
+      expect(priced.body.minimumCash).toBe(0);
+      const deliveryId = uuidv7();
+      const done = await phones.send(driver, 'delivery.confirm', {
+        ...body,
+        deliveryId,
+        number: nextNumber(),
+        cashAmount: 1000,
+      });
+      expect(done.status, JSON.stringify(done)).toBe('APPLIED');
+      const after = await raw.customer.findUniqueOrThrow({ where: { id: orders.B!.customer.id } });
+      expect(after.debtAmount).toBe(before.debtAmount + BigInt(priced.body.dueAmount - 1000));
+      expect(
+        await raw.customerDebtEntry.findFirst({
+          where: { customerId: after.id, kind: 'CREDIT_SALE' },
+          orderBy: { occurredAt: 'desc' },
+        }),
+      ).toMatchObject({ amount: BigInt(priced.body.dueAmount - 1000) });
+      const order = await raw.order.findUniqueOrThrow({ where: { id: b.orderId } });
+      expect(order.status).toBe('DELIVERED');
+      const line = await raw.orderLine.findFirstOrThrow({
+        where: { orderId: b.orderId, kind: 'NORMAL' },
+      });
+      expect(line).toMatchObject({ enteredQty: 7, deliveredQty: 7 * thon.baseQty });
+    });
+
+    it("refuse une vente ajoutée d'un article absent du camion", async () => {
+      const d = await deliveryOf('D');
+      const fraise = item('BIMO-FRA');
+      const refused = await phones.send(driver, 'delivery.confirm', {
+        orderId: d.orderId,
+        lines: normalLines(d),
+        added: [{ variantId: fraise.variantId, unitId: fraise.unitId, qty: 1 }],
+        deliveryId: uuidv7(),
+        number: nextNumber(),
+        cashAmount: 1_000_000,
+      });
+      expect(refused.status).toBe('REJECTED');
+      expect((await raw.order.findUniqueOrThrow({ where: { id: d.orderId } })).status).toBe(
+        'OUT_FOR_DELIVERY',
+      );
+    });
+
+    it("refuse une commande qui n'est pas de sa tournée et une quantité au-delà du préparé", async () => {
+      const d = await deliveryOf('D');
+      const tooMuch = await preview({
+        orderId: d.orderId,
+        lines: d.lines
+          .filter((l) => l.kind === 'NORMAL')
+          .map((l) => ({ lineId: l.lineId, qty: l.preparedQty + 1 })),
+        added: [],
+      });
+      expect(tooMuch.status).toBe(422);
+      const v07 = await phones.get('V07');
+      expect((await call(t.url, 'GET', '/me/route', { token: v07.token })).status).toBe(403);
+    });
+  });
 });
