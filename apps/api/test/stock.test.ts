@@ -1,5 +1,7 @@
 import type {
   CustomerDto,
+  InventoryDto,
+  InventoryResult,
   ProductDto,
   ReceiptDto,
   StockAlertDto,
@@ -285,6 +287,135 @@ describe('stock (phase 17)', () => {
       expect((await put(null)).status).toBe(200);
       const cleared = await call<StockAlertDto[]>(t.url, 'GET', '/stock/alerts', { token: sup });
       expect(cleared.body.map((a) => a.variantId)).not.toContain(thon.variantId);
+    });
+  });
+
+  describe('inventaire (UC-44)', () => {
+    let depotId: string;
+    const base = (ref: string) => {
+      const product = products.find((p) => p.variants.some((v) => v.reference === ref))!;
+      return {
+        variantId: product.variants.find((v) => v.reference === ref)!.id,
+        unitId: product.units.find((u) => u.isBase)!.id,
+      };
+    };
+    const stockOf = (variantId: string) =>
+      raw.stock.findFirstOrThrow({ where: { warehouseId: depotId, productVariantId: variantId } });
+    const newDraft = () =>
+      call<InventoryDto>(t.url, 'POST', '/inventories', {
+        token: sup,
+        body: { warehouseId: depotId },
+      });
+    const count = (id: string, lines: { variantId: string; unitId: string; qty: number }[]) =>
+      call<InventoryDto>(t.url, 'PUT', `/inventories/${id}/lines`, { token: sup, body: { lines } });
+    const validate = (id: string) =>
+      call<InventoryResult>(t.url, 'POST', `/inventories/${id}/validate`, { token: sup });
+    /** Remet le physique d'un article à sa valeur d'avant le test. */
+    async function restore(ref: string, physical: number) {
+      const now = (await stockOf(base(ref).variantId)).physicalQty;
+      if (now < physical)
+        await call(t.url, 'POST', '/stock/receipts', {
+          token: sup,
+          body: { warehouseId: depotId, lines: [{ ...base(ref), qty: physical - now }] },
+        });
+    }
+
+    beforeAll(async () => {
+      depotId = (
+        await raw.warehouse.findFirstOrThrow({
+          where: { company: { code: 'DISTRI-ORAN' }, type: 'DEPOT', code: 'DEPOT' },
+        })
+      ).id;
+    });
+
+    it('ajuste sur le stock du moment de la validation ; les articles non comptés ne changent pas', async () => {
+      const thon = base('THON-TOM');
+      const bimo = await stockOf(base('BIMO-CHOC').variantId);
+      const before = await stockOf(thon.variantId);
+      const draft = await newDraft();
+      expect(draft.status).toBe(201);
+      expect(draft.body.status).toBe('DRAFT');
+      expect((await newDraft()).status).toBe(422);
+
+      const counted = before.physicalQty + 5;
+      const saved = await count(draft.body.id, [{ ...thon, qty: counted }]);
+      expect(saved.body.lines).toEqual([
+        expect.objectContaining({
+          variantId: thon.variantId,
+          countedQty: counted,
+          expectedQty: before.physicalQty,
+        }),
+      ]);
+      // Une entrée arrive entre le comptage et la validation : l'attendu suit le stock réel
+      const carton = item('THON-TOM');
+      await call(t.url, 'POST', '/stock/receipts', {
+        token: sup,
+        body: {
+          warehouseId: depotId,
+          lines: [{ variantId: carton.variantId, unitId: carton.unitId, qty: 1 }],
+        },
+      });
+      const result = await validate(draft.body.id);
+      expect(result.status).toBe(200);
+      expect(result.body).toMatchObject({ adjustments: 1, releasedLines: [] });
+      expect((await stockOf(thon.variantId)).physicalQty).toBe(counted);
+      const adjustment = await raw.stockMovement.findFirstOrThrow({
+        where: { type: 'ADJUSTMENT', sourceType: 'INVENTORY', sourceId: draft.body.id },
+      });
+      expect(adjustment).toMatchObject({ qty: carton.baseQty - 5, fromWarehouseId: depotId });
+      expect((await stockOf(base('BIMO-CHOC').variantId)).physicalQty).toBe(bimo.physicalQty);
+      expect((await validate(draft.body.id)).status).toBe(422);
+      await restore('THON-TOM', before.physicalQty);
+    });
+
+    it('réduit les réservations des commandes les plus récentes quand le compté passe sous le réservé', async () => {
+      const huile = base('THON-HUI');
+      const p = await phones.get('V08');
+      await phones.startDay(p, DAY);
+      const customer = await detailCustomer(p, DAY);
+      const visitId = await phones.startVisit(p, customer.id, 'PHONE');
+      const orderId = uuidv7();
+      const number = `V08-${p.series}0902`;
+      const carton = item('THON-HUI');
+      const confirmed = await phones.send(p, 'order.confirm', {
+        orderId,
+        number,
+        visitId,
+        lines: [{ variantId: carton.variantId, unitId: carton.unitId, qty: 2 }],
+      });
+      expect(confirmed.status).toBe('APPLIED');
+      const before = await stockOf(huile.variantId);
+      expect(before.reservedQty).toBeGreaterThanOrEqual(2 * carton.baseQty);
+
+      const draft = await newDraft();
+      await count(draft.body.id, [{ ...huile, qty: before.reservedQty - 2 }]);
+      const result = await validate(draft.body.id);
+      expect(result.status).toBe(200);
+      expect(result.body.releasedLines).toEqual([
+        {
+          orderNumber: number,
+          customerName: customer.name,
+          variantId: huile.variantId,
+          released: 2,
+        },
+      ]);
+      const after = await stockOf(huile.variantId);
+      expect(after).toMatchObject({
+        physicalQty: before.reservedQty - 2,
+        reservedQty: before.reservedQty - 2,
+      });
+      const line = await raw.orderLine.findFirstOrThrow({ where: { orderId, kind: 'NORMAL' } });
+      expect(line).toMatchObject({ reservedQty: 2 * carton.baseQty - 2, isStockout: true });
+      await restore('THON-HUI', before.physicalQty);
+    });
+
+    it('supprime un brouillon', async () => {
+      const draft = await newDraft();
+      expect(
+        (await call(t.url, 'DELETE', `/inventories/${draft.body.id}`, { token: sup })).status,
+      ).toBe(204);
+      const list = await call<InventoryDto[]>(t.url, 'GET', '/inventories', { token: sup });
+      expect(list.body.map((i) => i.id)).not.toContain(draft.body.id);
     });
   });
 });
