@@ -4,6 +4,7 @@ import type { LoadDto, ProductDto, RouteSummaryDto, StockRowDto } from '@sellwas
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
 import { emptyLine, type StockLine, StockLinesEditor, toPayload } from '@/components/stock-lines';
+import { CashVanLoads } from '@/components/cash-van-loads';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
@@ -108,6 +109,7 @@ export default function LoadsPage() {
           </div>
         </Card>
       )}
+      <CashVanLoads warehouses={warehouses} products={products} onChanged={() => void load()} />
       {creating && (
         <NewLoad
           warehouses={warehouses}

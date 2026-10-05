@@ -20,6 +20,8 @@ const NAV = [
   { href: '/app/quotas', label: 'Quotas', permission: 'quotas.read' },
   { href: '/app/objectifs', label: 'Objectifs', permission: 'objectives.read' },
   { href: '/app/stock', label: 'Stock', permission: 'stock.read' },
+  { href: '/app/versements', label: 'Versements', permission: 'settlements.read' },
+  { href: '/app/paiements', label: 'Dettes et paiements', permission: 'payments.read' },
   { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
   { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },
