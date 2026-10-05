@@ -1,6 +1,8 @@
 import type {
+  DaySummaryDto,
   LoadDto,
   ProductDto,
+  ReceiptPrintDto,
   TruckCheckLine,
   TruckStockDto,
   VisitCatalog,
@@ -8,6 +10,7 @@ import type {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { StockLedger } from '../src/stock/stock-ledger.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { type Phone, Phones } from './phone';
 
@@ -47,6 +50,21 @@ describe('cash van (phase 20)', () => {
         where: { company: { code: 'CASHVAN-EST' }, code: 'TRUCK-01' },
       })
     ).id;
+    // Marchandise restée dans le camion la veille (P-06), quel que soit l'ordre des suites
+    const ledger = t.app.get(StockLedger);
+    const storekeeper = await raw.user.findFirstOrThrow({
+      where: { code: 'B-SUP', company: { code: 'CASHVAN-EST' } },
+    });
+    await raw.$transaction((tx) =>
+      ledger.apply(tx, { companyId: storekeeper.companyId, userId: storekeeper.id }, [
+        {
+          type: 'ADJUSTMENT',
+          variantId: item('BIMO-CHOC').variantId,
+          qty: 48,
+          toWarehouseId: truckId,
+        },
+      ]),
+    );
     seller = await phones.get('C01', 'CASHVAN-EST');
     workdayId = uuidv7();
     const started = await phones.send(seller, 'workday.start', { workdayId, date: DAY });
@@ -72,7 +90,7 @@ describe('cash van (phase 20)', () => {
         body: {
           truckId,
           date: DAY,
-          lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+          lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 2 }],
         },
       });
       expect(loaded.status).toBe(201);
@@ -81,7 +99,7 @@ describe('cash van (phase 20)', () => {
       ).body;
       expect(lines.length).toBeGreaterThan(1);
       expect(lines.find((l) => l.variantId === thon.variantId)).toMatchObject({
-        toReceive: thon.baseQty,
+        toReceive: 2 * thon.baseQty,
       });
       // Une triplette de thon tomate manque
       const checked = await phones.send(seller, 'truck.check', {
@@ -315,6 +333,48 @@ describe('cash van (phase 20)', () => {
       });
       expect(sale.status).toBe('REJECTED');
       expect(JSON.stringify(sale)).toContain('Pointez');
+    });
+  });
+
+  describe('bons, réimpression et récapitulatif (UC-34, UC-35, BR-IMP-03, BR-PAY-07)', () => {
+    it('liste les bons du jour avec de quoi les imprimer', async () => {
+      const receipts = await call<ReceiptPrintDto[]>(t.url, 'GET', `/me/receipts?date=${DAY}`, {
+        token: seller.token,
+      });
+      expect(receipts.status).toBe(200);
+      const sale = receipts.body.find((r) => r.kind === 'SALE')!;
+      expect(sale).toMatchObject({ reprints: 0, credit: 0 });
+      expect(sale.paid).toBe(sale.total);
+      expect(sale.lines.find((l) => !l.free)).toMatchObject({ qty: 1, unitName: 'carton' });
+    });
+
+    it('trace chaque réimpression ; un bon inconnu est refusé', async () => {
+      const [sale] = (
+        await call<ReceiptPrintDto[]>(t.url, 'GET', `/me/receipts?date=${DAY}`, {
+          token: seller.token,
+        })
+      ).body;
+      const reprint = await phones.send(seller, 'receipt.reprint', { number: sale!.number });
+      expect(reprint.status, JSON.stringify(reprint)).toBe('APPLIED');
+      const after = (
+        await call<ReceiptPrintDto[]>(t.url, 'GET', `/me/receipts?date=${DAY}`, {
+          token: seller.token,
+        })
+      ).body.find((r) => r.number === sale!.number)!;
+      expect(after.reprints).toBe(1);
+      expect((await phones.send(seller, 'receipt.reprint', { number: 'C01-Z9999' })).status).toBe(
+        'REJECTED',
+      );
+    });
+
+    it('récapitulatif de journée : montant attendu = espèces encaissées', async () => {
+      const summary = await call<DaySummaryDto>(t.url, 'GET', '/me/day-summary', {
+        token: seller.token,
+      });
+      expect(summary.status).toBe(200);
+      expect(summary.body.receipts).toBeGreaterThanOrEqual(1);
+      expect(summary.body.expected).toBe(summary.body.cashSales + summary.body.cashDebts);
+      expect(summary.body.expected).toBeGreaterThan(0);
     });
   });
 });

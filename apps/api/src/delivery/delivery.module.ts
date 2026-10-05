@@ -7,12 +7,20 @@ import { DeliveryController } from './delivery.controller';
 import { DeliveryService } from './delivery.service';
 import { DriverRouteService } from './driver-route.service';
 import { LoadReceiveService } from './load-receive.service';
+import { ReceiptsService } from './receipts.service';
 import { SaleService } from './sale.service';
 
 /** Livraison (phase 19) : réception du chargement, livraisons, échecs, lectures du livreur. */
 @Module({
   imports: [FieldModule, StockModule, SyncModule, PreparationModule],
   controllers: [DeliveryController],
-  providers: [DriverRouteService, LoadReceiveService, DeliveryService, SaleService],
+  providers: [
+    DriverRouteService,
+    LoadReceiveService,
+    DeliveryService,
+    SaleService,
+    ReceiptsService,
+  ],
+  exports: [ReceiptsService],
 })
 export class DeliveryModule {}

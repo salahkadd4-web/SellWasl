@@ -30,6 +30,13 @@ describe('livraison (phase 19)', () => {
   let driverWorkday: string;
   let routeId: string;
   const orders: Record<string, { id: string; customer: CustomerDto }> = {};
+  /** Crédit et dette d'un client avant la suite, rétablis ensuite (field.test.ts les lit). */
+  const restore: {
+    id: string;
+    isCreditAllowed: boolean;
+    creditLimitAmount: bigint;
+    debtAmount: bigint;
+  }[] = [];
 
   function item(variantReference: string, unitName = 'carton') {
     const product = products.find((p) => p.variants.some((v) => v.reference === variantReference))!;
@@ -137,6 +144,15 @@ describe('livraison (phase 19)', () => {
     expect(started.status, JSON.stringify(started)).toBe('APPLIED');
   });
   afterAll(async () => {
+    for (const c of restore)
+      await raw.customer.update({
+        where: { id: c.id },
+        data: {
+          isCreditAllowed: c.isCreditAllowed,
+          creditLimitAmount: c.creditLimitAmount,
+          debtAmount: c.debtAmount,
+        },
+      });
     // Commandes annulées, tournées et journées closes : modules.test.ts change le mode
     await raw.order.updateMany({
       where: { id: { in: Object.values(orders).map((o) => o.id) } },
@@ -260,6 +276,7 @@ describe('livraison (phase 19)', () => {
 
     it('vend à un autre client les produits revenus dans le camion, avec crédit', async () => {
       const b = await deliveryOf('B');
+      restore.push(await raw.customer.findUniqueOrThrow({ where: { id: orders.B!.customer.id } }));
       await raw.customer.update({
         where: { id: orders.B!.customer.id },
         data: { isCreditAllowed: true, creditLimitAmount: 1_000_000n },

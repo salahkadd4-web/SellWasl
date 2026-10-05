@@ -143,6 +143,16 @@ describe('préparation (phase 18)', () => {
       where: { id: { in: Object.values(orderIds) } },
       data: { status: 'CANCELLED' },
     });
+    // Chargements des tournées reçus : un chargement en attente bloque le livreur (BR-PRE-05)
+    await raw.load.updateMany({
+      where: {
+        route: {
+          company: { code: 'DISTRI-ORAN' },
+          deliveryDate: { in: [DELIVERY, DELIVERY2].map((d) => new Date(`${d}T00:00:00Z`)) },
+        },
+      },
+      data: { status: 'RECEIVED', receivedAt: new Date() },
+    });
     // Une tournée non clôturée empêche aussi le changement de mode
     await raw.deliveryRoute.updateMany({
       where: {
