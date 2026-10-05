@@ -3,6 +3,9 @@ import type {
   InventoryDto,
   InventoryResult,
   LoadDto,
+  PendingUnloadDto,
+  UnloadDto,
+  UnloadPreviewLine,
   ProductDto,
   ReceiptDto,
   StockAlertDto,
@@ -562,6 +565,161 @@ describe('stock (phase 17)', () => {
         lines: [{ variantId: item('THON-TOM').variantId, unitId: item('THON-TOM').unitId, qty: 1 }],
       });
       expect(noDriver.status).toBe(422);
+    });
+  });
+
+  describe('déchargement des camions (UC-43)', () => {
+    let supB: string;
+    const reason = async (label: string) =>
+      (
+        await raw.reason.findFirstOrThrow({
+          where: { company: { code: 'CASHVAN-EST' }, kind: 'ADJUSTMENT', label },
+        })
+      ).id;
+    /** Journée du conducteur créée directement en base, clôturée sauf demande contraire. */
+    async function workdayOf(
+      userCode: string,
+      date: string,
+      status: 'CLOSED' | 'IN_PROGRESS' = 'CLOSED',
+    ) {
+      const user = await raw.user.findFirstOrThrow({
+        where: { code: userCode, company: { code: 'CASHVAN-EST' } },
+      });
+      const id = uuidv7();
+      await raw.workday.create({
+        data: {
+          id,
+          companyId: user.companyId,
+          userId: user.id,
+          date: new Date(`${date}T00:00:00Z`),
+          status,
+          startedAt: new Date(`${date}T07:00:00Z`),
+          closedAt: status === 'CLOSED' ? new Date(`${date}T17:00:00Z`) : null,
+          settingsVersion: 1,
+        },
+      });
+      return id;
+    }
+    const preview = async (workdayId: string) =>
+      (
+        await call<UnloadPreviewLine[]>(t.url, 'GET', `/unloads/preview?workdayId=${workdayId}`, {
+          token: supB,
+        })
+      ).body;
+    const unload = (workdayId: string, lines: unknown[]) =>
+      call<UnloadDto>(t.url, 'POST', '/unloads', { token: supB, body: { workdayId, lines } });
+    const truckStock = async (code: string) => {
+      const truck = await raw.warehouse.findFirstOrThrow({
+        where: { company: { code: 'CASHVAN-EST' }, code },
+      });
+      return raw.stock.findMany({ where: { warehouseId: truck.id } });
+    };
+
+    beforeAll(async () => {
+      supB = await webLogin(t.url, 'CASHVAN-EST', 'B-SUP');
+    });
+
+    it('enregistre un surplus et un manquant, renvoie le compté au dépôt et bloque la réouverture', async () => {
+      const workdayId = await workdayOf('C01', '2027-01-11');
+      const pending = await call<PendingUnloadDto[]>(t.url, 'GET', '/unloads/pending', {
+        token: supB,
+      });
+      expect(pending.body).toContainEqual(
+        expect.objectContaining({ workdayId, user: expect.objectContaining({ code: 'C01' }) }),
+      );
+
+      const lines = await preview(workdayId);
+      expect(lines.length).toBeGreaterThan(1);
+      for (const l of lines) expect(l.loaded).toBe(l.theoretical + l.delivered + l.free);
+      const [surplus, missing, ...rest] = lines.filter((l) => l.theoretical > 0);
+      const body = [
+        {
+          variantId: surplus!.variantId,
+          countedQty: surplus!.theoretical + 2,
+          reasonId: await reason('Retour client'),
+        },
+        {
+          variantId: missing!.variantId,
+          countedQty: missing!.theoretical - 1,
+          reasonId: await reason('Marchandise manquante'),
+        },
+        ...rest.map((l) => ({ variantId: l.variantId, countedQty: l.theoretical })),
+        ...lines
+          .filter((l) => l.theoretical === 0)
+          .map((l) => ({ variantId: l.variantId, countedQty: 0 })),
+      ];
+
+      // Un écart sans motif, ou un article oublié, est refusé
+      expect(
+        (
+          await unload(
+            workdayId,
+            body.map((b, i) => (i === 0 ? { ...b, reasonId: undefined } : b)),
+          )
+        ).status,
+      ).toBe(422);
+      expect((await unload(workdayId, body.slice(1))).status).toBe(422);
+
+      const done = await unload(workdayId, body);
+      expect(done.status).toBe(201);
+      expect(done.body).toMatchObject({ hasGap: true, keepsStockInTruck: false });
+      expect(done.body.lines.find((l) => l.variantId === surplus!.variantId)).toMatchObject({
+        gap: 2,
+      });
+      expect(done.body.lines.find((l) => l.variantId === missing!.variantId)).toMatchObject({
+        gap: -1,
+      });
+      const adjustments = await raw.stockMovement.findMany({
+        where: { type: 'ADJUSTMENT', sourceType: 'UNLOAD', sourceId: done.body.id },
+      });
+      expect(adjustments).toHaveLength(2);
+      expect(adjustments.find((m) => m.productVariantId === surplus!.variantId)).toMatchObject({
+        qty: 2,
+        fromWarehouseId: null,
+      });
+      expect(adjustments.find((m) => m.productVariantId === missing!.variantId)).toMatchObject({
+        qty: 1,
+        toWarehouseId: null,
+      });
+      expect((await truckStock('TRUCK-01')).every((s) => s.physicalQty === 0)).toBe(true);
+
+      expect((await unload(workdayId, body)).status).toBe(422);
+      const reopen = await call(t.url, 'POST', `/workdays/${workdayId}/reopen`, {
+        token: supB,
+        body: { reason: 'Erreur de saisie' },
+      });
+      expect(reopen.status).toBe(409);
+      const list = await call<UnloadDto[]>(t.url, 'GET', '/unloads?date=2027-01-11', {
+        token: supB,
+      });
+      expect(list.body.map((u) => u.id)).toContain(done.body.id);
+    });
+
+    it('refuse une journée en cours', async () => {
+      const workdayId = await workdayOf('C02', '2027-01-13', 'IN_PROGRESS');
+      expect((await unload(workdayId, [])).status).toBe(422);
+      await raw.workday.update({
+        where: { id: workdayId },
+        data: { status: 'CLOSED', closedAt: new Date() },
+      });
+    });
+
+    it('garde le compté dans le camion quand P-06 le demande', async () => {
+      const workdayId = await workdayOf('C02', '2027-01-12');
+      const lines = await preview(workdayId);
+      await withRules('CASHVAN-EST', { P06_fullUnload: false }, async () => {
+        const done = await unload(
+          workdayId,
+          lines.map((l) => ({ variantId: l.variantId, countedQty: l.theoretical })),
+        );
+        expect(done.status).toBe(201);
+        expect(done.body).toMatchObject({ keepsStockInTruck: true, hasGap: false });
+      });
+      const stock = await truckStock('TRUCK-02');
+      for (const l of lines)
+        expect(stock.find((s) => s.productVariantId === l.variantId)?.physicalQty ?? 0).toBe(
+          l.theoretical,
+        );
     });
   });
 });
