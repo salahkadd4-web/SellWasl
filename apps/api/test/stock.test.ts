@@ -2,6 +2,7 @@ import type {
   CustomerDto,
   InventoryDto,
   InventoryResult,
+  LoadDto,
   ProductDto,
   ReceiptDto,
   StockAlertDto,
@@ -46,6 +47,35 @@ describe('stock (phase 17)', () => {
       if (fiche.body.customerType.code === 'DETAIL') return fiche.body;
     }
     throw new Error('Aucun client Détail ce jour-là');
+  }
+
+  /**
+   * Change des règles P-xx d'une entreprise le temps d'un test (nouvelle version des paramètres,
+   * supprimée ensuite).
+   */
+  async function withRules(
+    company: string,
+    rules: Record<string, boolean>,
+    fn: () => Promise<void>,
+  ) {
+    const latest = await raw.companySettings.findFirstOrThrow({
+      where: { company: { code: company } },
+      orderBy: { version: 'desc' },
+    });
+    const data = latest.data as { rules?: Record<string, boolean> };
+    const row = await raw.companySettings.create({
+      data: {
+        id: uuidv7(),
+        companyId: latest.companyId,
+        version: latest.version + 1,
+        data: { ...data, rules: { ...data.rules, ...rules } },
+      },
+    });
+    try {
+      await fn();
+    } finally {
+      await raw.companySettings.delete({ where: { id: row.id } });
+    }
   }
 
   /** Entrepôt de test (camion sans conducteur par défaut), retiré à la fin de la suite. */
@@ -416,6 +446,122 @@ describe('stock (phase 17)', () => {
       ).toBe(204);
       const list = await call<InventoryDto[]>(t.url, 'GET', '/inventories', { token: sup });
       expect(list.body.map((i) => i.id)).not.toContain(draft.body.id);
+    });
+  });
+
+  describe('chargement des camions (UC-42)', () => {
+    const LOAD_DAY = '2027-01-11';
+    let supB: string;
+    let productsB: ProductDto[];
+    const itemB = (ref: string) => {
+      const product = productsB.find((p) => p.variants.some((v) => v.reference === ref))!;
+      const unit = product.units.find((u) => u.name === 'carton')!;
+      return {
+        variantId: product.variants.find((v) => v.reference === ref)!.id,
+        unitId: unit.id,
+        baseQty: unit.baseQty,
+      };
+    };
+    const truckOf = (company: string, code: string) =>
+      raw.warehouse.findFirstOrThrow({ where: { company: { code: company }, code } });
+    const load = (token: string, body: Record<string, unknown>) =>
+      call<LoadDto>(t.url, 'POST', '/loads', { token, body: { date: LOAD_DAY, ...body } });
+
+    beforeAll(async () => {
+      supB = await webLogin(t.url, 'CASHVAN-EST', 'B-SUP');
+      productsB = (
+        await call<ProductDto[]>(t.url, 'GET', '/products?status=ACTIVE', { token: supB })
+      ).body;
+    });
+
+    it('charge le camion du vendeur cash van, puis le recharge selon P-07', async () => {
+      const truck = await truckOf('CASHVAN-EST', 'TRUCK-01');
+      const thon = itemB('THON-TOM');
+      const before =
+        (
+          await raw.stock.findFirst({
+            where: { warehouseId: truck.id, productVariantId: thon.variantId },
+          })
+        )?.physicalQty ?? 0;
+      const lines = [{ variantId: thon.variantId, unitId: thon.unitId, qty: 2 }];
+      const first = await load(supB, { truckId: truck.id, lines });
+      expect(first.status).toBe(201);
+      expect(first.body).toMatchObject({
+        kind: 'CASH_VAN',
+        status: 'LOADED',
+        user: expect.objectContaining({ code: 'C01' }),
+      });
+      expect(first.body.lines).toEqual([
+        expect.objectContaining({ variantId: thon.variantId, qty: 2 * thon.baseQty }),
+      ]);
+      const after = await raw.stock.findFirstOrThrow({
+        where: { warehouseId: truck.id, productVariantId: thon.variantId },
+      });
+      expect(after.physicalQty).toBe(before + 2 * thon.baseQty);
+      expect(
+        await raw.stockMovement.count({
+          where: {
+            type: 'TRANSFER',
+            sourceType: 'LOAD',
+            sourceId: first.body.id,
+            toWarehouseId: truck.id,
+          },
+        }),
+      ).toBe(1);
+
+      const second = await load(supB, { truckId: truck.id, lines });
+      expect(second.body.kind).toBe('RELOAD');
+      await withRules('CASHVAN-EST', { P07_multipleCashVanLoads: false }, async () => {
+        expect((await load(supB, { truckId: truck.id, lines })).status).toBe(422);
+      });
+      const list = await call<LoadDto[]>(t.url, 'GET', `/loads?date=${LOAD_DAY}`, { token: supB });
+      expect(list.body.map((l) => l.id)).toEqual(
+        expect.arrayContaining([first.body.id, second.body.id]),
+      );
+    });
+
+    it('charge le camion du livreur en tournée', async () => {
+      const truck = await truckOf('DISTRI-ORAN', 'TRUCK-01');
+      const thon = item('THON-TOM');
+      const created = await load(sup, {
+        truckId: truck.id,
+        lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+      });
+      expect(created.status).toBe(201);
+      expect(created.body).toMatchObject({
+        kind: 'ROUTE',
+        user: expect.objectContaining({ code: 'L01' }),
+      });
+    });
+
+    it('refuse au-delà du disponible du dépôt sans rien écrire, et un camion sans conducteur', async () => {
+      const truck = await truckOf('CASHVAN-EST', 'TRUCK-02');
+      const thon = itemB('THON-TOM');
+      const depot = await raw.warehouse.findFirstOrThrow({
+        where: { company: { code: 'CASHVAN-EST' }, type: 'DEPOT' },
+      });
+      const stock = await raw.stock.findFirstOrThrow({
+        where: { warehouseId: depot.id, productVariantId: thon.variantId },
+      });
+      const cartons = Math.floor((stock.physicalQty - stock.reservedQty) / thon.baseQty) + 1;
+      const loadsBefore = await raw.load.count({ where: { truckId: truck.id } });
+      const movesBefore = await raw.stockMovement.count({ where: { toWarehouseId: truck.id } });
+      const refused = await load(supB, {
+        truckId: truck.id,
+        lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: cartons }],
+      });
+      expect(refused.status).toBe(422);
+      expect(await raw.load.count({ where: { truckId: truck.id } })).toBe(loadsBefore);
+      expect(await raw.stockMovement.count({ where: { toWarehouseId: truck.id } })).toBe(
+        movesBefore,
+      );
+
+      const orphan = await testWarehouse('DISTRI-ORAN', 'TST-NODRIVER');
+      const noDriver = await load(sup, {
+        truckId: orphan.id,
+        lines: [{ variantId: item('THON-TOM').variantId, unitId: item('THON-TOM').unitId, qty: 1 }],
+      });
+      expect(noDriver.status).toBe(422);
     });
   });
 });
