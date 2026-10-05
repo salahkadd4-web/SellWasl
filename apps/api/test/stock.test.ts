@@ -1,4 +1,11 @@
-import type { CustomerDto, ProductDto } from '@sellwasl/validation';
+import type {
+  CustomerDto,
+  ProductDto,
+  ReceiptDto,
+  StockAlertDto,
+  StockMovementDto,
+  StockRowDto,
+} from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -39,12 +46,12 @@ describe('stock (phase 17)', () => {
     throw new Error('Aucun client Détail ce jour-là');
   }
 
-  /** Entrepôt de test (camion sans conducteur), retiré à la fin de la suite. */
-  async function testWarehouse(company: string, code: string) {
+  /** Entrepôt de test (camion sans conducteur par défaut), retiré à la fin de la suite. */
+  async function testWarehouse(company: string, code: string, type: 'TRUCK' | 'DEPOT' = 'TRUCK') {
     const c = await raw.company.findFirstOrThrow({ where: { code: company } });
     const id = uuidv7();
     await raw.warehouse.create({
-      data: { id, companyId: c.id, type: 'TRUCK', code, name: `Test ${code}` },
+      data: { id, companyId: c.id, type, code, name: `Test ${code}` },
     });
     testWarehouses.push(id);
     return { id, companyId: c.id };
@@ -155,6 +162,129 @@ describe('stock (phase 17)', () => {
       expect(
         await raw.stockMovement.count({ where: { type: 'TRANSFER', fromWarehouseId: a.id } }),
       ).toBe(1);
+    });
+  });
+
+  describe('entrées, consultation, seuils (UC-40)', () => {
+    let depotId: string;
+    beforeAll(async () => {
+      depotId = (
+        await raw.warehouse.findFirstOrThrow({
+          where: { company: { code: 'DISTRI-ORAN' }, type: 'DEPOT', code: 'DEPOT' },
+        })
+      ).id;
+    });
+    const physical = async (warehouseId: string, variantId: string) =>
+      (await raw.stock.findFirst({ where: { warehouseId, productVariantId: variantId } }))
+        ?.physicalQty ?? 0;
+
+    it('enregistre une entrée en unité de base avec un mouvement IN', async () => {
+      const thon = item('THON-TOM');
+      const before = await physical(depotId, thon.variantId);
+      const created = await call<ReceiptDto>(t.url, 'POST', '/stock/receipts', {
+        token: sup,
+        body: {
+          warehouseId: depotId,
+          supplier: 'Conserverie du Sud',
+          reference: 'BL-7781',
+          lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 3 }],
+        },
+      });
+      expect(created.status).toBe(201);
+      expect(created.body.lines[0]).toMatchObject({ enteredQty: 3, qty: 3 * thon.baseQty });
+      expect(await physical(depotId, thon.variantId)).toBe(before + 3 * thon.baseQty);
+      const list = await call<ReceiptDto[]>(t.url, 'GET', '/stock/receipts', { token: sup });
+      expect(list.body.map((r) => r.id)).toContain(created.body.id);
+      const moves = await call<StockMovementDto[]>(
+        t.url,
+        'GET',
+        `/stock/movements?type=IN&variantId=${thon.variantId}`,
+        { token: sup },
+      );
+      expect(moves.body[0]).toMatchObject({
+        type: 'IN',
+        qty: 3 * thon.baseQty,
+        sourceType: 'RECEIPT',
+      });
+    });
+
+    it("crée la ligne de stock d'un article jamais entré dans ce dépôt", async () => {
+      const second = await testWarehouse('DISTRI-ORAN', 'ZZ-DEPOT', 'DEPOT');
+      const thon = item('THON-TOM');
+      const created = await call(t.url, 'POST', '/stock/receipts', {
+        token: sup,
+        body: {
+          warehouseId: second.id,
+          lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+        },
+      });
+      expect(created.status).toBe(201);
+      expect(await physical(second.id, thon.variantId)).toBe(thon.baseQty);
+    });
+
+    it("refuse l'unité d'un autre produit, un camion et le pré-vendeur", async () => {
+      const thon = item('THON-TOM');
+      const other = item('BIMO-CHOC');
+      const wrongUnit = await call(t.url, 'POST', '/stock/receipts', {
+        token: sup,
+        body: {
+          warehouseId: depotId,
+          lines: [{ variantId: thon.variantId, unitId: other.unitId, qty: 1 }],
+        },
+      });
+      expect(wrongUnit.status).toBe(422);
+      const truck = await raw.warehouse.findFirstOrThrow({
+        where: { company: { code: 'DISTRI-ORAN' }, type: 'TRUCK', code: 'TRUCK-01' },
+      });
+      const toTruck = await call(t.url, 'POST', '/stock/receipts', {
+        token: sup,
+        body: {
+          warehouseId: truck.id,
+          lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+        },
+      });
+      expect(toTruck.status).toBe(422);
+      const p = await phones.get('V07');
+      const seller = await call(t.url, 'POST', '/stock/receipts', {
+        token: p.token,
+        body: {
+          warehouseId: depotId,
+          lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+        },
+      });
+      expect(seller.status).toBe(403);
+    });
+
+    it('signale les articles sous leur seuil, sur la page Stock et dans les alertes', async () => {
+      const thon = item('THON-TOM');
+      const rows = await call<StockRowDto[]>(t.url, 'GET', `/stock?warehouseId=${depotId}`, {
+        token: sup,
+      });
+      const row = rows.body.find((r) => r.variantId === thon.variantId)!;
+      expect(row.available).toBe(row.physical - row.reserved);
+      const put = (lowStockQty: number | null) =>
+        call(t.url, 'PUT', '/stock/thresholds', {
+          token: sup,
+          body: { entries: [{ variantId: thon.variantId, lowStockQty }] },
+        });
+      expect((await put(row.available + 1)).status).toBe(200);
+      const after = await call<StockRowDto[]>(t.url, 'GET', `/stock?warehouseId=${depotId}`, {
+        token: sup,
+      });
+      expect(after.body.find((r) => r.variantId === thon.variantId)).toMatchObject({
+        isLow: true,
+        lowStockQty: row.available + 1,
+      });
+      const alerts = await call<StockAlertDto[]>(t.url, 'GET', '/stock/alerts', { token: sup });
+      expect(alerts.body).toContainEqual(
+        expect.objectContaining({
+          variantId: thon.variantId,
+          warehouse: expect.objectContaining({ id: depotId }),
+        }),
+      );
+      expect((await put(null)).status).toBe(200);
+      const cleared = await call<StockAlertDto[]>(t.url, 'GET', '/stock/alerts', { token: sup });
+      expect(cleared.body.map((a) => a.variantId)).not.toContain(thon.variantId);
     });
   });
 });
