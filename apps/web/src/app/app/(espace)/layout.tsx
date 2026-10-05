@@ -16,6 +16,7 @@ const NAV = [
   { href: '/app/journees', label: 'Journées', permission: 'workdays.read' },
   { href: '/app/commandes', label: 'Commandes', permission: 'orders.read' },
   { href: '/app/attente', label: 'Lignes en attente', permission: 'pending_lines.process' },
+  { href: '/app/tournees', label: 'Tournées', permission: 'preparation.launch' },
   { href: '/app/quotas', label: 'Quotas', permission: 'quotas.read' },
   { href: '/app/objectifs', label: 'Objectifs', permission: 'objectives.read' },
   { href: '/app/stock', label: 'Stock', permission: 'stock.read' },

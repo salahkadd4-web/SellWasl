@@ -115,3 +115,22 @@ export const LOAD_KIND: Record<string, string> = {
 export function articleLabel(a: { productName: string; variantName: string | null }): string {
   return a.variantName ? `${a.productName} ${a.variantName}` : a.productName;
 }
+
+export const ROUTE_STATUS: Record<
+  string,
+  { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
+> = {
+  DRAFT: { label: 'À lancer', tone: 'neutral' },
+  PREPARING: { label: 'En préparation', tone: 'warning' },
+  READY: { label: 'Prête à charger', tone: 'warning' },
+  LOADED: { label: 'Chargée', tone: 'success' },
+  OUT_FOR_DELIVERY: { label: 'En livraison', tone: 'success' },
+  CLOSED: { label: 'Terminée', tone: 'neutral' },
+};
+
+/** Lendemain d'une date « AAAA-MM-JJ ». */
+export function nextDate(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
