@@ -124,6 +124,24 @@ export default function SellerDashboard() {
         <PrimaryButton title="Clients du jour" onPress={() => router.push('/seller/customers')} />
       </Card>
 
+      {(me?.role.code ?? profile?.roleCode) === 'VENDEUR_CASH_VAN' ? (
+        <Card title="Camion">
+          <Text style={styles.muted}>
+            Pointez le camion en début de journée et à chaque rechargement : rien ne se vend avant.
+          </Text>
+          <PrimaryButton
+            title="Pointer le camion"
+            disabled={status !== 'IN_PROGRESS'}
+            onPress={() => router.push('/seller/truck-check')}
+          />
+          <PrimaryButton
+            title="Stock du camion"
+            variant="secondary"
+            onPress={() => router.push('/seller/truck')}
+          />
+        </Card>
+      ) : null}
+
       <Card title="Commandes du jour">
         <Text style={styles.big}>
           {today?.counters.ordersCount ?? 0} commande

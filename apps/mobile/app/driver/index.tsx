@@ -1,7 +1,7 @@
 import { colors } from '@sellwasl/config';
 import type { DriverRouteDto } from '@sellwasl/validation';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +11,7 @@ import {
   Text,
 } from 'react-native';
 import { request } from '@/api/client';
+import { setPositionSharing } from '@/device/heartbeat';
 import { useAuth } from '@/auth/AuthContext';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { newId, sendOperation } from '@/sync/operations';
@@ -53,9 +54,17 @@ export default function DriverDashboard() {
     }
   }
 
+  // Position partagée pendant la journée seulement (BR-JOU-09)
+  const inProgress = route?.workday?.status === 'IN_PROGRESS';
+  useEffect(() => {
+    setPositionSharing(inProgress);
+    return () => setPositionSharing(false);
+  }, [inProgress]);
+
   if (!route && !error) return <ActivityIndicator style={styles.loader} color={colors.primary} />;
 
   const status = route?.workday?.status ?? 'NOT_STARTED';
+
   const progress = route?.progress;
 
   return (
@@ -121,19 +130,26 @@ export default function DriverDashboard() {
         )}
       </Card>
 
-      {route?.loadToReceive ? (
-        <Card title={`Chargement à recevoir · ${route.loadToReceive.truckCode}`}>
-          <Text style={styles.muted}>{route.loadToReceive.lines.length} article(s)</Text>
-          <PrimaryButton
-            title="Vérifier et recevoir"
-            disabled={status !== 'IN_PROGRESS'}
-            onPress={() => router.push('/driver/receive')}
-          />
-          {status !== 'IN_PROGRESS' ? (
-            <Message tone="info">Démarrez la journée pour recevoir le chargement.</Message>
-          ) : null}
-        </Card>
-      ) : null}
+      <Card title={route?.loadToReceive ? `Camion · chargement à pointer` : 'Camion'}>
+        <Text style={route?.loadToReceive ? styles.alert : styles.muted}>
+          {route?.loadToReceive
+            ? `${route.loadToReceive.truckCode} : un chargement attend votre pointage.`
+            : 'Pointez le camion en début de journée.'}
+        </Text>
+        <PrimaryButton
+          title="Pointer le camion"
+          disabled={status !== 'IN_PROGRESS'}
+          onPress={() => router.push('/driver/receive')}
+        />
+        <PrimaryButton
+          title="Stock du camion"
+          variant="secondary"
+          onPress={() => router.push('/driver/truck')}
+        />
+        {status !== 'IN_PROGRESS' ? (
+          <Message tone="info">Démarrez la journée pour pointer le camion.</Message>
+        ) : null}
+      </Card>
 
       <Card title="Tournée">
         {route?.route ? (
@@ -144,11 +160,6 @@ export default function DriverDashboard() {
             </Text>
             <Text style={styles.value}>Encaissé : {formatDA(progress?.collected ?? 0)}</Text>
             <PrimaryButton title="Ma tournée" onPress={() => router.push('/driver/route')} />
-            <PrimaryButton
-              title="Stock du camion"
-              variant="secondary"
-              onPress={() => router.push('/driver/truck')}
-            />
           </>
         ) : (
           <Text style={styles.muted}>Aucune tournée aujourd'hui.</Text>
@@ -176,4 +187,5 @@ const styles = StyleSheet.create({
   value: { fontSize: 16, color: colors.textDark },
   muted: { fontSize: 15, color: colors.muted },
   ok: { fontSize: 15, fontWeight: '600', color: colors.status.synced },
+  alert: { fontSize: 15, fontWeight: '600', color: colors.status.error },
 });

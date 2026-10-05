@@ -14,14 +14,19 @@ import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 export default function LoadsScreen() {
   const router = useRouter();
   const [routes, setRoutes] = useState<RouteSummaryDto[] | null>(null);
+  const [planned, setPlanned] = useState<LoadDto[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const list = await request<RouteSummaryDto[]>('/routes/preparing');
+      const [list, plans] = await Promise.all([
+        request<RouteSummaryDto[]>('/routes/preparing'),
+        request<LoadDto[]>('/loads/planned'),
+      ]);
       setRoutes(list.filter((r) => r.status === 'READY'));
+      setPlanned(plans);
       setError(null);
     } catch (e) {
       setError(errorMessage(e));
@@ -78,6 +83,17 @@ export default function LoadsScreen() {
                 ],
               )
             }
+          />
+        </Card>
+      ))}
+      {planned.map((l) => (
+        <Card key={l.id} title={`Cash van · ${l.user.name}`}>
+          <Text style={styles.muted}>
+            Préparé par le superviseur · {l.truck.code} · {l.lines.length} article(s)
+          </Text>
+          <PrimaryButton
+            title="Valider le chargement"
+            onPress={() => router.push(`/warehouse/load-validate/${l.id}`)}
           />
         </Card>
       ))}

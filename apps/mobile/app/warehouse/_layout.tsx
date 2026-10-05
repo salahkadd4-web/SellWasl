@@ -16,6 +16,7 @@ export default function WarehouseLayout() {
       <Stack.Screen name="preparation/[id]" options={{ title: 'Préparer la tournée' }} />
       <Stack.Screen name="loads" options={{ title: 'Chargements' }} />
       <Stack.Screen name="load-new" options={{ title: 'Charger un camion' }} />
+      <Stack.Screen name="load-validate/[id]" options={{ title: 'Valider le chargement' }} />
       <Stack.Screen name="receipt" options={{ title: 'Entrée au dépôt' }} />
       <Stack.Screen name="unloads" options={{ title: 'Déchargements' }} />
       <Stack.Screen name="unload/[workdayId]" options={{ title: 'Décharger le camion' }} />
