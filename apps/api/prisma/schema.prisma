@@ -328,6 +328,7 @@ model Company {
   customerReschedules     CustomerReschedule[]
   quotas                  Quota[]
   objectives              Objective[]
+  driverObjectives        DriverObjective[]
   lostDemands             LostDemand[]
   workdays                Workday[]
   visits                  Visit[]
@@ -513,6 +514,7 @@ model User {
   territoriesAsDeliveryUser      Territory[]            @relation("TerritoryDelivery")
   quotas                         Quota[]
   objectives                     Objective[]
+  driverObjectives               DriverObjective[]
   lostDemands                    LostDemand[]
   workdays                       Workday[]
   visits                         Visit[]
@@ -748,6 +750,29 @@ model Warehouse {
   @@unique([companyId, assignedUserId], map: "warehouse_one_truck_per_user", where: raw("type = 'TRUCK' AND assigned_user_id IS NOT NULL"))
   @@index([companyId, changeSeq])
   @@map("warehouse")
+}
+
+/// Objectif mensuel d'un livreur : prime et notes des critères (phase 19). [S]
+model DriverObjective {
+  id              String    @id @db.Uuid
+  month           DateTime  @db.Date
+  bonusAmount     BigInt    @default(0) @map("bonus_amount")
+  /// Notes sur 10 par critère : { criterionId: note }
+  ratings         Json      @default("{}")
+  companyId       String    @map("company_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version         Int       @default(1)
+  changeSeq       BigInt    @default(0) @map("change_seq")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@unique([companyId, userId, month])
+  @@index([companyId, changeSeq])
+  @@map("driver_objective")
 }
 
 /// Gamme (BR-CAT-01). [S]
