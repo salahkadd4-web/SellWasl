@@ -57,6 +57,9 @@ const TYPE_LABELS: Record<string, string> = {
   'order.confirm': 'commande',
   'order.update': 'modification de commande',
   'order.cancel': 'annulation de commande',
+  'load.receive': 'réception du chargement',
+  'delivery.confirm': 'livraison',
+  'delivery.fail': 'échec de livraison',
 };
 
 /**
@@ -148,5 +151,12 @@ export async function nextOrderNumber(userCode: string, series: string): Promise
 export async function nextReceiptNumber(userCode: string, series: string): Promise<string> {
   const next = (await secureStorage.getNumber('receiptSeq')) + 1;
   await secureStorage.setNumber('receiptSeq', next);
+  return paymentNumber(userCode, series, next);
+}
+
+/** Numéro du prochain bon de livraison de ce téléphone : L01-B0042 (BR-IMP-04). */
+export async function nextDeliveryNumber(userCode: string, series: string): Promise<string> {
+  const next = (await secureStorage.getNumber('deliverySeq')) + 1;
+  await secureStorage.setNumber('deliverySeq', next);
   return paymentNumber(userCode, series, next);
 }
