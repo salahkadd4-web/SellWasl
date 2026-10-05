@@ -330,4 +330,91 @@ describe('livraison (phase 19)', () => {
       expect((await call(t.url, 'GET', '/me/route', { token: v07.token })).status).toBe(403);
     });
   });
+
+  describe('échecs, clôture et déchargement (UC-33, BR-LIV-04 à 06)', () => {
+    const failureReason = async (code: string) =>
+      (
+        await raw.reason.findFirstOrThrow({
+          where: {
+            company: { code: 'DISTRI-ORAN' },
+            kind: 'DELIVERY_FAILURE',
+            systemCode: code as never,
+          },
+        })
+      ).id;
+    const fail = async (key: string, code: string) =>
+      phones.send(driver, 'delivery.fail', {
+        deliveryId: uuidv7(),
+        number: nextNumber(),
+        orderId: orders[key]!.id,
+        reasonId: await failureReason(code),
+      });
+
+    it('client absent : la livraison est reprogrammée au jour ouvré suivant', async () => {
+      const failed = await fail('C', 'CUSTOMER_ABSENT');
+      expect(failed.status, JSON.stringify(failed)).toBe('APPLIED');
+      const order = await raw.order.findUniqueOrThrow({ where: { id: orders.C!.id } });
+      expect(order).toMatchObject({
+        status: 'LOCKED',
+        routeId: null,
+        deliveryDate: new Date(`${NEXT}T00:00:00Z`),
+      });
+      expect(
+        await raw.delivery.findFirst({ where: { orderId: order.id, result: 'FAILED' } }),
+      ).not.toBeNull();
+    });
+
+    it('refus : échec définitif', async () => {
+      expect((await fail('D', 'REFUSED')).status).toBe('APPLIED');
+      expect((await raw.order.findUniqueOrThrow({ where: { id: orders.D!.id } })).status).toBe(
+        'FAILED',
+      );
+    });
+
+    it('à la clôture, la livraison non faite échoue « non livrée » et la tournée se termine', async () => {
+      await phones.closeDay(driver, driverWorkday);
+      const e = await raw.order.findUniqueOrThrow({ where: { id: orders.E!.id } });
+      expect(e).toMatchObject({ status: 'LOCKED', deliveryDate: new Date(`${NEXT}T00:00:00Z`) });
+      const route = await raw.deliveryRoute.findUniqueOrThrow({ where: { id: routeId } });
+      expect(route.status).toBe('CLOSED');
+      const [launched] = (
+        await call<RouteCandidateDto[]>(t.url, 'GET', `/routes?date=${DELIVERY}`, { token: sup })
+      ).body.filter((r) => r.routeId === routeId);
+      expect(launched!.progress).toMatchObject({ delivered: 1, partial: 1, failed: 3, pending: 0 });
+    });
+
+    it('au déchargement : livré et offert distingués, commandes reprogrammées réservées de nouveau', async () => {
+      const lines = (
+        await call<UnloadPreviewLine[]>(
+          t.url,
+          'GET',
+          `/unloads/preview?workdayId=${driverWorkday}`,
+          {
+            token: sup,
+          },
+        )
+      ).body;
+      const huile = lines.find((l) => l.variantId === item('THON-HUI').variantId)!;
+      // Le thon à l'huile n'a été qu'offert : 32 triplettes au client A, 20 au client B (son bonus
+      // recalculé sur 7 cartons est plafonné aux 20 préparées)
+      expect(huile).toMatchObject({ free: 52, delivered: 0 });
+      const unloaded = await call<UnloadDto>(t.url, 'POST', '/unloads', {
+        token: sup,
+        body: {
+          workdayId: driverWorkday,
+          lines: lines.map((l) => ({ variantId: l.variantId, countedQty: l.theoretical })),
+        },
+      });
+      expect(unloaded.status, JSON.stringify(unloaded.body)).toBe(201);
+      for (const key of ['C', 'E']) {
+        const reserved = await raw.orderLine.findMany({
+          where: { orderId: orders[key]!.id, kind: 'NORMAL' },
+        });
+        expect(
+          reserved.every((l) => l.reservedQty > 0),
+          key,
+        ).toBe(true);
+      }
+    });
+  });
 });

@@ -1,43 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { localDate } from '@sellwasl/business-rules';
-import type {
-  DriverDeliveryDto,
-  DriverRouteDto,
-  RouteProgress,
-  TruckStockDto,
-} from '@sellwasl/validation';
+import type { DriverDeliveryDto, DriverRouteDto, TruckStockDto } from '@sellwasl/validation';
 import type { AuthUser } from '../common/auth-context';
 import { dateOnly, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { articleOf } from '../stock/stock-helpers';
+import { routeProgress } from '../preparation/route-progress';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 
 type Tx = Prisma.TransactionClient;
-
-/** Avancement d'une tournée : résultat de la dernière livraison de chaque commande. */
-export async function routeProgress(tx: Pick<Tx, 'order' | 'payment'>, routeId: string) {
-  const orders = await tx.order.findMany({
-    where: {
-      deletedAt: null,
-      OR: [{ routeId }, { deliveries: { some: { routeId } } }],
-    },
-    include: { deliveries: { where: { routeId }, orderBy: { attempt: 'desc' }, take: 1 } },
-  });
-  const progress: RouteProgress = { delivered: 0, partial: 0, failed: 0, pending: 0, collected: 0 };
-  for (const o of orders) {
-    const result = o.deliveries[0]?.result;
-    if (result === 'DELIVERED') progress.delivered += 1;
-    else if (result === 'PARTIAL') progress.partial += 1;
-    else if (result === 'FAILED') progress.failed += 1;
-    else progress.pending += 1;
-  }
-  const cash = await tx.payment.aggregate({
-    where: { kind: 'DELIVERY_PAYMENT', delivery: { routeId }, deletedAt: null },
-    _sum: { cashAmount: true },
-  });
-  progress.collected = Number(cash._sum.cashAmount ?? 0n);
-  return progress;
-}
 
 /** Journée du livreur : chargement à recevoir, tournée et livraisons (BR-LIV-01, UC-31). */
 @Injectable()

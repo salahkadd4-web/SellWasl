@@ -366,7 +366,8 @@ export class OrderService implements OnModuleInit {
     };
   }
 
-  private async deliveryDate(tx: Tx, date: string): Promise<string> {
+  /** Jour ouvré suivant une date (BR-CMD-05). */
+  async deliveryDate(tx: Pick<Tx, 'companySettings' | 'holiday'>, date: string): Promise<string> {
     const [settings, holidays] = await Promise.all([
       tx.companySettings.findFirst({ orderBy: { version: 'desc' } }),
       tx.holiday.findMany({ where: { deletedAt: null } }),

@@ -1,8 +1,9 @@
 import { HttpStatus, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
-import { minimumCash } from '@sellwasl/business-rules';
+import { minimumCash, shouldReschedule } from '@sellwasl/business-rules';
 import {
   companySettingsSchema,
   deliveryConfirmPayload,
+  deliveryFailPayload,
   type DeliveryPreviewDto,
   type deliveryPreviewSchema,
 } from '@sellwasl/validation';
@@ -11,7 +12,8 @@ import { AuditService } from '../audit/audit.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
-import { invalidState, rule } from '../field/field-errors';
+import { dateOnly, invalidState, rule, toDate } from '../field/field-errors';
+import { OrderService } from '../field/order.service';
 import { WorkdayService } from '../field/workday.service';
 import type { Prisma } from '../generated/prisma/client';
 import { OrderRepricer } from '../preparation/order-repricer.service';
@@ -62,12 +64,171 @@ export class DeliveryService implements OnModuleInit {
     private readonly ledger: StockLedger,
     private readonly audit: AuditService,
     private readonly handlers: SyncHandlers,
+    private readonly orders: OrderService,
   ) {}
 
   onModuleInit(): void {
     this.handlers.register('delivery.confirm', 'deliveries.own', deliveryConfirmPayload, (ctx) =>
       this.confirm(ctx.actor, ctx.tx, ctx.payload, new Date(ctx.op.occurredAt)),
     );
+    this.handlers.register('delivery.fail', 'deliveries.own', deliveryFailPayload, (ctx) =>
+      this.fail(ctx.actor, ctx.tx, ctx.payload, new Date(ctx.op.occurredAt)),
+    );
+    this.workdays.onClose((tx, workday, at, by) => this.closeRoutes(tx, workday, at, by));
+  }
+
+  /** Échec de livraison avec un motif (UC-33, BR-LIV-02) ; reprogrammation selon P-05. */
+  private async fail(
+    actor: AuthUser,
+    tx: Tx,
+    payload: z.output<typeof deliveryFailPayload>,
+    occurredAt: Date,
+  ) {
+    const workday = await this.workdays.openWorkday(tx, actor);
+    await tx.$queryRaw`SELECT id FROM "order" WHERE id = ${payload.orderId}::uuid FOR UPDATE`;
+    if (await tx.delivery.findFirst({ where: { number: payload.number } }))
+      throw new ApiError(HttpStatus.CONFLICT, 'DUPLICATE', `Le bon ${payload.number} existe déjà.`);
+    const order = await tx.order.findFirst({
+      where: { id: payload.orderId, deletedAt: null },
+      include: { route: true },
+    });
+    if (!order) throw notFound('Commande introuvable.');
+    if (order.route?.deliveryUserId !== actor.userId)
+      throw invalidState('Cette commande ne fait pas partie de votre tournée.');
+    if (order.status !== 'OUT_FOR_DELIVERY')
+      throw invalidState('Cette commande n’est pas en livraison.');
+    const reason = await tx.reason.findFirst({
+      where: { id: payload.reasonId, kind: 'DELIVERY_FAILURE', deletedAt: null },
+    });
+    if (!reason) throw rule("Motif d'échec inconnu.");
+    const status = await this.failOrder(tx, actor.companyId, order, reason, workday, occurredAt, {
+      byUserId: actor.userId,
+      deviceId: actor.deviceId,
+      number: payload.number,
+      deliveryId: payload.deliveryId,
+      latitude: payload.latitude ?? null,
+      longitude: payload.longitude ?? null,
+    });
+    await this.audit.write(
+      {
+        companyId: actor.companyId,
+        actorUserId: actor.userId,
+        deviceId: actor.deviceId,
+        action: 'delivery.fail',
+        entity: 'Delivery',
+        entityId: payload.deliveryId,
+        after: { orderId: order.id, reason: reason.label, status },
+      },
+      tx,
+    );
+    return { deliveryId: payload.deliveryId, number: payload.number, orderStatus: status };
+  }
+
+  /**
+   * Commande en échec : définitive, ou reprogrammée une fois au jour ouvré suivant (BR-LIV-06).
+   * Sa marchandise reste dans le camion jusqu'au déchargement (BR-LIV-05).
+   */
+  private async failOrder(
+    tx: Tx,
+    companyId: string,
+    order: { id: string; routeId: string | null },
+    reason: { id: string; systemCode: string | null },
+    workday: { id: string; userId: string; date: Date },
+    at: Date,
+    by: {
+      byUserId: string;
+      deviceId: string | null;
+      number: string;
+      deliveryId: string;
+      latitude: number | null;
+      longitude: number | null;
+    },
+  ): Promise<'LOCKED' | 'FAILED'> {
+    const attempt = (await tx.delivery.count({ where: { orderId: order.id } })) + 1;
+    await tx.delivery.create({
+      data: {
+        id: by.deliveryId,
+        companyId,
+        number: by.number,
+        attempt,
+        result: 'FAILED',
+        latitude: by.latitude,
+        longitude: by.longitude,
+        orderId: order.id,
+        routeId: order.routeId,
+        workdayId: workday.id,
+        userId: workday.userId,
+        reasonId: reason.id,
+        createdByUserId: by.byUserId,
+        createdByDeviceId: by.deviceId,
+        occurredAt: at,
+      },
+    });
+    const settingsRow = await tx.companySettings.findFirst({ orderBy: { version: 'desc' } });
+    const reschedule = shouldReschedule({
+      reasonCode: reason.systemCode,
+      attempt,
+      rescheduleEnabled: companySettingsSchema.parse(settingsRow?.data ?? {}).rules
+        .P05_rescheduleFailedDelivery,
+    });
+    await tx.order.update({
+      where: { id: order.id },
+      data: reschedule
+        ? {
+            status: 'LOCKED',
+            routeId: null,
+            deliveryDate: toDate(await this.orders.deliveryDate(tx, dateOnly(workday.date))),
+            version: { increment: 1 },
+          }
+        : { status: 'FAILED', version: { increment: 1 } },
+    });
+    return reschedule ? 'LOCKED' : 'FAILED';
+  }
+
+  /**
+   * Clôture du livreur (BR-LIV-04) : ce qui n'a pas été livré échoue « non livrée », et ses
+   * tournées du jour se terminent.
+   */
+  private async closeRoutes(
+    tx: Tx,
+    workday: { id: string; companyId: string; userId: string; date: Date },
+    at: Date,
+    by: { byUserId: string; deviceId: string | null },
+  ): Promise<void> {
+    const routes = await tx.deliveryRoute.findMany({
+      where: { deliveryUserId: workday.userId, deliveryDate: workday.date, deletedAt: null },
+    });
+    if (routes.length === 0) return;
+    const reason = await tx.reason.findFirst({
+      where: { kind: 'DELIVERY_FAILURE', systemCode: 'NOT_DELIVERED', deletedAt: null },
+    });
+    const pending = await tx.order.findMany({
+      where: {
+        routeId: { in: routes.map((r) => r.id) },
+        status: 'OUT_FOR_DELIVERY',
+        deletedAt: null,
+      },
+    });
+    for (const order of pending)
+      await this.failOrder(
+        tx,
+        workday.companyId,
+        order,
+        { id: reason!.id, systemCode: 'NOT_DELIVERED' },
+        workday,
+        at,
+        {
+          ...by,
+          number: `${order.number}-NL${(await tx.delivery.count({ where: { orderId: order.id } })) + 1}`,
+          deliveryId: uuidv7(),
+          latitude: null,
+          longitude: null,
+        },
+      );
+    await tx.deliveryRoute.updateMany({
+      where: { id: { in: routes.map((r) => r.id) } },
+      data: { status: 'CLOSED', version: { increment: 1 } },
+    });
   }
 
   /** Aperçu chiffré, sans rien écrire : le livreur sait combien encaisser. */

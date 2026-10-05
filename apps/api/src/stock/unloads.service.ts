@@ -77,7 +77,7 @@ export class UnloadsService {
   async preview(workdayId: string): Promise<UnloadPreviewLine[]> {
     const tx = this.db as unknown as Tx;
     const { truck, workday } = await this.context(tx, workdayId);
-    return this.lines(tx, truck.id, workday.date);
+    return this.lines(tx, truck.id, workday.date, workday.id);
   }
 
   async validate(actor: AuthUser, input: z.output<typeof createUnloadSchema>): Promise<UnloadDto> {
@@ -87,7 +87,7 @@ export class UnloadsService {
       const { truck, workday } = await this.context(tx, input.workdayId);
       if (await tx.unload.findFirst({ where: { workdayId: workday.id } }))
         throw rule('Ce camion est déjà déchargé pour cette journée.');
-      const expected = await this.lines(tx, truck.id, workday.date);
+      const expected = await this.lines(tx, truck.id, workday.date, workday.id);
       const counted = new Map(input.lines.map((l) => [l.variantId, l]));
       if (expected.some((l) => !counted.has(l.variantId)))
         throw rule('Comptez chaque article du camion : il en manque.');
@@ -173,6 +173,8 @@ export class UnloadsService {
         },
       });
       await this.ledger.apply(tx, actor, moves, now);
+      // Les commandes reprogrammées de la journée retrouvent une réservation au dépôt (BR-LIV-06)
+      if (depot) await this.reserveRescheduled(tx, actor, workday.id, depot.id, now);
       await this.audit.write(
         {
           companyId: actor.companyId,
@@ -209,6 +211,56 @@ export class UnloadsService {
     return toDto(row);
   }
 
+  /** Réserve de nouveau, au dépôt, la marchandise des commandes reprogrammées de la journée. */
+  private async reserveRescheduled(
+    tx: Tx,
+    actor: AuthUser,
+    workdayId: string,
+    depotId: string,
+    at: Date,
+  ) {
+    const lines = await tx.orderLine.findMany({
+      where: {
+        kind: { in: ['NORMAL', 'BONUS'] },
+        preparedQty: { gt: 0 },
+        order: {
+          status: 'LOCKED',
+          routeId: null,
+          deletedAt: null,
+          deliveries: { some: { workdayId, result: 'FAILED' } },
+        },
+      },
+    });
+    if (lines.length === 0) return;
+    const balances = await this.ledger.balances(
+      tx,
+      actor.companyId,
+      depotId,
+      lines.map((l) => l.productVariantId),
+    );
+    const available = new Map(
+      [...balances].map(([variantId, b]) => [variantId, b.physical - b.reserved]),
+    );
+    const moves: Move[] = [];
+    for (const l of lines) {
+      const take = Math.max(0, Math.min(l.preparedQty!, available.get(l.productVariantId) ?? 0));
+      available.set(l.productVariantId, (available.get(l.productVariantId) ?? 0) - take);
+      if (take > 0)
+        moves.push({
+          type: 'RESERVATION',
+          variantId: l.productVariantId,
+          qty: take,
+          toWarehouseId: depotId,
+          source: { type: 'ORDER', id: l.orderId },
+        });
+      await tx.orderLine.update({
+        where: { id: l.id },
+        data: { reservedQty: take, isStockout: take < l.orderedQty, version: { increment: 1 } },
+      });
+    }
+    await this.ledger.apply(tx, actor, moves, at);
+  }
+
   /** Journée clôturée et camion affecté à son conducteur (UC-43, préconditions). */
   private async context(tx: Tx, workdayId: string) {
     const workday = await tx.workday.findFirst({ where: { id: workdayId, deletedAt: null } });
@@ -224,9 +276,14 @@ export class UnloadsService {
 
   /**
    * Articles du camion : en stock, chargés ou sortis ce jour-là. Théorique = stock du camion ;
-   * livré = sorties du jour ; l'offert est distingué par les phases 19 et 20.
+   * sorties du jour réparties en offert (lignes bonus des livraisons de la journée) et livré.
    */
-  private async lines(tx: Tx, truckId: string, date: Date): Promise<UnloadPreviewLine[]> {
+  private async lines(
+    tx: Tx,
+    truckId: string,
+    date: Date,
+    workdayId: string,
+  ): Promise<UnloadPreviewLine[]> {
     const company = await tx.company.findFirstOrThrow();
     const day = dateOnly(date);
     const range = localRange(day, day, company.timezone);
@@ -235,14 +292,32 @@ export class UnloadsService {
       tx.loadLine.findMany({ where: { load: { truckId, date, deletedAt: null } } }),
       tx.stockMovement.groupBy({
         by: ['productVariantId'],
-        where: { type: 'OUT', fromWarehouseId: truckId, occurredAt: range },
+        // Les sorties des livraisons sont comptées par la journée, plus bas
+        where: {
+          type: 'OUT',
+          fromWarehouseId: truckId,
+          occurredAt: range,
+          NOT: { sourceType: 'DELIVERY' },
+        },
         _sum: { qty: true },
       }),
     ]);
+    // Livraisons de la journée : lignes bonus = offert, les autres = livré
+    const deliveredLines = await tx.orderLine.findMany({
+      where: {
+        deliveredQty: { gt: 0 },
+        order: { deliveries: { some: { workdayId, result: { not: 'FAILED' } } } },
+      },
+    });
+    const sumOf = (variantId: string, bonus: boolean) =>
+      deliveredLines
+        .filter((l) => l.productVariantId === variantId && (l.kind === 'BONUS') === bonus)
+        .reduce((sum, l) => sum + (l.deliveredQty ?? 0), 0);
     const ids = new Set([
       ...stock.filter((s) => s.physicalQty > 0).map((s) => s.productVariantId),
       ...loads.map((l) => l.productVariantId),
       ...outs.map((o) => o.productVariantId),
+      ...deliveredLines.map((l) => l.productVariantId),
     ]);
     const variants = await tx.productVariant.findMany({
       where: { id: { in: [...ids] } },
@@ -251,8 +326,9 @@ export class UnloadsService {
     return variants
       .map((v) => {
         const theoretical = stock.find((s) => s.productVariantId === v.id)?.physicalQty ?? 0;
-        const delivered = outs.find((o) => o.productVariantId === v.id)?._sum.qty ?? 0;
-        const free = 0;
+        const free = sumOf(v.id, true);
+        const delivered =
+          sumOf(v.id, false) + (outs.find((o) => o.productVariantId === v.id)?._sum.qty ?? 0);
         return {
           variantId: v.id,
           ...articleOf(v),
