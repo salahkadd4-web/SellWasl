@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { capBonus, defaultPrepared, priceCart } from '@sellwasl/business-rules';
+import { defaultPrepared } from '@sellwasl/business-rules';
 import {
   companySettingsSchema,
   type PrepareResult,
@@ -10,12 +10,12 @@ import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
-import { PricingService } from '../catalog/pricing.service';
 import { dateOnly, invalidState, rule } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { articleName, articleOf } from '../stock/stock-helpers';
 import { type Move, StockLedger } from '../stock/stock-ledger.service';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
+import { OrderRepricer } from './order-repricer.service';
 import { summary } from './routes.service';
 
 type Tx = Prisma.TransactionClient;
@@ -43,7 +43,7 @@ export class PreparationService {
   constructor(
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly ledger: StockLedger,
-    private readonly pricing: PricingService,
+    private readonly repricer: OrderRepricer,
     private readonly audit: AuditService,
   ) {}
 
@@ -136,44 +136,27 @@ export class PreparationService {
       for (const order of route.orders) {
         const normals = order.orderLines.filter((l) => l.kind === 'NORMAL');
         const bonuses = order.orderLines.filter((l) => l.kind === 'BONUS');
-        const priceOf = new Map(normals.map((l) => [l.id, l.unitPrice]));
-        const bonusOf = new Map(bonuses.map((l) => [l.id, prepared.get(l.id)!]));
         // Paliers et bonus recalculés sur les quantités préparées (BR-CAT-10, P-04), seulement
         // quand une quantité baisse : sinon la commande garde ses prix confirmés
         const decreased = normals.some((l) => prepared.get(l.id)! < l.enteredQty);
-        if (recalculate && decreased) {
-          const catalog = await this.pricing.pricingCatalog(order.customerTypeId);
-          const cart = priceCart(
-            catalog,
-            normals.map((l) => ({
-              variantId: l.productVariantId,
-              unitId: l.unitId,
-              qty: prepared.get(l.id)!,
-            })),
-            {
-              customerTypeId: order.customerTypeId,
-              date: dateOnly(order.orderDate),
-              freeVariantChoices: new Map(
-                bonuses.flatMap((b) =>
-                  b.bonusRuleId ? [[b.bonusRuleId, b.productVariantId]] : [],
-                ),
-              ),
-            },
-          );
-          for (const l of normals) {
-            const priced = cart.lines.find(
-              (p) => p.variantId === l.productVariantId && p.unitId === l.unitId,
-            );
-            if (priced) priceOf.set(l.id, BigInt(priced.unitPrice));
-          }
-          for (const b of bonuses) {
-            const recomputed =
-              cart.freeLines.find(
-                (f) => f.ruleId === b.bonusRuleId && f.variantId === b.productVariantId,
-              )?.qty ?? 0;
-            bonusOf.set(b.id, capBonus(recomputed, prepared.get(b.id)!));
-          }
-        }
+        const { prices: priceOf, bonus: bonusOf } = await this.repricer.reprice(
+          order,
+          normals.map((l) => ({
+            id: l.id,
+            variantId: l.productVariantId,
+            unitId: l.unitId,
+            unitPrice: l.unitPrice,
+            qty: prepared.get(l.id)!,
+          })),
+          bonuses.map((b) => ({
+            id: b.id,
+            bonusRuleId: b.bonusRuleId,
+            variantId: b.productVariantId,
+            maxQty: prepared.get(b.id)!,
+          })),
+          [],
+          recalculate && decreased,
+        );
 
         let total = 0n;
         for (const l of order.orderLines) {
