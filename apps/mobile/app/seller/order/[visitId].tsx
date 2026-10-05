@@ -31,9 +31,19 @@ interface ConfirmResult {
   stockouts: { variantId: string; reservedQty: number; orderedQty: number }[];
 }
 
+/** Vente cash van (BR-CV-05) : livrée et encaissée en une fois. */
+interface SaleResult {
+  number: string;
+  totalAmount: number;
+  cashAmount: number;
+  creditAmount: number;
+  debtAmount: number;
+}
+
 /**
  * Commande prise pendant la visite (UC-14) ou modifiée (UC-17) : produits proposables au client,
- * panier calculé sur le téléphone, confirmation recalculée et figée par le serveur.
+ * panier calculé sur le téléphone, confirmation recalculée et figée par le serveur. Vendeur cash
+ * van : vente depuis le stock du camion, encaissée sur place (UC-60, BR-CV-03 à 05).
  */
 export default function OrderScreen() {
   const params = useLocalSearchParams<{
@@ -89,11 +99,39 @@ export default function OrderScreen() {
       setEditing={setEditing}
       busy={busy}
       error={error}
-      onSubmit={async (lines, freeVariantChoices) => {
+      onLostDemand={async (variantId, qty) => {
+        try {
+          await act('lost_demand.create', {
+            lostDemandId: newId(),
+            customerId: params.customerId,
+            variantId,
+            qty,
+          });
+          return null;
+        } catch (e) {
+          return errorMessage(e);
+        }
+      }}
+      onSubmit={async (lines, freeVariantChoices, cashAmount) => {
         setError(null);
         setBusy(true);
         try {
           let result: ConfirmResult | null = null;
+          if (cashAmount !== undefined) {
+            const sale = await withFreshNumber((number) =>
+              act<SaleResult>('sale.confirm', {
+                orderId: newId(),
+                number,
+                visitId: params.visitId,
+                lines,
+                freeVariantChoices,
+                cashAmount,
+              }),
+            );
+            showSale(sale);
+            router.dismissTo('/seller');
+            return;
+          }
           if (existing) {
             result = await act<ConfirmResult>('order.update', {
               orderId: existing.id,
@@ -101,24 +139,15 @@ export default function OrderScreen() {
               freeVariantChoices,
             });
           } else {
-            const series = today?.seller.series;
-            if (!today || !series)
-              throw new Error('Série du téléphone inconnue : reconnectez-vous.');
-            for (let attempt = 0; !result && attempt < MAX_NUMBER_RETRIES; attempt += 1) {
-              try {
-                result = await act<ConfirmResult>('order.confirm', {
-                  orderId: newId(),
-                  number: await nextOrderNumber(today.seller.code, series),
-                  visitId: params.visitId,
-                  lines,
-                  freeVariantChoices,
-                });
-              } catch (e) {
-                if (!(e instanceof ApiClientError && e.code === 'DUPLICATE')) throw e;
-              }
-            }
-            if (!result)
-              throw new Error('Aucun numéro de commande libre. Contactez votre superviseur.');
+            result = await withFreshNumber((number) =>
+              act<ConfirmResult>('order.confirm', {
+                orderId: newId(),
+                number,
+                visitId: params.visitId,
+                lines,
+                freeVariantChoices,
+              }),
+            );
           }
           showResult(result, catalog, existing !== null);
           router.dismissTo('/seller');
@@ -130,6 +159,30 @@ export default function OrderScreen() {
       }}
     />
   );
+
+  /** Numéro suivant de la série du téléphone, en sautant ceux déjà connus du serveur. */
+  async function withFreshNumber<T>(send: (number: string) => Promise<T>): Promise<T> {
+    const series = today?.seller.series;
+    if (!today || !series) throw new Error('Série du téléphone inconnue : reconnectez-vous.');
+    for (let attempt = 0; attempt < MAX_NUMBER_RETRIES; attempt += 1) {
+      try {
+        return await send(await nextOrderNumber(today.seller.code, series));
+      } catch (e) {
+        if (!(e instanceof ApiClientError && e.code === 'DUPLICATE')) throw e;
+      }
+    }
+    throw new Error('Aucun numéro de commande libre. Contactez votre superviseur.');
+  }
+}
+
+function showSale(sale: SaleResult) {
+  const parts = [
+    `Total : ${formatDA(sale.totalAmount)}.`,
+    `Encaissé : ${formatDA(sale.cashAmount)}.`,
+    sale.creditAmount > 0 ? `Reste à crédit : ${formatDA(sale.creditAmount)}.` : null,
+    sale.debtAmount > 0 ? `Dette du client : ${formatDA(sale.debtAmount)}.` : null,
+  ].filter(Boolean);
+  Alert.alert(`Vente ${sale.number} enregistrée`, parts.join('\n'));
 }
 
 /** Résumé du serveur : son calcul fait foi (lignes en attente, ruptures). */
@@ -159,6 +212,7 @@ function OrderForm({
   busy,
   error,
   onSubmit,
+  onLostDemand,
 }: {
   catalog: VisitCatalog;
   customerName: string;
@@ -173,10 +227,18 @@ function OrderForm({
   onSubmit: (
     lines: { variantId: string; unitId: string; qty: number }[],
     freeVariantChoices: Record<string, string>,
+    /** Cash van seulement : montant encaissé. */
+    cashAmount?: number,
   ) => Promise<void>;
+  onLostDemand: (variantId: string, baseQty: number) => Promise<string | null>;
 }) {
   const initial = useMemo(() => (existing ? entriesFromOrder(existing.lines) : []), [existing]);
   const cart = useCart(catalog, initial);
+  const cashVan = catalog.truckStock !== undefined;
+  const [paying, setPaying] = useState(false);
+  const [cash, setCash] = useState('');
+  const [cashError, setCashError] = useState<string | null>(null);
+  const total = cart.priced?.total ?? 0;
 
   // Noms : catalogue du client, sinon lignes de la commande modifiée
   const variantName = (variantId: string) =>
@@ -208,6 +270,8 @@ function OrderForm({
             setQuery('');
           }}
           onCancel={() => setEditing(null)}
+          truckStock={catalog.truckStock}
+          onLostDemand={cashVan ? onLostDemand : undefined}
         />
       </ScrollView>
     );
@@ -218,7 +282,15 @@ function OrderForm({
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Title subtitle={existing ? `Modification de ${existing.number}` : 'Nouvelle commande'}>
+      <Title
+        subtitle={
+          existing
+            ? `Modification de ${existing.number}`
+            : cashVan
+              ? 'Vente depuis le camion'
+              : 'Nouvelle commande'
+        }
+      >
         {customerName}
       </Title>
 
@@ -235,7 +307,9 @@ function OrderForm({
             <Text style={styles.amount}>{formatDA(l.total)}</Text>
             {cart.pending.get(l.variantId) ? (
               <Text style={styles.warning}>
-                {cart.pending.get(l.variantId)} en attente (quota atteint)
+                {cashVan
+                  ? 'Quota dépassé : réduisez la quantité.'
+                  : `${cart.pending.get(l.variantId)} en attente (quota atteint)`}
               </Text>
             ) : null}
           </View>
@@ -300,18 +374,62 @@ function OrderForm({
       ) : null}
 
       <View style={styles.total}>
-        <Text style={styles.totalText}>Total : {formatDA(cart.priced?.total ?? 0)}</Text>
+        <Text style={styles.totalText}>Total : {formatDA(total)}</Text>
         <Text style={styles.muted}>Le serveur confirme les prix, les quotas et le stock.</Text>
       </View>
       {error ? <Message>{error}</Message> : null}
-      <WorkdayGuard>
-        <PrimaryButton
-          title={existing ? 'Enregistrer la modification' : 'Confirmer la commande'}
-          onPress={() => void onSubmit(cart.lines, cart.freeChoices)}
-          busy={busy}
-          disabled={cart.lines.length === 0}
-        />
-      </WorkdayGuard>
+      {cashVan && paying ? (
+        <Card title="Encaissement">
+          <Input
+            label="Montant encaissé (DA)"
+            value={cash}
+            onChangeText={setCash}
+            keyboardType="number-pad"
+          />
+          <Text style={styles.muted}>
+            Le reste passe en crédit si le client y a droit ; le serveur vérifie le minimum.
+          </Text>
+          {cashError ? <Message>{cashError}</Message> : null}
+          <WorkdayGuard>
+            <PrimaryButton
+              title="Confirmer la vente"
+              busy={busy}
+              onPress={() => {
+                const amount = Number(cash.replace(/\s/g, '') || '0');
+                if (!Number.isInteger(amount) || amount < 0)
+                  return setCashError('Saisissez un montant entier en dinars.');
+                setCashError(null);
+                void onSubmit(cart.lines, cart.freeChoices, amount);
+              }}
+            />
+          </WorkdayGuard>
+          <PrimaryButton
+            title="Retour au panier"
+            variant="secondary"
+            onPress={() => setPaying(false)}
+          />
+        </Card>
+      ) : cashVan ? (
+        <WorkdayGuard>
+          <PrimaryButton
+            title="Encaisser"
+            onPress={() => {
+              setCash(String(total));
+              setPaying(true);
+            }}
+            disabled={cart.lines.length === 0 || cart.pending.size > 0}
+          />
+        </WorkdayGuard>
+      ) : (
+        <WorkdayGuard>
+          <PrimaryButton
+            title={existing ? 'Enregistrer la modification' : 'Confirmer la commande'}
+            onPress={() => void onSubmit(cart.lines, cart.freeChoices)}
+            busy={busy}
+            disabled={cart.lines.length === 0}
+          />
+        </WorkdayGuard>
+      )}
 
       <Input label="Rechercher un produit" value={query} onChangeText={setQuery} />
       {available.length === 0 ? (

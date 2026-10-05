@@ -3,6 +3,7 @@ import type { CustomerDto } from '@sellwasl/validation';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '@/auth/AuthContext';
 import { request } from '@/api/client';
 import { readPosition } from '@/location/useLocation';
 import { errorMessage, formatDistance } from '@/seller/format';
@@ -27,6 +28,8 @@ interface ReasonRow {
 export default function VisitScreen() {
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
   const router = useRouter();
+  const { me, profile } = useAuth();
+  const cashVan = (me?.role.code ?? profile?.roleCode) === 'VENDEUR_CASH_VAN';
   const { today, act } = useToday();
   const [customer, setCustomer] = useState<CustomerDto | null>(null);
   const [mode, setMode] = useState<Mode>('ON_SITE');
@@ -122,7 +125,7 @@ export default function VisitScreen() {
             ) : null}
           </Card>
           <PrimaryButton
-            title="Prendre une commande"
+            title={cashVan ? 'Vendre' : 'Prendre une commande'}
             onPress={() => router.push(`/seller/order/${current.id}?customerId=${customerId}`)}
           />
           {reasons ? (
