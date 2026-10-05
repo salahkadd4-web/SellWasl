@@ -3,20 +3,23 @@ import {
   type DeliveryPreviewDto,
   deliveryPreviewSchema,
   type DriverRouteDto,
+  type TruckCheckLine,
   type TruckStockDto,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
+import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { DeliveryService } from './delivery.service';
-import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
 import { DriverRouteService } from './driver-route.service';
+import { LoadReceiveService } from './load-receive.service';
 
-/** Lectures du livreur sur son téléphone (phase 19). */
+/** Lectures du livreur et du vendeur cash van sur leur téléphone (phases 19 et 20). */
 @Controller('me')
 export class DeliveryController {
   constructor(
     private readonly driverRoute: DriverRouteService,
     private readonly deliveries: DeliveryService,
+    private readonly receipts: LoadReceiveService,
   ) {}
 
   @RequirePermission('deliveries.own')
@@ -25,10 +28,18 @@ export class DeliveryController {
     return this.driverRoute.route(actor);
   }
 
-  @RequirePermission('deliveries.own')
+  /** Stock du camion, consultable à tout moment (livreur, vendeur cash van). */
+  @RequirePermission('stock.read')
   @Get('truck-stock')
   truckStock(@CurrentUser() actor: AuthUser): Promise<TruckStockDto[]> {
     return this.driverRoute.truckStock(actor);
+  }
+
+  /** Pointage du camion : lignes à compter. */
+  @RequirePermission('loads.receive')
+  @Get('truck-check')
+  truckCheck(@CurrentUser() actor: AuthUser): Promise<TruckCheckLine[]> {
+    return this.receipts.checkLines(actor);
   }
 
   @RequirePermission('deliveries.own')

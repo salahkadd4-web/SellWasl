@@ -21,6 +21,7 @@ import { articleName, articleOf, toBaseLines } from '../stock/stock-helpers';
 import { type Move, StockLedger } from '../stock/stock-ledger.service';
 import { SyncHandlers } from '../sync/sync.handlers';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
+import { assertTruckChecked } from './load-receive.service';
 
 type Tx = Prisma.TransactionClient;
 type Content = z.output<typeof deliveryPreviewSchema>;
@@ -277,6 +278,7 @@ export class DeliveryService implements OnModuleInit {
     occurredAt: Date,
   ) {
     const workday = await this.workdays.openWorkday(tx, actor);
+    await assertTruckChecked(tx, actor.userId);
     // Verrou de la commande : deux confirmations simultanées ne livrent pas deux fois
     await tx.$queryRaw`SELECT id FROM "order" WHERE id = ${payload.orderId}::uuid FOR UPDATE`;
     if (await tx.delivery.findFirst({ where: { number: payload.number } }))
