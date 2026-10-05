@@ -199,7 +199,7 @@ Chacun lit et marque comme lues ses propres notifications sans permission partic
 | `loads.load`, `unloads.validate` | ✓ʷ | ✓ʷ | — | — | — | — | ✓ |
 | `loads.receive` | — | — | — | — | ✓ | ✓ | — |
 | `preparation.launch` | ✓ | ✓ | — | — | — | — | — |
-| `preparation.do` | — | — | — | — | — | — | ✓ |
+| `preparation.do` | ✓ʷ | ✓ʷ | — | — | — | — | ✓ |
 | `deliveries.read` | ✓ | ✓ | ✓ | — | — | — | — |
 | `deliveries.own` | — | — | — | — | — | ✓ | — |
 | `payments.read` | ✓ | ✓ | ✓ | ✓ᵖ | ✓ᵖ | ✓ᵖ | — |

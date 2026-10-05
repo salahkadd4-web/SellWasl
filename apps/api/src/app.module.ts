@@ -18,6 +18,7 @@ import { TerritoriesModule } from './territories/territories.module';
 import { PlanningModule } from './planning/planning.module';
 import { SyncModule } from './sync/sync.module';
 import { FieldModule } from './field/field.module';
+import { PreparationModule } from './preparation/preparation.module';
 import { StockModule } from './stock/stock.module';
 import { SupervisionModule } from './supervision/supervision.module';
 import { AdminModule } from './settings/admin.module';
@@ -67,6 +68,7 @@ import { PrismaModule } from './prisma/prisma.module';
     FieldModule,
     SupervisionModule,
     StockModule,
+    PreparationModule,
     HealthModule,
   ],
   providers: [

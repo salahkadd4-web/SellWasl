@@ -139,6 +139,7 @@ const ADMIN_AND_SUPERVISOR_SHARED = [
   'loads.load',
   'unloads.validate',
   'preparation.launch',
+  'preparation.do',
   'deliveries.read',
   'payments.read',
   'settlements.read',

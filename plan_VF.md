@@ -960,15 +960,15 @@ Login · Tableau de bord · Entrées · Préparations · Chargements · Décharg
 
 ## Fonctionnalités
 
-- [ ] Lancement de la préparation par tournée sur le Web, désactivé tant que des journées sont encore en cours ou en attente de synchronisation, ou que des lignes en attente ne sont pas traitées (BR-PRE-01, BR-PRE-02, UC-61)
-- [ ] Changer le livreur d'un secteur avant le lancement (BR-PRE-01)
-- [ ] Liste de chargement (total par produit) et détail par commande (BR-PRE-03, UC-41)
-- [ ] Saisir les quantités préparées ; une rupture réduit la ligne, avec recalcul des paliers et bonus (BR-CAT-10)
-- [ ] Valider la préparation
-- [ ] Charger le camion du livreur (UC-42)
-- [ ] Décharger un camion : comptage, écart, retour au dépôt (BR-STK-07, UC-43)
-- [ ] Consulter le stock
-- [ ] Effectuer un inventaire
+- [x] Lancement de la préparation par tournée sur le Web, désactivé tant que des journées sont encore en cours ou en attente de synchronisation, ou que des lignes en attente ne sont pas traitées (BR-PRE-01, BR-PRE-02, UC-61)
+- [x] Changer le livreur d'un secteur avant le lancement (BR-PRE-01)
+- [x] Liste de chargement (total par produit) et détail par commande (BR-PRE-03, UC-41)
+- [x] Saisir les quantités préparées ; une rupture réduit la ligne, avec recalcul des paliers et bonus (BR-CAT-10)
+- [x] Valider la préparation
+- [x] Charger le camion du livreur (UC-42)
+- [x] Décharger un camion : comptage, écart, retour au dépôt (BR-STK-07, UC-43)
+- [x] Consulter le stock
+- [x] Effectuer un inventaire
 - [ ] Lecture des codes-barres *(après le MVP)*
 
 ---
@@ -1005,7 +1005,7 @@ Après le MVP : IN_TRANSIT   ARRIVED   CANCELLED
 - [ ] Marchandise non livrée rendue au dépôt au déchargement (BR-LIV-05)
 - [ ] Preuves : GPS et heure ; signature et photo *(après le MVP)*
 - [ ] Encaissement (`Payment`) : espèces, ou crédit dans la limite du plafond (BR-PAY-03)
-- [ ] Vente des produits refusés : le livreur ajoute la marchandise refusée aux commandes d'autres clients de sa tournée, pour vendre plus et ramener moins de retours (règles à définir : prix et paliers, quota, plafond de crédit, clients concernés)
+- [ ] Vente des produits refusés : le livreur ajoute la marchandise refusée (retour d'un client) aux commandes existantes d'autres clients de sa tournée, sans créer de client, pour vendre plus et ramener moins de retours (règles à définir : prix et paliers, quota, plafond de crédit)
 - [ ] Objectif du livreur : taux de retour (quantité retournée au déchargement ÷ quantité chargée, par jour et par mois) et critères notés par le superviseur (nettoyage du camion, etc.), avec une prime
 
 ---

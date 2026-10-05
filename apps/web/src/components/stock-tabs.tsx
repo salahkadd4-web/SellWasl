@@ -8,6 +8,7 @@ const TABS = [
   { href: '/app/stock', label: 'Stock', permission: 'stock.read' },
   { href: '/app/stock/entrees', label: 'Entrées', permission: 'stock.read' },
   { href: '/app/stock/inventaires', label: 'Inventaires', permission: 'stock.read' },
+  { href: '/app/stock/preparations', label: 'Préparations', permission: 'preparation.do' },
   { href: '/app/stock/chargements', label: 'Chargements', permission: 'loads.read' },
   { href: '/app/stock/dechargements', label: 'Déchargements', permission: 'loads.read' },
   { href: '/app/stock/mouvements', label: 'Mouvements', permission: 'stock.read' },

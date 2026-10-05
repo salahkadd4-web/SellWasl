@@ -252,6 +252,17 @@ Phase 17 (réalisé) — toute variation passe par le registre de stock (verrou,
 | `GET` | `/unloads/pending`, `/unloads/preview?workdayId=`, `/unloads?date=` | `loads.read` |
 | `POST` | `/unloads` | `unloads.validate` — journée clôturée ; écart signé avec motif `ADJUSTMENT` ; retour au dépôt ou stock gardé (P-06) ; la journée ne peut plus être rouverte (UC-43, BR-JOU-08) |
 
+Phase 18 (réalisé) — tournées et préparation :
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET` | `/routes?date=` | `preparation.launch` — par livreur : commandes figées à livrer, secteurs, montant, ruptures, bloquants (`WORKDAY_IN_PROGRESS`, `PENDING_SYNC`, `PENDING_LINES`, `NO_DRIVER`, `NO_TRUCK`) ; tournées lancées |
+| `POST` | `/routes/launch` | `preparation.launch` — `{ date, driverId }` ; bloquant → `422` avec `details.blockers` ; commandes `PREPARING` (UC-61) |
+| `GET` | `/routes/preparing` | `preparation.do` — tournées à préparer (`PREPARING`) ou à charger (`READY`) |
+| `GET` | `/routes/{id}/preparation` | `preparation.do` — liste de chargement par article et détail par commande (UC-41) |
+| `POST` | `/routes/{id}/prepare` | `preparation.do` — `{ lines: [{ lineId, preparedQty }] }` dans l'unité de la ligne ; rupture : paliers et bonus recalculés (P-04), réservation ajustée ; commandes et tournée `READY` |
+| `POST` | `/routes/{id}/load` | `loads.load` — réservation consommée, transfert dépôt → camion du livreur, tournée `LOADED` (UC-42) |
+
 ### 5.7 Argent
 
 | Méthode | Chemin | Permission |

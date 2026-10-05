@@ -20,20 +20,28 @@ const SCREENS_BY_STATUS = {
 /** Le pré-vendeur et le vendeur cash van ont leurs écrans (phase 15) ; les autres, l'accueil. */
 const SELLER_ROLES = ['PRE_VENDEUR', 'VENDEUR_CASH_VAN'];
 const SELLER_SCREENS = ['seller', 'printer-test'] as const;
+/** Le magasinier a ses écrans (phase 18). */
+const WAREHOUSE_SCREENS = ['warehouse'] as const;
 
 function AuthGate() {
   const { status, me, profile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const isSeller = SELLER_ROLES.includes(me?.role.code ?? profile?.roleCode ?? '');
+  const roleCode = me?.role.code ?? profile?.roleCode ?? '';
+  const isSeller = SELLER_ROLES.includes(roleCode);
+  const isStorekeeper = roleCode === 'MAGASINIER';
 
   useEffect(() => {
     if (status === 'loading') return;
     const allowed: readonly string[] =
-      status === 'loggedIn' && isSeller ? SELLER_SCREENS : SCREENS_BY_STATUS[status];
+      status === 'loggedIn' && isSeller
+        ? SELLER_SCREENS
+        : status === 'loggedIn' && isStorekeeper
+          ? WAREHOUSE_SCREENS
+          : SCREENS_BY_STATUS[status];
     const current = segments[0] ?? 'index';
     if (!allowed.includes(current)) router.replace(`/${allowed[0]}`);
-  }, [status, isSeller, segments, router]);
+  }, [status, isSeller, isStorekeeper, segments, router]);
 
   return null;
 }
@@ -66,6 +74,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="home" options={{ title: 'SellWasl' }} />
         <Stack.Screen name="seller" options={{ headerShown: false }} />
+        <Stack.Screen name="warehouse" options={{ headerShown: false }} />
         <Stack.Screen name="printer-test" options={{ title: "Test d'impression" }} />
       </Stack>
       <Intro />
