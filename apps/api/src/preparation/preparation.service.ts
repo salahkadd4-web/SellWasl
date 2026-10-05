@@ -138,8 +138,10 @@ export class PreparationService {
         const bonuses = order.orderLines.filter((l) => l.kind === 'BONUS');
         const priceOf = new Map(normals.map((l) => [l.id, l.unitPrice]));
         const bonusOf = new Map(bonuses.map((l) => [l.id, prepared.get(l.id)!]));
-        // Paliers et bonus recalculés sur les quantités préparées (BR-CAT-10, P-04)
-        if (recalculate) {
+        // Paliers et bonus recalculés sur les quantités préparées (BR-CAT-10, P-04), seulement
+        // quand une quantité baisse : sinon la commande garde ses prix confirmés
+        const decreased = normals.some((l) => prepared.get(l.id)! < l.enteredQty);
+        if (recalculate && decreased) {
           const catalog = await this.pricing.pricingCatalog(order.customerTypeId);
           const cart = priceCart(
             catalog,

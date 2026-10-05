@@ -305,13 +305,39 @@ describe('préparation (phase 18)', () => {
       const thon = lineOf(view, 'V07', 'THON-TOM');
       const bonus = lineOf(view, 'V07', 'THON-HUI', 'BONUS');
       const prepared: Record<string, number> = { [thon.lineId]: 8, [bonus.lineId]: 20 };
-      const done = await prepare(
-        routeId,
-        view.orders
-          .flatMap((o) => o.lines)
-          .map((l) => ({ lineId: l.lineId, preparedQty: prepared[l.lineId] ?? l.defaultPrepared })),
-      );
+      // Le prix du thon à l'huile change après la commande de V08, préparée sans rupture :
+      // sa commande garde le prix confirmé
+      const huileVariant = await raw.productVariant.findUniqueOrThrow({
+        where: { id: item('THON-HUI').variantId },
+      });
+      const huilePrice = await raw.price.findFirstOrThrow({
+        where: {
+          productId: huileVariant.productId,
+          unitId: item('THON-HUI').unitId,
+          customerType: { code: 'DETAIL' },
+          productVariantId: null,
+        },
+      });
+      await raw.price.update({ where: { id: huilePrice.id }, data: { price: 9999n } });
+      let done;
+      try {
+        done = await prepare(
+          routeId,
+          view.orders
+            .flatMap((o) => o.lines)
+            .map((l) => ({
+              lineId: l.lineId,
+              preparedQty: prepared[l.lineId] ?? l.defaultPrepared,
+            })),
+        );
+      } finally {
+        await raw.price.update({ where: { id: huilePrice.id }, data: { price: huilePrice.price } });
+      }
       expect(done.status).toBe(200);
+      const v08line = await raw.orderLine.findFirstOrThrow({
+        where: { orderId: orderIds.V08, kind: 'NORMAL' },
+      });
+      expect(v08line.unitPrice).toBe(huilePrice.price);
 
       const lines = await raw.orderLine.findMany({ where: { orderId: orderIds.V07 } });
       // 8 cartons : sous le palier de 10, le prix de base de 5 800 revient (P-04)
