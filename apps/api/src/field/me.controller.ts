@@ -34,7 +34,8 @@ export class MeController {
     private readonly visitCatalog: VisitCatalogService,
   ) {}
 
-  @RequirePermission('orders.own')
+  // Catalogue de la visite : commande en prévente, vente en cash van (BR-CV-03)
+  @RequirePermission('visits.own')
   @Get('visit-catalog')
   catalog(
     @CurrentUser() actor: AuthUser,

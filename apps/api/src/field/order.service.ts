@@ -44,7 +44,7 @@ const QUOTA_STATUSES = [
 ] as const;
 
 /** Ligne prête à enregistrer, avec ses quantités en unité saisie et en unité de base. */
-interface BuiltLine {
+export interface BuiltLine {
   kind: 'NORMAL' | 'PENDING' | 'BONUS';
   productId: string;
   variantId: string;
@@ -101,6 +101,21 @@ export class OrderService implements OnModuleInit {
     return new Map(rows.map((s) => [s.productVariantId, s.physicalQty - s.reservedQty]));
   }
 
+  /** Stock du camion du vendeur par article, en unité de base (cash van, BR-CV-03). */
+  async truckStock(
+    tx: Pick<Tx, 'warehouse' | 'stock'>,
+    userId: string,
+  ): Promise<Map<string, number>> {
+    const truck = await tx.warehouse.findFirst({
+      where: { type: 'TRUCK', assignedUserId: userId, isActive: true, deletedAt: null },
+    });
+    if (!truck) return new Map();
+    const rows = await tx.stock.findMany({ where: { warehouseId: truck.id, deletedAt: null } });
+    return new Map(
+      rows.filter((s) => s.physicalQty > 0).map((s) => [s.productVariantId, s.physicalQty]),
+    );
+  }
+
   /** Quantités qui consomment le quota du vendeur ce jour-là, par article, en unité de base. */
   async consumedQuota(
     tx: Pick<Tx, 'orderLine'>,
@@ -132,7 +147,7 @@ export class OrderService implements OnModuleInit {
    * Panier recalculé par le serveur (BR-CAT-04 à 09, BR-QUO-03) : prix et paliers sur la quantité
    * demandée, scission au quota dans l'unité saisie, bonus sur les seules quantités confirmées.
    */
-  private async build(
+  async build(
     tx: Tx,
     actor: AuthUser,
     input: {
@@ -141,6 +156,8 @@ export class OrderService implements OnModuleInit {
       lines: CartLineInput[];
       freeVariantChoices?: Record<string, string>;
       excludeOrderId?: string;
+      /** Stock qui limite les bonus : le camion en cash van (BR-CV-03) ; sinon le dépôt. */
+      availableStock?: Map<string, number>;
     },
   ) {
     const variantIds = input.lines.map((l) => l.variantId);
@@ -149,7 +166,7 @@ export class OrderService implements OnModuleInit {
 
     const [catalog, available, settingsRow] = await Promise.all([
       this.pricing.pricingCatalog(input.customerTypeId),
-      this.availableStock(tx),
+      input.availableStock ?? this.availableStock(tx),
       tx.companySettings.findFirst({ orderBy: { version: 'desc' } }),
     ]);
     const settings = companySettingsSchema.parse(settingsRow?.data ?? {});

@@ -31,7 +31,10 @@ export class VisitCatalogService {
     const date = requested ?? (await this.defaultDate(actor));
     const [catalog, available, settingsRow, quotas, products] = await Promise.all([
       this.orders.catalogFor(customer.customerTypeId),
-      this.orders.availableStock(tx),
+      // Cash van : le stock du camion, exact (BR-CV-03) ; prévente : le disponible du dépôt
+      actor.roleCode === 'VENDEUR_CASH_VAN'
+        ? this.orders.truckStock(tx, actor.userId)
+        : this.orders.availableStock(tx),
       this.db.companySettings.findFirst({ orderBy: { version: 'desc' } }),
       this.db.quota.findMany({
         where: { userId: actor.userId, date: toDate(date), deletedAt: null },
@@ -91,6 +94,9 @@ export class VisitCatalogService {
         }))
         .filter((p) => p.variants.length > 0 && p.units.length > 0),
       rules: { P03_bonusConsumesQuota: P03 },
+      ...(actor.roleCode === 'VENDEUR_CASH_VAN'
+        ? { truckStock: Object.fromEntries(available) }
+        : {}),
     };
   }
 

@@ -1,4 +1,10 @@
-import type { LoadDto, ProductDto, TruckCheckLine, TruckStockDto } from '@sellwasl/validation';
+import type {
+  LoadDto,
+  ProductDto,
+  TruckCheckLine,
+  TruckStockDto,
+  VisitCatalog,
+} from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -181,6 +187,134 @@ describe('cash van (phase 20)', () => {
         token: supB,
       });
       expect(last.body.id).toBe(loadId);
+    });
+  });
+
+  describe('vente cash van (UC-15, BR-CV-03, BR-CV-04, BR-QUO-04)', () => {
+    let customers: { id: string }[];
+    let saleNumber = 0;
+    const number = () => `C01-${seller.series}20${String(++saleNumber).padStart(2, '0')}`;
+    const catalogOf = (customerId: string) =>
+      call<VisitCatalog>(t.url, 'GET', `/me/visit-catalog?customerId=${customerId}`, {
+        token: seller.token,
+      });
+    const cartonPrice = (catalog: VisitCatalog, ref: string) => {
+      const product = products.find((p) => p.variants.some((v) => v.reference === ref))!;
+      return catalog.catalog.prices.find(
+        (p) => p.productId === product.id && p.unitId === item(ref).unitId && p.variantId === null,
+      )!.price;
+    };
+
+    beforeAll(async () => {
+      customers = (await phones.today(seller, DAY)).body.day.customers;
+      expect(customers.length).toBeGreaterThan(2);
+    });
+
+    it('vend depuis le camion : livrée tout de suite, stock du camion baissé, payée', async () => {
+      const customer = customers[0]!;
+      const visitId = await phones.startVisit(seller, customer.id, 'ON_SITE');
+      const reply = await catalogOf(customer.id);
+      expect(reply.status, JSON.stringify(reply.body).slice(0, 300)).toBe(200);
+      const catalog = reply.body;
+      const thon = item('THON-TOM');
+      expect(catalog.truckStock?.[thon.variantId]).toBeGreaterThan(0);
+      const before = catalog.truckStock![thon.variantId]!;
+
+      const tooMuch = await phones.send(seller, 'sale.confirm', {
+        orderId: uuidv7(),
+        number: number(),
+        visitId,
+        lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 9999 }],
+        cashAmount: 0,
+      });
+      expect(tooMuch.status).toBe('REJECTED');
+
+      const orderId = uuidv7();
+      const due = cartonPrice(catalog, 'THON-TOM');
+      const sold = await phones.send(seller, 'sale.confirm', {
+        orderId,
+        number: number(),
+        visitId,
+        lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+        cashAmount: due,
+      });
+      expect(sold.status, JSON.stringify(sold)).toBe('APPLIED');
+      const order = await raw.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(order).toMatchObject({
+        status: 'DELIVERED',
+        source: 'CASH_VAN',
+        totalAmount: BigInt(due),
+      });
+      const after = (await catalogOf(customers[1]!.id)).body.truckStock![thon.variantId];
+      expect(after).toBe(before - thon.baseQty);
+      expect(
+        await raw.payment.findFirst({ where: { orderId, cashAmount: BigInt(due) } }),
+      ).not.toBeNull();
+      expect((await raw.visit.findUniqueOrThrow({ where: { id: visitId } })).status).toBe(
+        'COMPLETED',
+      );
+    });
+
+    it('quota épuisé : la vente est refusée, la demande perdue est enregistrée', async () => {
+      const bimo = item('BIMO-CHOC');
+      const user = await raw.user.findFirstOrThrow({
+        where: { code: 'C01', company: { code: 'CASHVAN-EST' } },
+      });
+      await raw.quota.create({
+        data: {
+          id: uuidv7(),
+          companyId: user.companyId,
+          userId: user.id,
+          productVariantId: bimo.variantId,
+          date: new Date(`${DAY}T00:00:00Z`),
+          qty: bimo.baseQty,
+          enteredQty: 1,
+          enteredUnitId: bimo.unitId,
+        },
+      });
+      const customer = customers[1]!;
+      const visitId = await phones.startVisit(seller, customer.id, 'ON_SITE');
+      const refused = await phones.send(seller, 'sale.confirm', {
+        orderId: uuidv7(),
+        number: number(),
+        visitId,
+        lines: [{ variantId: bimo.variantId, unitId: bimo.unitId, qty: 2 }],
+        cashAmount: 0,
+      });
+      expect(refused.status).toBe('REJECTED');
+      const lostDemandId = uuidv7();
+      const lost = await phones.send(seller, 'lost_demand.create', {
+        lostDemandId,
+        customerId: customer.id,
+        variantId: bimo.variantId,
+        qty: bimo.baseQty,
+      });
+      expect(lost.status, JSON.stringify(lost)).toBe('APPLIED');
+      expect(await raw.lostDemand.findUniqueOrThrow({ where: { id: lostDemandId } })).toMatchObject(
+        {
+          kind: 'LOST_DEMAND',
+          qty: bimo.baseQty,
+        },
+      );
+    });
+
+    it('refuse de vendre avant le pointage du camion (BR-CV-02)', async () => {
+      // C02 a un chargement validé mais pas encore pointé
+      const c02 = await phones.get('C02', 'CASHVAN-EST');
+      const started = await phones.send(c02, 'workday.start', { workdayId: uuidv7(), date: DAY });
+      expect(started.status).toBe('APPLIED');
+      const own = (await phones.today(c02, DAY)).body.day.customers;
+      const visitId = await phones.startVisit(c02, own[0]!.id, 'ON_SITE');
+      const bimo = item('BIMO-CHOC');
+      const sale = await phones.send(c02, 'sale.confirm', {
+        orderId: uuidv7(),
+        number: `C02-${c02.series}2001`,
+        visitId,
+        lines: [{ variantId: bimo.variantId, unitId: bimo.unitId, qty: 1 }],
+        cashAmount: 0,
+      });
+      expect(sale.status).toBe('REJECTED');
+      expect(JSON.stringify(sale)).toContain('Pointez');
     });
   });
 });
