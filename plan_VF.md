@@ -1181,6 +1181,8 @@ Ajoutée le 2026-10-06 (mission de finalisation). Net **interne** : sans CNAS ni
 - [x] Règles par unité, pourcentage du CA, seuil, paliers, objectif de CA ; hebdomadaires ou mensuelles ; par employé ou par rôle
 - [x] Calcul à la demande sur les ventes livrées, une prime par règle, employé et période, ventes sources tracées
 - [x] Validation par le comptable avant la paie
+- [x] Calcul automatique chaque nuit (primes de la semaine et du mois, brouillon de paie à jour) ; validation humaine
+- [x] Progression en direct pour l'employé (Web et mobile) ; règles modifiables et désactivables
 - [ ] Objectifs d'équipe *(architecture prête, non implémentés)*
 
 ## Paie

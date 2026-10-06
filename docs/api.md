@@ -369,6 +369,7 @@ Règles : `docs/payroll.md`, `docs/incentives.md`, `docs/stock-discrepancies.md`
 | `GET`, `POST` | `/payroll/adjustments?month`, `/payroll/adjustments` | `payroll.manage` — paie du mois non approuvée |
 | `GET` | `/payroll/dashboard?month` | `payroll.read` |
 | `GET` | `/me/pay?month` | `pay.mine` — ses seules données |
+| `GET` | `/me/incentives/progress?date` | `pay.mine` — primes en cours (semaine et mois) : quantité, prime estimée, sans enregistrement |
 
 Au déchargement, `UnloadPreviewLine.unitValue`, `UnloadDto.validatedBy` et `lines[].gapValue` donnent la valeur des écarts ; chaque écart crée un `Discrepancy`.
 

@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { request } from '@/api/client';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { Card, Message, Screen, Title } from '@/ui';
+import { IncentiveProgress } from './IncentiveProgress';
 
 const STATUS: Record<string, string> = {
   OPEN: 'en préparation',
@@ -73,6 +74,7 @@ export function MyPayScreen() {
           <Text style={styles.chipText}>Suivant ›</Text>
         </Pressable>
       </View>
+      <IncentiveProgress />
       {error ? <Message>{error}</Message> : null}
       {!data && !error ? <ActivityIndicator color={colors.primary} /> : null}
       {data ? (

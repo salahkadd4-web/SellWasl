@@ -42,7 +42,7 @@ export default function IncentivesPage() {
   const [incentives, setIncentives] = useState<IncentiveDto[] | null>(null);
   const [date, setDate] = useState(todayDate);
   const [frequency, setFrequency] = useState<'WEEKLY' | 'MONTHLY'>('WEEKLY');
-  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<IncentiveRuleDto | 'new' | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +61,25 @@ export default function IncentivesPage() {
       .then(setIncentives)
       .catch(() => setIncentives([]));
   }, [loadRules]);
+
+  /** Désactive ou réactive une règle : les primes déjà calculées restent. */
+  async function toggle(r: IncentiveRuleDto) {
+    if (
+      r.isActive &&
+      !confirm(`Désactiver « ${r.name} » ? Plus aucune prime ne sera calculée avec elle.`)
+    )
+      return;
+    setError(null);
+    try {
+      await api('company', `/incentive-rules/${r.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ...ruleBody(r), isActive: !r.isActive }),
+      });
+      await loadRules();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
 
   async function calculate() {
     setError(null);
@@ -98,7 +117,7 @@ export default function IncentivesPage() {
         subtitle="Primes calculées sur les ventes livrées, validées avant d'entrer dans la paie."
         action={
           can('incentives.manage') && (
-            <Button onClick={() => setCreating(true)}>Nouvelle règle</Button>
+            <Button onClick={() => setEditing('new')}>Nouvelle règle</Button>
           )
         }
       />
@@ -126,9 +145,21 @@ export default function IncentivesPage() {
                       depuis le {formatDate(r.validFrom)}
                     </span>
                   </span>
-                  <Badge tone={r.isActive ? 'success' : 'neutral'}>
-                    {r.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Badge tone={r.isActive ? 'success' : 'neutral'}>
+                      {r.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {can('incentives.manage') && (
+                      <>
+                        <Button variant="secondary" onClick={() => setEditing(r)}>
+                          Modifier
+                        </Button>
+                        <Button variant="secondary" onClick={() => void toggle(r)}>
+                          {r.isActive ? 'Désactiver' : 'Réactiver'}
+                        </Button>
+                      </>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>
@@ -219,11 +250,12 @@ export default function IncentivesPage() {
           </div>
         )}
       </Card>
-      {creating && (
+      {editing && (
         <RuleForm
-          onClose={() => setCreating(false)}
+          rule={editing === 'new' ? null : editing}
+          onClose={() => setEditing(null)}
           onDone={() => {
-            setCreating(false);
+            setEditing(null);
             void loadRules();
           }}
         />
@@ -232,21 +264,49 @@ export default function IncentivesPage() {
   );
 }
 
-function RuleForm({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+/** Corps d'une règle existante, pour la renvoyer telle quelle ou modifiée. */
+function ruleBody(r: IncentiveRuleDto) {
+  return {
+    name: r.name,
+    kind: r.kind,
+    frequency: r.frequency,
+    productId: r.product?.id ?? null,
+    unitId: r.unit?.id ?? null,
+    amount: r.amount,
+    percentBp: r.percentBp,
+    threshold: r.threshold,
+    tiers: r.tiers,
+    userId: r.user?.id ?? null,
+    roleCode: r.roleCode,
+    isActive: r.isActive,
+    validFrom: r.validFrom,
+    validTo: r.validTo,
+  };
+}
+
+function RuleForm({
+  rule,
+  onClose,
+  onDone,
+}: {
+  rule: IncentiveRuleDto | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const employees = useEmployees();
   const [products, setProducts] = useState<ProductDto[]>([]);
   const [form, setForm] = useState({
-    name: '',
-    kind: 'PER_UNIT',
-    frequency: 'WEEKLY',
-    productId: '',
-    unitId: '',
-    amount: '',
-    percent: '',
-    threshold: '',
-    tiers: '',
-    target: 'LIVREUR',
-    validFrom: todayDate(),
+    name: rule?.name ?? '',
+    kind: (rule?.kind ?? 'PER_UNIT') as string,
+    frequency: (rule?.frequency ?? 'WEEKLY') as string,
+    productId: rule?.product?.id ?? '',
+    unitId: rule?.unit?.id ?? '',
+    amount: rule?.amount ? String(rule.amount) : '',
+    percent: rule?.percentBp ? String(rule.percentBp / 100) : '',
+    threshold: rule?.threshold ? String(rule.threshold) : '',
+    tiers: (rule?.tiers ?? []).map((t) => `${t.minQty}:${t.unitAmount}`).join(', '),
+    target: rule?.user?.id ?? rule?.roleCode ?? 'LIVREUR',
+    validFrom: rule?.validFrom ?? todayDate(),
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -270,8 +330,8 @@ function RuleForm({ onClose, onDone }: { onClose: () => void; onDone: () => void
     setError(null);
     setBusy(true);
     try {
-      await api('company', '/incentive-rules', {
-        method: 'POST',
+      await api('company', rule ? `/incentive-rules/${rule.id}` : '/incentive-rules', {
+        method: rule ? 'PATCH' : 'POST',
         body: JSON.stringify({
           name: form.name.trim(),
           kind: form.kind,
@@ -285,6 +345,8 @@ function RuleForm({ onClose, onDone }: { onClose: () => void; onDone: () => void
           userId: isRole ? null : form.target,
           roleCode: isRole ? form.target : null,
           validFrom: form.validFrom,
+          validTo: rule?.validTo ?? null,
+          isActive: rule?.isActive ?? true,
         }),
       });
       onDone();
@@ -296,7 +358,10 @@ function RuleForm({ onClose, onDone }: { onClose: () => void; onDone: () => void
   }
 
   return (
-    <Modal title="Nouvelle règle de prime" onClose={onClose}>
+    <Modal
+      title={rule ? 'Modifier la règle de prime' : 'Nouvelle règle de prime'}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-3">
         <Field label="Nom" value={form.name} onChange={(e) => set({ name: e.target.value })} />
         <div className="grid gap-3 sm:grid-cols-2">
@@ -401,7 +466,7 @@ function RuleForm({ onClose, onDone }: { onClose: () => void; onDone: () => void
             Annuler
           </Button>
           <Button disabled={busy} onClick={() => void submit()}>
-            Créer la règle
+            {rule ? 'Enregistrer' : 'Créer la règle'}
           </Button>
         </div>
       </div>

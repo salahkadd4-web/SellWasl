@@ -70,6 +70,8 @@ describe('couverture des routes', () => {
       'companies/provisioning.service.ts',
       'health/health.controller.ts',
       'modules/modules.service.ts',
+      // Paie automatique de la nuit : parcourt les entreprises, chaque requête filtrée par entreprise
+      'payroll/payroll-automation.service.ts',
       'platform/platform-companies.controller.ts',
       'prisma/prisma.module.ts',
       'prisma/prisma.service.ts',

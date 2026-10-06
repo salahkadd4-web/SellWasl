@@ -3,6 +3,7 @@ import type { DriverObjectiveDto } from '@sellwasl/validation';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { request } from '@/api/client';
+import { IncentiveProgress } from '@/pay/IncentiveProgress';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { Card, Message, Screen, Title } from '@/ui';
 
@@ -23,6 +24,7 @@ export default function DriverObjectivesScreen() {
   return (
     <Screen>
       <Title subtitle="Moins de retours au dépôt, meilleur score.">Objectifs</Title>
+      <IncentiveProgress />
       {error ? <Message>{error}</Message> : null}
       {objectives?.map((o) => (
         <Card key={o.month} title={o.month.split('-').reverse().join('/')}>

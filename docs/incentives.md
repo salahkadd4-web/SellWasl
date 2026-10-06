@@ -25,9 +25,11 @@ Une commande annulée ou en échec n'est jamais livrée, donc jamais comptée.
 
 ## Cycle
 
-1. Fin de période : le comptable lance le calcul (`POST /incentives/calculate { date, frequency }`).
+1. Chaque nuit (2 h 15), le serveur calcule les primes de la semaine et du mois qui contiennent la veille, pour chaque entreprise dont la paie est activée ; le comptable peut aussi lancer le calcul (`POST /incentives/calculate { date, frequency }`).
 2. Une prime par règle, employé et période (contrainte unique) ; ses ventes sources sont gardées (commande, bon, quantité, montant).
 3. Recalcul : seules les primes `CALCULATED` sont mises à jour ; une prime validée, refusée ou appliquée ne bouge plus.
 4. Validation ou refus par le comptable ; une prime validée entre dans la paie du mois où sa période se termine, puis passe `APPLIED` à l'approbation de la paie.
+
+Progression en direct : `GET /me/incentives/progress?date` donne à l'employé, pour la semaine et le mois en cours, la quantité livrée et la prime estimée de chacune de ses règles, sans rien enregistrer (Web et mobile : « Ma paie », « Objectifs »).
 
 Droits : `incentives.read` (administrateur, superviseur, comptable), `incentives.manage` (administrateur), `incentives.validate` (comptable).

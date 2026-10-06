@@ -3,6 +3,7 @@ import type { MyObjective } from '@sellwasl/validation';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { request } from '@/api/client';
+import { IncentiveProgress } from '@/pay/IncentiveProgress';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { Card, Message, Screen, Title } from '@/ui';
 
@@ -37,6 +38,7 @@ export default function ObjectivesScreen() {
       <Title subtitle="Chiffre d'affaires livré du mois ; prime versée à la date indiquée.">
         Mes objectifs
       </Title>
+      <IncentiveProgress />
       {error ? <Message>{error}</Message> : null}
       {!objectives && !error ? <ActivityIndicator color={colors.primary} /> : null}
       {objectives?.length === 0 ? <Message tone="info">Aucun objectif ce mois-ci.</Message> : null}

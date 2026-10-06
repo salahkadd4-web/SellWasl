@@ -25,6 +25,15 @@ Net = salaire de base
 
 Chaque ligne garde sa source (`sourceType`, `sourceId`) : `EmployeeCompensation`, `Incentive`, `Objective`, `DriverObjective`, `PayrollAdjustment`, `SalaryAdvance`, `PayrollDeduction`. Une retenue née d'un écart remonte à l'écart, puis à la ligne de déchargement ou au versement.
 
+## Automatisation
+
+Chaque nuit à 2 h 15 (`PayrollAutomationService`, verrou PostgreSQL : une seule exécution), pour chaque entreprise active dont la paie est activée, dans le fuseau de l'entreprise :
+
+1. primes de la semaine et du mois qui contiennent la veille calculées (statut « à vérifier ») ;
+2. paie du mois de la veille créée si besoin, puis recalculée tant qu'elle n'est pas approuvée ; le mois précédent aussi, s'il n'est pas approuvé.
+
+L'auteur de ces calculs est le système (`actorUserId` vide dans l'audit). La validation des primes, l'approbation de la paie, les retenues et les paiements restent faits par le comptable.
+
 ## Cycle d'une paie
 
 | Statut | Passage | Effet |

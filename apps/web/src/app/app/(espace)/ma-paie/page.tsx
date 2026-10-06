@@ -1,6 +1,6 @@
 'use client';
 
-import type { MyPayDto } from '@sellwasl/validation';
+import type { IncentiveProgressDto, MyPayDto } from '@sellwasl/validation';
 import { useEffect, useState } from 'react';
 import { Alert, Badge, Card, Field, PageTitle } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
@@ -21,6 +21,13 @@ export default function MyPayPage() {
   const [month, setMonth] = useState(currentMonth);
   const [data, setData] = useState<MyPayDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<IncentiveProgressDto[]>([]);
+
+  useEffect(() => {
+    api<IncentiveProgressDto[]>('company', '/me/incentives/progress')
+      .then(setProgress)
+      .catch(() => setProgress([]));
+  }, []);
 
   useEffect(() => {
     setError(null);
@@ -48,6 +55,28 @@ export default function MyPayPage() {
           onChange={(e) => e.target.value && setMonth(e.target.value)}
         />
       </Card>
+      {progress.length > 0 && (
+        <Card className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold text-text-dark">En cours</h2>
+          <p className="text-sm text-muted">
+            Estimation sur les ventes livrées à ce jour ; la prime est calculée chaque nuit puis
+            validée par le comptable.
+          </p>
+          {progress.map((p) => (
+            <p
+              key={`${p.rule.id}-${p.periodStart}`}
+              className="flex flex-wrap items-center justify-between gap-2 text-sm"
+            >
+              <span>
+                {p.rule.name} · {p.rule.frequency === 'WEEKLY' ? 'semaine' : 'mois'} du{' '}
+                {formatDate(p.periodStart)} au {formatDate(p.periodEnd)} · {p.quantity}{' '}
+                {p.unitName ?? ''}
+              </span>
+              <span className="font-semibold text-text-dark">{formatDA(p.estimatedAmount)}</span>
+            </p>
+          ))}
+        </Card>
+      )}
       {data && (
         <>
           <Card className="flex flex-col gap-3">
