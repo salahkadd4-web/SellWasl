@@ -541,6 +541,7 @@ model User {
   deletedAt                      DateTime?              @map("deleted_at") @db.Timestamptz(3)
   version                        Int                    @default(1)
   changeSeq                      BigInt                 @default(0) @map("change_seq")
+  changeXid                      BigInt                 @default(0) @map("change_xid")
   createdByUserId                String?                @map("created_by_user_id") @db.Uuid
   createdByDeviceId              String?                @map("created_by_device_id") @db.Uuid
   createdAt                      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -585,6 +586,7 @@ model User {
   @@unique([companyId, code])
   @@unique([companyId, email])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("user")
 }
 
@@ -704,6 +706,7 @@ model CustomerType {
   deletedAt              DateTime?               @map("deleted_at") @db.Timestamptz(3)
   version                Int                     @default(1)
   changeSeq              BigInt                  @default(0) @map("change_seq")
+  changeXid              BigInt                  @default(0) @map("change_xid")
   createdByUserId        String?                 @map("created_by_user_id") @db.Uuid
   createdByDeviceId      String?                 @map("created_by_device_id") @db.Uuid
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -718,6 +721,7 @@ model CustomerType {
 
   @@unique([companyId, code])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("customer_type")
 }
 
@@ -730,6 +734,7 @@ model Holiday {
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
   version           Int       @default(1)
   changeSeq         BigInt    @default(0) @map("change_seq")
+  changeXid         BigInt    @default(0) @map("change_xid")
   createdByUserId   String?   @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -738,6 +743,7 @@ model Holiday {
 
   @@unique([companyId, date])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("holiday")
 }
 
@@ -753,6 +759,7 @@ model Reason {
   deletedAt         DateTime?         @map("deleted_at") @db.Timestamptz(3)
   version           Int               @default(1)
   changeSeq         BigInt            @default(0) @map("change_seq")
+  changeXid         BigInt            @default(0) @map("change_xid")
   createdByUserId   String?           @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?           @map("created_by_device_id") @db.Uuid
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -766,6 +773,7 @@ model Reason {
 
   @@unique([companyId, kind, label])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("reason")
 }
 
@@ -782,6 +790,7 @@ model Warehouse {
   deletedAt                     DateTime?        @map("deleted_at") @db.Timestamptz(3)
   version                       Int              @default(1)
   changeSeq                     BigInt           @default(0) @map("change_seq")
+  changeXid                     BigInt           @default(0) @map("change_xid")
   createdByUserId               String?          @map("created_by_user_id") @db.Uuid
   createdByDeviceId             String?          @map("created_by_device_id") @db.Uuid
   createdAt                     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -800,6 +809,7 @@ model Warehouse {
   @@unique([companyId, code])
   @@unique([companyId, assignedUserId], map: "warehouse_one_truck_per_user", where: raw("type = 'TRUCK' AND assigned_user_id IS NOT NULL"))
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("warehouse")
 }
 
@@ -815,6 +825,7 @@ model DriverObjective {
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
   version         Int       @default(1)
   changeSeq       BigInt    @default(0) @map("change_seq")
+  changeXid       BigInt    @default(0) @map("change_xid")
   createdByUserId String?   @map("created_by_user_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -823,6 +834,7 @@ model DriverObjective {
 
   @@unique([companyId, userId, month])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("driver_objective")
 }
 
@@ -836,6 +848,7 @@ model ProductRange {
   deletedAt         DateTime?   @map("deleted_at") @db.Timestamptz(3)
   version           Int         @default(1)
   changeSeq         BigInt      @default(0) @map("change_seq")
+  changeXid         BigInt      @default(0) @map("change_xid")
   createdByUserId   String?     @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?     @map("created_by_device_id") @db.Uuid
   createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -846,6 +859,7 @@ model ProductRange {
 
   @@unique([companyId, code])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("product_range")
 }
 
@@ -858,6 +872,7 @@ model ProductCategory {
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
   version           Int       @default(1)
   changeSeq         BigInt    @default(0) @map("change_seq")
+  changeXid         BigInt    @default(0) @map("change_xid")
   createdByUserId   String?   @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -867,6 +882,7 @@ model ProductCategory {
 
   @@unique([companyId, name])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("product_category")
 }
 
@@ -883,6 +899,7 @@ model Product {
   deletedAt               DateTime?        @map("deleted_at") @db.Timestamptz(3)
   version                 Int              @default(1)
   changeSeq               BigInt           @default(0) @map("change_seq")
+  changeXid               BigInt           @default(0) @map("change_xid")
   createdByUserId         String?          @map("created_by_user_id") @db.Uuid
   createdByDeviceId       String?          @map("created_by_device_id") @db.Uuid
   createdAt               DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -903,6 +920,7 @@ model Product {
 
   @@unique([companyId, reference])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("product")
 }
 
@@ -922,6 +940,7 @@ model ProductVariant {
   deletedAt               DateTime?            @map("deleted_at") @db.Timestamptz(3)
   version                 Int                  @default(1)
   changeSeq               BigInt               @default(0) @map("change_seq")
+  changeXid               BigInt               @default(0) @map("change_xid")
   createdByUserId         String?              @map("created_by_user_id") @db.Uuid
   createdByDeviceId       String?              @map("created_by_device_id") @db.Uuid
   createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -946,6 +965,7 @@ model ProductVariant {
   @@unique([companyId, reference])
   @@unique([productId], map: "product_variant_one_default", where: raw("is_default"))
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("product_variant")
 }
 
@@ -961,6 +981,7 @@ model ProductUnit {
   deletedAt            DateTime?          @map("deleted_at") @db.Timestamptz(3)
   version              Int                @default(1)
   changeSeq            BigInt             @default(0) @map("change_seq")
+  changeXid            BigInt             @default(0) @map("change_xid")
   createdByUserId      String?            @map("created_by_user_id") @db.Uuid
   createdByDeviceId    String?            @map("created_by_device_id") @db.Uuid
   createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -979,6 +1000,7 @@ model ProductUnit {
   @@unique([productId], map: "product_unit_one_base", where: raw("is_base"))
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("product_unit")
 }
 
@@ -994,6 +1016,7 @@ model Price {
   deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
   version           Int             @default(1)
   changeSeq         BigInt          @default(0) @map("change_seq")
+  changeXid         BigInt          @default(0) @map("change_xid")
   createdByUserId   String?         @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?         @map("created_by_device_id") @db.Uuid
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1007,6 +1030,7 @@ model Price {
   @@unique([companyId, productId, customerTypeId, unitId], map: "price_product_unique", where: raw("product_variant_id IS NULL"))
   @@unique([companyId, productVariantId, customerTypeId, unitId], map: "price_variant_unique", where: raw("product_variant_id IS NOT NULL"))
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("price")
 }
 
@@ -1024,6 +1048,7 @@ model PriceTier {
   deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
   version           Int             @default(1)
   changeSeq         BigInt          @default(0) @map("change_seq")
+  changeXid         BigInt          @default(0) @map("change_xid")
   createdByUserId   String?         @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?         @map("created_by_device_id") @db.Uuid
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1038,6 +1063,7 @@ model PriceTier {
   @@unique([companyId, productId, customerTypeId, unitId, minQty], map: "price_tier_product_unique", where: raw("product_variant_id IS NULL"))
   @@unique([companyId, productVariantId, customerTypeId, unitId, minQty], map: "price_tier_variant_unique", where: raw("product_variant_id IS NOT NULL"))
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("price_tier")
 }
 
@@ -1061,6 +1087,7 @@ model BonusRule {
   deletedAt              DateTime?               @map("deleted_at") @db.Timestamptz(3)
   version                Int                     @default(1)
   changeSeq              BigInt                  @default(0) @map("change_seq")
+  changeXid              BigInt                  @default(0) @map("change_xid")
   createdByUserId        String?                 @map("created_by_user_id") @db.Uuid
   createdByDeviceId      String?                 @map("created_by_device_id") @db.Uuid
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1077,6 +1104,7 @@ model BonusRule {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("bonus_rule")
 }
 
@@ -1104,6 +1132,7 @@ model Territory {
   deletedAt              DateTime?               @map("deleted_at") @db.Timestamptz(3)
   version                Int                     @default(1)
   changeSeq              BigInt                  @default(0) @map("change_seq")
+  changeXid              BigInt                  @default(0) @map("change_xid")
   createdByUserId        String?                 @map("created_by_user_id") @db.Uuid
   createdByDeviceId      String?                 @map("created_by_device_id") @db.Uuid
   createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1119,6 +1148,7 @@ model Territory {
   @@unique([companyId, code])
   @@unique([companyId, sellerUserId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("territory")
 }
 
@@ -1148,6 +1178,7 @@ model TerritoryPart {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1160,6 +1191,7 @@ model TerritoryPart {
   @@unique([territoryId, number])
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("territory_part")
 }
 
@@ -1173,6 +1205,7 @@ model PartSchedule {
   deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz(3)
   version           Int           @default(1)
   changeSeq         BigInt        @default(0) @map("change_seq")
+  changeXid         BigInt        @default(0) @map("change_xid")
   createdByUserId   String?       @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?       @map("created_by_device_id") @db.Uuid
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1184,6 +1217,7 @@ model PartSchedule {
   @@unique([territoryId, weekday])
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("part_schedule")
 }
 
@@ -1213,6 +1247,7 @@ model Customer {
   deletedAt           DateTime?            @map("deleted_at") @db.Timestamptz(3)
   version             Int                  @default(1)
   changeSeq           BigInt               @default(0) @map("change_seq")
+  changeXid           BigInt               @default(0) @map("change_xid")
   createdByUserId     String?              @map("created_by_user_id") @db.Uuid
   createdByDeviceId   String?              @map("created_by_device_id") @db.Uuid
   occurredAt          DateTime?            @map("occurred_at") @db.Timestamptz(3)
@@ -1231,6 +1266,7 @@ model Customer {
 
   @@index([companyId, territoryId, partId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("customer")
 }
 
@@ -1243,6 +1279,7 @@ model CustomerReschedule {
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
   version           Int       @default(1)
   changeSeq         BigInt    @default(0) @map("change_seq")
+  changeXid         BigInt    @default(0) @map("change_xid")
   createdByUserId   String?   @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1252,6 +1289,7 @@ model CustomerReschedule {
 
   @@unique([companyId, customerId, date])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("customer_reschedule")
 }
 
@@ -1268,6 +1306,7 @@ model Quota {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1279,6 +1318,7 @@ model Quota {
 
   @@unique([companyId, userId, productVariantId, date])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("quota")
 }
 
@@ -1296,6 +1336,7 @@ model Objective {
   deletedAt         DateTime?    @map("deleted_at") @db.Timestamptz(3)
   version           Int          @default(1)
   changeSeq         BigInt       @default(0) @map("change_seq")
+  changeXid         BigInt       @default(0) @map("change_xid")
   createdByUserId   String?      @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?      @map("created_by_device_id") @db.Uuid
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1306,6 +1347,7 @@ model Objective {
 
   @@unique([companyId, userId, rangeId, month])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("objective")
 }
 
@@ -1323,6 +1365,7 @@ model LostDemand {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1336,6 +1379,7 @@ model LostDemand {
 
   @@index([companyId, date])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("lost_demand")
 }
 
@@ -1360,6 +1404,7 @@ model Workday {
   deletedAt           DateTime?     @map("deleted_at") @db.Timestamptz(3)
   version             Int           @default(1)
   changeSeq           BigInt        @default(0) @map("change_seq")
+  changeXid           BigInt        @default(0) @map("change_xid")
   createdByUserId     String?       @map("created_by_user_id") @db.Uuid
   createdByDeviceId   String?       @map("created_by_device_id") @db.Uuid
   occurredAt          DateTime?     @map("occurred_at") @db.Timestamptz(3)
@@ -1379,6 +1424,7 @@ model Workday {
 
   @@unique([companyId, userId, date])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("workday")
 }
 
@@ -1405,6 +1451,7 @@ model Visit {
   deletedAt                 DateTime?     @map("deleted_at") @db.Timestamptz(3)
   version                   Int           @default(1)
   changeSeq                 BigInt        @default(0) @map("change_seq")
+  changeXid                 BigInt        @default(0) @map("change_xid")
   createdByUserId           String?       @map("created_by_user_id") @db.Uuid
   createdByDeviceId         String?       @map("created_by_device_id") @db.Uuid
   occurredAt                DateTime?     @map("occurred_at") @db.Timestamptz(3)
@@ -1420,6 +1467,7 @@ model Visit {
   @@index([companyId, date, userId])
   @@index([companyId, customerId, date])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("visit")
 }
 
@@ -1446,6 +1494,7 @@ model Order {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1466,6 +1515,7 @@ model Order {
   @@index([companyId, deliveryDate, status])
   @@index([companyId, sellerUserId, orderDate])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("order")
 }
 
@@ -1497,6 +1547,7 @@ model OrderLine {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1515,6 +1566,7 @@ model OrderLine {
   @@index([orderId])
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("order_line")
 }
 
@@ -1529,6 +1581,7 @@ model Stock {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1539,6 +1592,7 @@ model Stock {
 
   @@unique([companyId, warehouseId, productVariantId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("stock")
 }
 
@@ -1581,6 +1635,7 @@ model StockReceipt {
   deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(3)
   version           Int                @default(1)
   changeSeq         BigInt             @default(0) @map("change_seq")
+  changeXid         BigInt             @default(0) @map("change_xid")
   createdByUserId   String?            @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?            @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?          @map("occurred_at") @db.Timestamptz(3)
@@ -1593,6 +1648,7 @@ model StockReceipt {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("stock_receipt")
 }
 
@@ -1611,6 +1667,7 @@ model StockReceiptLine {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1624,6 +1681,7 @@ model StockReceiptLine {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("stock_receipt_line")
 }
 
@@ -1637,6 +1695,7 @@ model InventoryCount {
   deletedAt           DateTime?            @map("deleted_at") @db.Timestamptz(3)
   version             Int                  @default(1)
   changeSeq           BigInt               @default(0) @map("change_seq")
+  changeXid           BigInt               @default(0) @map("change_xid")
   createdByUserId     String?              @map("created_by_user_id") @db.Uuid
   createdByDeviceId   String?              @map("created_by_device_id") @db.Uuid
   occurredAt          DateTime?            @map("occurred_at") @db.Timestamptz(3)
@@ -1648,6 +1707,7 @@ model InventoryCount {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("inventory_count")
 }
 
@@ -1663,6 +1723,7 @@ model InventoryCountLine {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1674,6 +1735,7 @@ model InventoryCountLine {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("inventory_count_line")
 }
 
@@ -1695,6 +1757,7 @@ model Load {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1708,6 +1771,7 @@ model Load {
 
   @@index([companyId, truckId, date])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("load")
 }
 
@@ -1723,6 +1787,7 @@ model LoadLine {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1735,6 +1800,7 @@ model LoadLine {
   @@unique([loadId, productVariantId])
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("load_line")
 }
 
@@ -1753,6 +1819,7 @@ model Unload {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1766,6 +1833,7 @@ model Unload {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("unload")
 }
 
@@ -1786,6 +1854,7 @@ model UnloadLine {
   deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(3)
   version           Int                   @default(1)
   changeSeq         BigInt                @default(0) @map("change_seq")
+  changeXid         BigInt                @default(0) @map("change_xid")
   createdByUserId   String?               @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?               @map("created_by_device_id") @db.Uuid
   occurredAt        DateTime?             @map("occurred_at") @db.Timestamptz(3)
@@ -1799,6 +1868,7 @@ model UnloadLine {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("unload_line")
 }
 
@@ -1815,6 +1885,7 @@ model DeliveryRoute {
   deletedAt         DateTime?   @map("deleted_at") @db.Timestamptz(3)
   version           Int         @default(1)
   changeSeq         BigInt      @default(0) @map("change_seq")
+  changeXid         BigInt      @default(0) @map("change_xid")
   createdByUserId   String?     @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?     @map("created_by_device_id") @db.Uuid
   createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1829,6 +1900,7 @@ model DeliveryRoute {
 
   @@unique([companyId, deliveryUserId, deliveryDate])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("delivery_route")
 }
 
@@ -1856,6 +1928,7 @@ model Delivery {
   deletedAt              DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version                Int            @default(1)
   changeSeq              BigInt         @default(0) @map("change_seq")
+  changeXid              BigInt         @default(0) @map("change_xid")
   createdByUserId        String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId      String?        @map("created_by_device_id") @db.Uuid
   occurredAt             DateTime?      @map("occurred_at") @db.Timestamptz(3)
@@ -1873,6 +1946,7 @@ model Delivery {
   @@unique([companyId, number])
   @@unique([companyId, orderId, attempt])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("delivery")
 }
 
@@ -1893,6 +1967,7 @@ model Payment {
   deletedAt           DateTime?           @map("deleted_at") @db.Timestamptz(3)
   version             Int                 @default(1)
   changeSeq           BigInt              @default(0) @map("change_seq")
+  changeXid           BigInt              @default(0) @map("change_xid")
   createdByUserId     String?             @map("created_by_user_id") @db.Uuid
   createdByDeviceId   String?             @map("created_by_device_id") @db.Uuid
   occurredAt          DateTime?           @map("occurred_at") @db.Timestamptz(3)
@@ -1908,6 +1983,7 @@ model Payment {
 
   @@unique([companyId, number])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("payment")
 }
 
@@ -2013,6 +2089,7 @@ model Notification {
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
   version           Int       @default(1)
   changeSeq         BigInt    @default(0) @map("change_seq")
+  changeXid         BigInt    @default(0) @map("change_xid")
   createdByUserId   String?   @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?   @map("created_by_device_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -2022,6 +2099,7 @@ model Notification {
 
   @@index([companyId, userId, readAt])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("notification")
 }
 
@@ -2096,6 +2174,7 @@ model Supplier {
   deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version           Int            @default(1)
   changeSeq         BigInt         @default(0) @map("change_seq")
+  changeXid         BigInt         @default(0) @map("change_xid")
   createdByUserId   String?        @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
   createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -2107,6 +2186,7 @@ model Supplier {
 
   @@unique([companyId, name])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("supplier")
 }
 
@@ -2122,6 +2202,7 @@ model Lot {
   deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(3)
   version           Int                   @default(1)
   changeSeq         BigInt                @default(0) @map("change_seq")
+  changeXid         BigInt                @default(0) @map("change_xid")
   createdByUserId   String?               @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?               @map("created_by_device_id") @db.Uuid
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -2134,6 +2215,7 @@ model Lot {
 
   @@unique([companyId, productVariantId, number])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("lot")
 }
 
@@ -2150,6 +2232,7 @@ model UnloadLineCondition {
   deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
   version           Int             @default(1)
   changeSeq         BigInt          @default(0) @map("change_seq")
+  changeXid         BigInt          @default(0) @map("change_xid")
   createdByUserId   String?         @map("created_by_user_id") @db.Uuid
   createdByDeviceId String?         @map("created_by_device_id") @db.Uuid
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -2160,6 +2243,7 @@ model UnloadLineCondition {
 
   @@index([companyId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("unload_line_condition")
 }
 
@@ -2297,6 +2381,7 @@ model Discrepancy {
   deletedAt         DateTime?         @map("deleted_at") @db.Timestamptz(3)
   version           Int               @default(1)
   changeSeq         BigInt            @default(0) @map("change_seq")
+  changeXid         BigInt            @default(0) @map("change_xid")
   createdByUserId   String?           @map("created_by_user_id") @db.Uuid
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2308,6 +2393,7 @@ model Discrepancy {
 
   @@index([companyId, status])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("discrepancy")
 }
 
@@ -2324,6 +2410,7 @@ model EmployeeCompensation {
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
   version         Int       @default(1)
   changeSeq       BigInt    @default(0) @map("change_seq")
+  changeXid       BigInt    @default(0) @map("change_xid")
   createdByUserId String?   @map("created_by_user_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2332,6 +2419,7 @@ model EmployeeCompensation {
 
   @@unique([companyId, userId, effectiveFrom])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("employee_compensation")
 }
 
@@ -2354,6 +2442,7 @@ model SalaryAdvance {
   deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(3)
   version         Int           @default(1)
   changeSeq       BigInt        @default(0) @map("change_seq")
+  changeXid       BigInt        @default(0) @map("change_xid")
   createdByUserId String?       @map("created_by_user_id") @db.Uuid
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2362,6 +2451,7 @@ model SalaryAdvance {
 
   @@index([companyId, month])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("salary_advance")
 }
 
@@ -2384,6 +2474,7 @@ model PayrollDeduction {
   deletedAt        DateTime?       @map("deleted_at") @db.Timestamptz(3)
   version          Int             @default(1)
   changeSeq        BigInt          @default(0) @map("change_seq")
+  changeXid        BigInt          @default(0) @map("change_xid")
   createdByUserId  String?         @map("created_by_user_id") @db.Uuid
   createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2393,6 +2484,7 @@ model PayrollDeduction {
 
   @@index([companyId, status])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("payroll_deduction")
 }
 
@@ -2417,6 +2509,7 @@ model IncentiveRule {
   deletedAt       DateTime?          @map("deleted_at") @db.Timestamptz(3)
   version         Int                @default(1)
   changeSeq       BigInt             @default(0) @map("change_seq")
+  changeXid       BigInt             @default(0) @map("change_xid")
   createdByUserId String?            @map("created_by_user_id") @db.Uuid
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2426,6 +2519,7 @@ model IncentiveRule {
   incentives      Incentive[]
 
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("incentive_rule")
 }
 
@@ -2451,6 +2545,7 @@ model Incentive {
   deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
   version           Int             @default(1)
   changeSeq         BigInt          @default(0) @map("change_seq")
+  changeXid         BigInt          @default(0) @map("change_xid")
   createdByUserId   String?         @map("created_by_user_id") @db.Uuid
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2460,6 +2555,7 @@ model Incentive {
 
   @@unique([ruleId, userId, periodStart])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("incentive")
 }
 
@@ -2479,6 +2575,7 @@ model PayrollPeriod {
   deletedAt          DateTime?      @map("deleted_at") @db.Timestamptz(3)
   version            Int            @default(1)
   changeSeq          BigInt         @default(0) @map("change_seq")
+  changeXid          BigInt         @default(0) @map("change_xid")
   createdByUserId    String?        @map("created_by_user_id") @db.Uuid
   createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2487,6 +2584,7 @@ model PayrollPeriod {
 
   @@unique([companyId, month])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("payroll_period")
 }
 
@@ -2504,6 +2602,7 @@ model PayrollEntry {
   deletedAt       DateTime?        @map("deleted_at") @db.Timestamptz(3)
   version         Int              @default(1)
   changeSeq       BigInt           @default(0) @map("change_seq")
+  changeXid       BigInt           @default(0) @map("change_xid")
   createdByUserId String?          @map("created_by_user_id") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2515,6 +2614,7 @@ model PayrollEntry {
 
   @@unique([periodId, userId])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("payroll_entry")
 }
 
@@ -2532,6 +2632,7 @@ model PayrollLine {
   deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(3)
   version         Int             @default(1)
   changeSeq       BigInt          @default(0) @map("change_seq")
+  changeXid       BigInt          @default(0) @map("change_xid")
   createdByUserId String?         @map("created_by_user_id") @db.Uuid
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2539,6 +2640,7 @@ model PayrollLine {
   entry           PayrollEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("payroll_line")
 }
 
@@ -2556,6 +2658,7 @@ model PayrollPayment {
   deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(3)
   version         Int          @default(1)
   changeSeq       BigInt       @default(0) @map("change_seq")
+  changeXid       BigInt       @default(0) @map("change_xid")
   createdByUserId String?      @map("created_by_user_id") @db.Uuid
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2564,6 +2667,7 @@ model PayrollPayment {
 
   @@unique([entryId, installment])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("payroll_payment")
 }
 
@@ -2580,6 +2684,7 @@ model PayrollAdjustment {
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
   version         Int       @default(1)
   changeSeq       BigInt    @default(0) @map("change_seq")
+  changeXid       BigInt    @default(0) @map("change_xid")
   createdByUserId String?   @map("created_by_user_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -2588,5 +2693,6 @@ model PayrollAdjustment {
 
   @@index([companyId, month])
   @@index([companyId, changeSeq])
+  @@index([companyId, changeXid])
   @@map("payroll_adjustment")
 }
