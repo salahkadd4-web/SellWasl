@@ -9,6 +9,8 @@ import type {
   RoutePreparationDto,
   SupplierDto,
   TruckCheckLine,
+  UnloadDto,
+  UnloadPreviewLine,
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
@@ -413,6 +415,183 @@ describe('analyse des retours (phase 21)', () => {
       });
       expect(done.status, JSON.stringify(done)).toBe('APPLIED');
       expect(await factsOf(deliveryId)).toHaveLength(0);
+    });
+
+    describe('déchargement : état constaté, perte, retours et écarts', () => {
+      let preview: UnloadPreviewLine[];
+      let photoKey: string;
+      let lotId: string;
+      const PNG = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        'base64',
+      );
+      const unload = (body: Record<string, unknown>) =>
+        call<UnloadDto>(t.url, 'POST', '/unloads', {
+          token: sup,
+          body: { workdayId: driverWorkday, ...body },
+        });
+      /** Compté : tout le théorique, sauf une unité de thon tomate manquante. */
+      const counted = () =>
+        preview.map((l) => ({
+          variantId: l.variantId,
+          countedQty:
+            l.variantId === item('THON-TOM').variantId ? l.theoretical - 1 : l.theoretical,
+          ...(l.variantId === item('THON-TOM').variantId && { reasonId: gapReason }),
+        }));
+      let gapReason: string;
+
+      beforeAll(async () => {
+        await phones.closeDay(driver, driverWorkday);
+        preview = (
+          await call<UnloadPreviewLine[]>(
+            t.url,
+            'GET',
+            `/unloads/preview?workdayId=${driverWorkday}`,
+            { token: sup },
+          )
+        ).body;
+        gapReason = (
+          await raw.reason.findFirstOrThrow({
+            where: { companyId, kind: 'ADJUSTMENT', label: 'Marchandise manquante' },
+          })
+        ).id;
+        lotId = (await raw.lot.findFirstOrThrow({ where: { companyId, number: 'L-2027-06' } })).id;
+        const form = new FormData();
+        form.append('file', new Blob([PNG], { type: 'image/png' }), 'casse.png');
+        const uploaded = await fetch(`${t.url}/unloads/photos`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${sup}` },
+          body: form,
+        });
+        expect(uploaded.status).toBe(201);
+        photoKey = ((await uploaded.json()) as { key: string }).key;
+      });
+
+      it('refuse une répartition qui ne fait pas le compté, ou un défectueux sans photo', async () => {
+        const thon = item('THON-TOM');
+        const total = preview.find((l) => l.variantId === thon.variantId)!.theoretical - 1;
+        const wrongSum = await unload({
+          lines: counted(),
+          conditions: [{ variantId: thon.variantId, condition: 'RESTOCK', qty: total - 1 }],
+        });
+        expect(wrongSum.status).toBe(422);
+        const noPhoto = await unload({
+          lines: counted(),
+          conditions: [
+            { variantId: thon.variantId, condition: 'RESTOCK', qty: total - 1 },
+            { variantId: thon.variantId, condition: 'DEFECTIVE', qty: 1 },
+          ],
+        });
+        expect(noPhoto.status).toBe(422);
+        expect(JSON.stringify(noPhoto.body)).toContain('photo');
+        const bimo = preview.find((l) => l.variantId === item('BIMO-CHOC').variantId);
+        if (bimo && bimo.theoretical > 0) {
+          const wrongLot = await unload({
+            lines: counted(),
+            conditions: [
+              {
+                variantId: bimo.variantId,
+                condition: 'EXPIRED',
+                qty: bimo.theoretical,
+                lotId,
+              },
+            ],
+          });
+          expect(wrongLot.status).toBe(422);
+        }
+        expect(await raw.unload.findFirst({ where: { workdayId: driverWorkday } })).toBeNull();
+      });
+
+      it('seul le remis en stock revient au dépôt ; le reste sort en perte, avec ses faits', async () => {
+        const thon = item('THON-TOM');
+        const total = preview.find((l) => l.variantId === thon.variantId)!.theoretical - 1;
+        const restock = total - thon.baseQty - 2;
+        const done = await unload({
+          lines: counted(),
+          conditions: [
+            { variantId: thon.variantId, condition: 'RESTOCK', qty: restock },
+            {
+              variantId: thon.variantId,
+              condition: 'DEFECTIVE',
+              qty: thon.baseQty,
+              lotId,
+              photoKey,
+            },
+            { variantId: thon.variantId, condition: 'BROKEN', qty: 2 },
+          ],
+        });
+        expect(done.status, JSON.stringify(done.body)).toBe(201);
+        const unloadId = done.body.id;
+        const thonLine = done.body.lines.find((l) => l.variantId === thon.variantId)!;
+        expect(thonLine.conditions).toHaveLength(3);
+        expect(thonLine.conditions.find((c) => c.condition === 'DEFECTIVE')).toMatchObject({
+          qty: thon.baseQty,
+          lot: 'L-2027-06',
+          photoUrl: expect.stringContaining('/media/'),
+        });
+
+        const moves = await raw.stockMovement.findMany({
+          where: { sourceType: 'UNLOAD', sourceId: unloadId, productVariantId: thon.variantId },
+        });
+        expect(moves.find((m) => m.type === 'WRITE_OFF')).toMatchObject({
+          qty: thon.baseQty + 2,
+          fromWarehouseId: (
+            await raw.warehouse.findFirstOrThrow({
+              where: { companyId, code: 'TRUCK-01' },
+            })
+          ).id,
+        });
+        expect(moves.find((m) => m.type === 'TRANSFER')).toMatchObject({
+          qty: restock,
+          toWarehouseId: depotId,
+        });
+
+        const facts = await raw.returnFact.findMany({ where: { unloadId } });
+        const thonFacts = facts.filter((f) => f.productVariantId === thon.variantId);
+        expect(
+          thonFacts.filter((f) => f.kind === 'RETURN').map((f) => [f.condition, f.qty]),
+        ).toEqual(
+          expect.arrayContaining([
+            ['RESTOCK', restock],
+            ['DEFECTIVE', thon.baseQty],
+            ['BROKEN', 2],
+          ]),
+        );
+        const defective = thonFacts.find((f) => f.condition === 'DEFECTIVE')!;
+        const supplier = await raw.supplier.findFirstOrThrow({
+          where: { companyId, name: 'Conserverie du Sud' },
+        });
+        expect(defective).toMatchObject({
+          lotId,
+          supplierId: supplier.id,
+          driverUserId,
+          routeId,
+          date: at(DELIVERY),
+        });
+        // Valeur au prix moyen pondéré des lignes livrées ce jour par le livreur
+        const sold = await raw.orderLine.findMany({
+          where: {
+            productVariantId: thon.variantId,
+            kind: 'NORMAL',
+            deliveredQty: { gt: 0 },
+            order: {
+              deliveries: { some: { workdayId: driverWorkday, result: { not: 'FAILED' } } },
+            },
+          },
+        });
+        const perUnit =
+          sold.reduce((s, l) => s + Number(l.lineAmount), 0) /
+          sold.reduce((s, l) => s + (l.deliveredQty ?? 0), 0);
+        expect(Number(defective.value)).toBe(Math.round(thon.baseQty * perUnit));
+        expect(thonFacts.find((f) => f.kind === 'GAP')).toMatchObject({ qty: -1 });
+        // Les autres articles comptés reviennent en entier, remis en stock
+        for (const l of preview.filter((p) => p.variantId !== thon.variantId && p.theoretical > 0))
+          expect(facts.find((f) => f.productVariantId === l.variantId)).toMatchObject({
+            kind: 'RETURN',
+            condition: 'RESTOCK',
+            qty: l.theoretical,
+          });
+      });
     });
   });
 });

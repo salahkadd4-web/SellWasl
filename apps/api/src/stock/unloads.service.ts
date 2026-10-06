@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { localDate, unloadLine } from '@sellwasl/business-rules';
+import { localDate, unloadLine, weightedUnitPrice } from '@sellwasl/business-rules';
 import {
   companySettingsSchema,
   type createUnloadSchema,
@@ -14,16 +14,31 @@ import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
 import { dateOnly, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
+import { ImageStorageService } from '../files/image-storage.service';
+import { type NewFact, writeFacts } from '../returns/return-facts';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { articleOf, fullName, localRange, warehouseRef } from './stock-helpers';
 import { type Move, StockLedger } from './stock-ledger.service';
 
 type Tx = Prisma.TransactionClient;
 
+/** Une part du compté d'un article, par état constaté. */
+interface Part {
+  condition: 'RESTOCK' | 'DEFECTIVE' | 'EXPIRED' | 'BROKEN';
+  qty: number;
+  lotId?: string;
+  photoKey?: string;
+}
+
 const DETAIL = {
   truck: true,
   user: true,
-  unloadLines: { include: { productVariant: { include: { product: true } } } },
+  unloadLines: {
+    include: {
+      productVariant: { include: { product: true } },
+      conditions: { include: { lot: true }, orderBy: { createdAt: 'asc' } },
+    },
+  },
 } as const;
 
 /**
@@ -36,6 +51,7 @@ export class UnloadsService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly ledger: StockLedger,
     private readonly audit: AuditService,
+    private readonly images: ImageStorageService,
   ) {}
 
   /** Journées clôturées d'un conducteur de camion, pas encore déchargées. */
@@ -106,6 +122,7 @@ export class UnloadsService {
       const reasons = await tx.reason.findMany({
         where: { kind: 'ADJUSTMENT', isActive: true, deletedAt: null },
       });
+      const split = await this.split(tx, input, counted);
 
       const moves: Move[] = [];
       const rows = variantIds.map((variantId) => {
@@ -130,11 +147,23 @@ export class UnloadsService {
             source: { type: 'UNLOAD', id },
           });
         }
-        if (depot && entry.countedQty > 0)
+        // Seul le remis en stock repart ; le reste sort en perte (phase 21)
+        const restock = (split.get(variantId) ?? [])
+          .filter((p) => p.condition === 'RESTOCK')
+          .reduce((sum, p) => sum + p.qty, 0);
+        if (entry.countedQty > restock)
+          moves.push({
+            type: 'WRITE_OFF',
+            variantId,
+            qty: entry.countedQty - restock,
+            fromWarehouseId: truck.id,
+            source: { type: 'UNLOAD', id },
+          });
+        if (depot && restock > 0)
           moves.push({
             type: 'TRANSFER',
             variantId,
-            qty: entry.countedQty,
+            qty: restock,
             fromWarehouseId: truck.id,
             toWarehouseId: depot.id,
             source: { type: 'UNLOAD', id },
@@ -152,7 +181,8 @@ export class UnloadsService {
         };
       });
       // Les ajustements d'abord : le compté devient le stock du camion, puis il part au dépôt
-      moves.sort((a, b) => Number(a.type === 'TRANSFER') - Number(b.type === 'TRANSFER'));
+      const order = { ADJUSTMENT: 0, WRITE_OFF: 1, TRANSFER: 2 } as Record<string, number>;
+      moves.sort((a, b) => (order[a.type] ?? 0) - (order[b.type] ?? 0));
       const now = new Date();
       await tx.unload.create({
         data: {
@@ -172,7 +202,22 @@ export class UnloadsService {
           unloadLines: { create: rows.map(({ companyId, ...r }) => ({ ...r, companyId })) },
         },
       });
+      await tx.unloadLineCondition.createMany({
+        data: rows.flatMap((r) =>
+          (split.get(r.productVariantId) ?? []).map((p) => ({
+            id: uuidv7(),
+            companyId: actor.companyId,
+            unloadLineId: r.id,
+            condition: p.condition,
+            qty: p.qty,
+            lotId: p.lotId ?? null,
+            photoKey: p.photoKey ?? null,
+            createdByUserId: actor.userId,
+          })),
+        ),
+      });
       await this.ledger.apply(tx, actor, moves, now);
+      await this.facts(tx, actor.companyId, id, workday, rows, split);
       // Les commandes reprogrammées de la journée retrouvent une réservation au dépôt (BR-LIV-06)
       if (depot) await this.reserveRescheduled(tx, actor, workday.id, depot.id, now);
       await this.audit.write(
@@ -195,6 +240,8 @@ export class UnloadsService {
     return this.get(id);
   }
 
+  private readonly photoUrl = (key: string | null) => this.images.urls(key)?.url ?? null;
+
   async list(date?: string): Promise<UnloadDto[]> {
     const day = date ?? localDate(new Date(), (await this.db.company.findFirstOrThrow()).timezone);
     const rows = await this.db.unload.findMany({
@@ -202,13 +249,133 @@ export class UnloadsService {
       include: DETAIL,
       orderBy: { validatedAt: 'desc' },
     });
-    return rows.map(toDto);
+    return rows.map((r) => toDto(r, this.photoUrl));
   }
 
   async get(id: string): Promise<UnloadDto> {
     const row = await this.db.unload.findFirst({ where: { id, deletedAt: null }, include: DETAIL });
     if (!row) throw notFound('Déchargement introuvable.');
-    return toDto(row);
+    return toDto(row, this.photoUrl);
+  }
+
+  /**
+   * Répartition du compté par état constaté (phase 21) : la somme fait le compté, le défectueux a
+   * sa photo, un lot est celui de l'article. Sans répartition, tout est remis en stock.
+   */
+  private async split(
+    tx: Tx,
+    input: z.output<typeof createUnloadSchema>,
+    counted: Map<string, { countedQty: number }>,
+  ): Promise<Map<string, Part[]>> {
+    const parts = new Map<string, Part[]>();
+    for (const c of input.conditions ?? []) {
+      if (!counted.get(c.variantId)?.countedQty)
+        throw rule('Un état constaté porte sur un article non compté.', { variantId: c.variantId });
+      if (c.condition === 'DEFECTIVE' && !c.photoKey)
+        throw rule('Ajoutez la photo du produit défectueux.', { variantId: c.variantId });
+      if (
+        c.lotId &&
+        !(await tx.lot.findFirst({
+          where: { id: c.lotId, productVariantId: c.variantId, deletedAt: null },
+        }))
+      )
+        throw rule("Ce lot n'est pas un lot de l'article.", { variantId: c.variantId });
+      parts.set(c.variantId, [...(parts.get(c.variantId) ?? []), c]);
+    }
+    for (const [variantId, entry] of counted) {
+      const list = parts.get(variantId);
+      if (!list) {
+        if (entry.countedQty > 0)
+          parts.set(variantId, [{ condition: 'RESTOCK', qty: entry.countedQty }]);
+        continue;
+      }
+      if (list.reduce((sum, p) => sum + p.qty, 0) !== entry.countedQty)
+        throw rule('La répartition par état doit faire la quantité comptée.', { variantId });
+    }
+    return parts;
+  }
+
+  /**
+   * Faits de l'analyse des retours (phase 21) : un retour par répartition, un écart par ligne,
+   * valorisés au prix moyen des ventes de la journée (à défaut, le dernier prix vendu).
+   */
+  private async facts(
+    tx: Tx,
+    companyId: string,
+    unloadId: string,
+    workday: { id: string; userId: string; date: Date },
+    rows: { productVariantId: string; gapQty: number }[],
+    split: Map<string, Part[]>,
+  ): Promise<void> {
+    const variantIds = rows.map((r) => r.productVariantId);
+    const [variants, sold, route, lots] = await Promise.all([
+      tx.productVariant.findMany({ where: { id: { in: variantIds } }, include: { product: true } }),
+      tx.orderLine.findMany({
+        where: {
+          productVariantId: { in: variantIds },
+          kind: 'NORMAL',
+          deliveredQty: { gt: 0 },
+          order: { deliveries: { some: { workdayId: workday.id, result: { not: 'FAILED' } } } },
+        },
+      }),
+      tx.deliveryRoute.findFirst({
+        where: { deliveryUserId: workday.userId, deliveryDate: workday.date, deletedAt: null },
+      }),
+      tx.lot.findMany({
+        where: {
+          id: { in: [...split.values()].flat().flatMap((p) => (p.lotId ? [p.lotId] : [])) },
+        },
+      }),
+    ]);
+    const price = new Map<string, number>();
+    for (const variantId of variantIds) {
+      const ofDay = weightedUnitPrice(
+        sold
+          .filter((l) => l.productVariantId === variantId)
+          .map((l) => ({ qty: l.deliveredQty ?? 0, amount: Number(l.lineAmount) })),
+      );
+      if (ofDay !== null) {
+        price.set(variantId, ofDay);
+        continue;
+      }
+      const last = await tx.orderLine.findFirst({
+        where: { productVariantId: variantId, kind: 'NORMAL', deliveredQty: { gt: 0 } },
+        orderBy: { updatedAt: 'desc' },
+      });
+      price.set(
+        variantId,
+        last
+          ? weightedUnitPrice([{ qty: last.deliveredQty!, amount: Number(last.lineAmount) }])!
+          : 0,
+      );
+    }
+    const axes = { driverUserId: workday.userId, routeId: route?.id ?? null, unloadId };
+    const facts: NewFact[] = [];
+    for (const r of rows) {
+      const variant = variants.find((v) => v.id === r.productVariantId)!;
+      const base = {
+        ...axes,
+        productVariantId: variant.id,
+        productId: variant.productId,
+        supplierId: variant.product.supplierId,
+      };
+      const unitPrice = price.get(variant.id) ?? 0;
+      for (const p of split.get(variant.id) ?? []) {
+        const lot = lots.find((l) => l.id === p.lotId);
+        facts.push({
+          ...base,
+          kind: 'RETURN',
+          condition: p.condition,
+          lotId: p.lotId ?? null,
+          supplierId: lot?.supplierId ?? base.supplierId,
+          qty: p.qty,
+          value: p.qty * unitPrice,
+        });
+      }
+      if (r.gapQty !== 0)
+        facts.push({ ...base, kind: 'GAP', qty: r.gapQty, value: Math.abs(r.gapQty) * unitPrice });
+    }
+    await writeFacts(tx, companyId, workday.date, facts);
   }
 
   /** Réserve de nouveau, au dépôt, la marchandise des commandes reprogrammées de la journée. */
@@ -346,7 +513,10 @@ export class UnloadsService {
   }
 }
 
-function toDto(row: Prisma.UnloadGetPayload<{ include: typeof DETAIL }>): UnloadDto {
+function toDto(
+  row: Prisma.UnloadGetPayload<{ include: typeof DETAIL }>,
+  photoUrl: (key: string | null) => string | null,
+): UnloadDto {
   const lines = row.unloadLines
     .map((l) => ({
       variantId: l.productVariantId,
@@ -357,7 +527,12 @@ function toDto(row: Prisma.UnloadGetPayload<{ include: typeof DETAIL }>): Unload
       theoretical: l.theoreticalQty,
       counted: l.countedQty,
       gap: l.gapQty,
-      conditions: [],
+      conditions: l.conditions.map((c) => ({
+        condition: c.condition,
+        qty: c.qty,
+        lot: c.lot?.number ?? null,
+        photoUrl: photoUrl(c.photoKey),
+      })),
     }))
     .sort((a, b) => a.productName.localeCompare(b.productName));
   return {
