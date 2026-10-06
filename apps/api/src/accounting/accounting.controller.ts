@@ -40,7 +40,7 @@ export class AccountingController {
     @CurrentUser() actor: AuthUser,
     @Body(new ZodValidationPipe(createSettlementSchema)) body: Out<typeof createSettlementSchema>,
   ): Promise<SettlementRowDto> {
-    return this.accounting.settle(actor, body.workdayId, body.remittedAmount);
+    return this.accounting.settle(actor, body.workdayId, body.remittedAmount, body.note);
   }
 
   @RequirePermission('payments.read')

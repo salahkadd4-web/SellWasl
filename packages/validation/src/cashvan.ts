@@ -46,7 +46,12 @@ export const validateLoadSchema = z.object({
 export const lastLoadQuerySchema = z.object({ truckId: z.uuid() });
 
 export const settlementsQuerySchema = z.object({ date });
-export const createSettlementSchema = z.object({ workdayId: z.uuid(), remittedAmount: amount });
+export const createSettlementSchema = z.object({
+  workdayId: z.uuid(),
+  remittedAmount: amount,
+  /** Justification du comptable (phase 21 bis). */
+  note: z.string().trim().max(500).optional(),
+});
 export const paymentsQuerySchema = z.object({ from: date, to: date });
 export const receiptsQuerySchema = z.object({ date: date.optional() });
 

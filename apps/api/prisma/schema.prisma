@@ -1778,6 +1778,8 @@ model UnloadLine {
   theoreticalQty    Int                   @map("theoretical_qty")
   countedQty        Int                   @map("counted_qty")
   gapQty            Int                   @map("gap_qty")
+  /// Valeur d'une unité de base au moment du contrôle (prix moyen des ventes du jour), DA.
+  unitValue         BigInt                @default(0) @map("unit_value")
   companyId         String                @map("company_id") @db.Uuid
   unloadId          String                @map("unload_id") @db.Uuid
   productVariantId  String                @map("product_variant_id") @db.Uuid

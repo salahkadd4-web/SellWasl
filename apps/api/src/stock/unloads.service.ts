@@ -93,7 +93,13 @@ export class UnloadsService {
   async preview(workdayId: string): Promise<UnloadPreviewLine[]> {
     const tx = this.db as unknown as Tx;
     const { truck, workday } = await this.context(tx, workdayId);
-    return this.lines(tx, truck.id, workday.date, workday.id);
+    const lines = await this.lines(tx, truck.id, workday.date, workday.id);
+    const price = await this.unitPrices(
+      tx,
+      workday.id,
+      lines.map((l) => l.variantId),
+    );
+    return lines.map((l) => ({ ...l, unitValue: Math.round(price.get(l.variantId) ?? 0) }));
   }
 
   async validate(actor: AuthUser, input: z.output<typeof createUnloadSchema>): Promise<UnloadDto> {
@@ -123,6 +129,7 @@ export class UnloadsService {
         where: { kind: 'ADJUSTMENT', isActive: true, deletedAt: null },
       });
       const split = await this.split(tx, input, counted);
+      const price = await this.unitPrices(tx, workday.id, variantIds);
 
       const moves: Move[] = [];
       const rows = variantIds.map((variantId) => {
@@ -178,6 +185,7 @@ export class UnloadsService {
           theoreticalQty: theoretical,
           countedQty: entry.countedQty,
           gapQty: gap,
+          unitValue: BigInt(Math.round(price.get(variantId) ?? 0)),
         };
       });
       // Les ajustements d'abord : le compté devient le stock du camion, puis il part au dépôt
@@ -217,7 +225,32 @@ export class UnloadsService {
         ),
       });
       await this.ledger.apply(tx, actor, moves, now);
-      await this.facts(tx, actor.companyId, id, workday, rows, split);
+      await this.facts(tx, actor.companyId, id, workday, rows, split, price);
+      // Chaque écart est enregistré, validé par qui a contrôlé le camion (phase 21 bis)
+      await tx.discrepancy.createMany({
+        data: rows
+          .filter((r) => r.gapQty !== 0)
+          .map((r) => ({
+            id: uuidv7(),
+            companyId: actor.companyId,
+            kind: 'STOCK' as const,
+            status: 'VALIDATED' as const,
+            date: workday.date,
+            userId: workday.userId,
+            workdayId: workday.id,
+            productVariantId: r.productVariantId,
+            unloadLineId: r.id,
+            qty: r.gapQty,
+            unitValue: r.unitValue,
+            amount: BigInt(r.gapQty) * r.unitValue,
+            cause:
+              reasons.find((x) => x.id === counted.get(r.productVariantId)?.reasonId)?.label ??
+              null,
+            validatedByUserId: actor.userId,
+            validatedAt: now,
+            createdByUserId: actor.userId,
+          })),
+      });
       // Les commandes reprogrammées de la journée retrouvent une réservation au dépôt (BR-LIV-06)
       if (depot) await this.reserveRescheduled(tx, actor, workday.id, depot.id, now);
       await this.audit.write(
@@ -249,13 +282,19 @@ export class UnloadsService {
       include: DETAIL,
       orderBy: { validatedAt: 'desc' },
     });
-    return rows.map((r) => toDto(r, this.photoUrl));
+    const users = await this.db.user.findMany({
+      where: { id: { in: rows.map((r) => r.validatedByUserId).filter((x): x is string => !!x) } },
+    });
+    return rows.map((r) => toDto(r, this.photoUrl, users));
   }
 
   async get(id: string): Promise<UnloadDto> {
     const row = await this.db.unload.findFirst({ where: { id, deletedAt: null }, include: DETAIL });
     if (!row) throw notFound('Déchargement introuvable.');
-    return toDto(row, this.photoUrl);
+    const users = row.validatedByUserId
+      ? await this.db.user.findMany({ where: { id: row.validatedByUserId } })
+      : [];
+    return toDto(row, this.photoUrl, users);
   }
 
   /**
@@ -296,37 +335,22 @@ export class UnloadsService {
   }
 
   /**
-   * Faits de l'analyse des retours (phase 21) : un retour par répartition, un écart par ligne,
-   * valorisés au prix moyen des ventes de la journée (à défaut, le dernier prix vendu).
+   * Valeur d'une unité de base de chaque article : prix moyen des ventes de la journée du
+   * conducteur, à défaut le dernier prix vendu, sinon 0 (phases 21 et 21 bis).
    */
-  private async facts(
+  private async unitPrices(
     tx: Tx,
-    companyId: string,
-    unloadId: string,
-    workday: { id: string; userId: string; date: Date },
-    rows: { productVariantId: string; gapQty: number }[],
-    split: Map<string, Part[]>,
-  ): Promise<void> {
-    const variantIds = rows.map((r) => r.productVariantId);
-    const [variants, sold, route, lots] = await Promise.all([
-      tx.productVariant.findMany({ where: { id: { in: variantIds } }, include: { product: true } }),
-      tx.orderLine.findMany({
-        where: {
-          productVariantId: { in: variantIds },
-          kind: 'NORMAL',
-          deliveredQty: { gt: 0 },
-          order: { deliveries: { some: { workdayId: workday.id, result: { not: 'FAILED' } } } },
-        },
-      }),
-      tx.deliveryRoute.findFirst({
-        where: { deliveryUserId: workday.userId, deliveryDate: workday.date, deletedAt: null },
-      }),
-      tx.lot.findMany({
-        where: {
-          id: { in: [...split.values()].flat().flatMap((p) => (p.lotId ? [p.lotId] : [])) },
-        },
-      }),
-    ]);
+    workdayId: string,
+    variantIds: string[],
+  ): Promise<Map<string, number>> {
+    const sold = await tx.orderLine.findMany({
+      where: {
+        productVariantId: { in: variantIds },
+        kind: 'NORMAL',
+        deliveredQty: { gt: 0 },
+        order: { deliveries: { some: { workdayId, result: { not: 'FAILED' } } } },
+      },
+    });
     const price = new Map<string, number>();
     for (const variantId of variantIds) {
       const ofDay = weightedUnitPrice(
@@ -349,6 +373,34 @@ export class UnloadsService {
           : 0,
       );
     }
+    return price;
+  }
+
+  /**
+   * Faits de l'analyse des retours (phase 21) : un retour par répartition, un écart par ligne,
+   * valorisés au prix moyen des ventes de la journée (à défaut, le dernier prix vendu).
+   */
+  private async facts(
+    tx: Tx,
+    companyId: string,
+    unloadId: string,
+    workday: { id: string; userId: string; date: Date },
+    rows: { productVariantId: string; gapQty: number }[],
+    split: Map<string, Part[]>,
+    price: Map<string, number>,
+  ): Promise<void> {
+    const variantIds = rows.map((r) => r.productVariantId);
+    const [variants, route, lots] = await Promise.all([
+      tx.productVariant.findMany({ where: { id: { in: variantIds } }, include: { product: true } }),
+      tx.deliveryRoute.findFirst({
+        where: { deliveryUserId: workday.userId, deliveryDate: workday.date, deletedAt: null },
+      }),
+      tx.lot.findMany({
+        where: {
+          id: { in: [...split.values()].flat().flatMap((p) => (p.lotId ? [p.lotId] : [])) },
+        },
+      }),
+    ]);
     const axes = { driverUserId: workday.userId, routeId: route?.id ?? null, unloadId };
     const facts: NewFact[] = [];
     for (const r of rows) {
@@ -450,7 +502,7 @@ export class UnloadsService {
     truckId: string,
     date: Date,
     workdayId: string,
-  ): Promise<UnloadPreviewLine[]> {
+  ): Promise<Omit<UnloadPreviewLine, 'unitValue'>[]> {
     const company = await tx.company.findFirstOrThrow();
     const day = dateOnly(date);
     const range = localRange(day, day, company.timezone);
@@ -516,6 +568,7 @@ export class UnloadsService {
 function toDto(
   row: Prisma.UnloadGetPayload<{ include: typeof DETAIL }>,
   photoUrl: (key: string | null) => string | null,
+  users: { id: string; firstName: string; lastName: string }[],
 ): UnloadDto {
   const lines = row.unloadLines
     .map((l) => ({
@@ -527,6 +580,8 @@ function toDto(
       theoretical: l.theoreticalQty,
       counted: l.countedQty,
       gap: l.gapQty,
+      unitValue: Number(l.unitValue),
+      gapValue: l.gapQty * Number(l.unitValue),
       conditions: l.conditions.map((c) => ({
         condition: c.condition,
         qty: c.qty,
@@ -542,6 +597,10 @@ function toDto(
     user: { id: row.user.id, code: row.user.code, name: fullName(row.user) },
     keepsStockInTruck: row.keepsStockInTruck,
     validatedAt: row.validatedAt?.toISOString() ?? null,
+    validatedBy: (() => {
+      const u = users.find((x) => x.id === row.validatedByUserId);
+      return u ? fullName(u) : null;
+    })(),
     hasGap: lines.some((l) => l.gap !== 0),
     lines,
   };

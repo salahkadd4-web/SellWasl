@@ -31,6 +31,9 @@ CREATE TYPE "PayrollLineKind" AS ENUM ('BASE_SALARY', 'INCENTIVE', 'OBJECTIVE_BO
 -- AlterTable
 ALTER TABLE "settlement" ADD COLUMN     "note" TEXT;
 
+-- Valeur unitaire au contrôle du déchargement (phase 21 bis)
+ALTER TABLE "unload_line" ADD COLUMN "unit_value" BIGINT NOT NULL DEFAULT 0;
+
 -- CreateTable
 CREATE TABLE "discrepancy" (
     "id" UUID NOT NULL,

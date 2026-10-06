@@ -215,6 +215,8 @@ export interface UnloadPreviewLine extends ArticleRef {
   delivered: number;
   free: number;
   theoretical: number;
+  /** Valeur d'une unité de base (prix moyen des ventes du jour), DA. */
+  unitValue: number;
 }
 
 export interface UnloadDto {
@@ -224,10 +226,14 @@ export interface UnloadDto {
   user: PersonRef;
   keepsStockInTruck: boolean;
   validatedAt: string | null;
+  /** Qui a contrôlé le camion. */
+  validatedBy: string | null;
   hasGap: boolean;
   lines: (UnloadPreviewLine & {
     counted: number;
     gap: number;
+    /** Écart × valeur unitaire, DA (négatif : manque). */
+    gapValue: number;
     conditions: {
       condition: ReturnConditionCode;
       qty: number;
