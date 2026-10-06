@@ -27,6 +27,25 @@ export const TERRITORY_COLORS = [
 ];
 const OUT_OF_PART = '#dc2626';
 
+/**
+ * Info-bulle en texte brut : Leaflet lit une chaîne comme du HTML, et les noms (clients, parties,
+ * utilisateurs) sont saisis par les équipes. Une ligne par élément de `lines`.
+ */
+export function plainTooltip(...lines: string[]): HTMLElement {
+  const el = document.createElement('span');
+  lines.forEach((line, i) => {
+    if (i > 0) el.appendChild(document.createElement('br'));
+    el.appendChild(document.createTextNode(line));
+  });
+  return el;
+}
+
+const escapeHtml = (text: string) =>
+  text.replace(
+    /[&<>"']/g,
+    (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!,
+  );
+
 type Polygon = { type: 'Polygon'; coordinates: number[][][] };
 
 /** GeoJSON (longitude, latitude) → Leaflet (latitude, longitude) : la seule conversion. */
@@ -153,7 +172,9 @@ export const TerritoryMap = forwardRef<TerritoryMapHandle, Props>(
             fillOpacity: selected ? 0.18 : 0.08,
             dashArray: t.isActive ? undefined : '6 6',
           })
-            .bindTooltip(`${t.code} · ${p.name} : ${p.customerCount} client(s)`, { sticky: true })
+            .bindTooltip(plainTooltip(`${t.code} · ${p.name} : ${p.customerCount} client(s)`), {
+              sticky: true,
+            })
             .addTo(group);
         }
       }
@@ -175,7 +196,7 @@ export const TerritoryMap = forwardRef<TerritoryMapHandle, Props>(
           weight: 3,
           fillOpacity: 0.15,
         })
-          .bindTooltip(p.name, { permanent: true, direction: 'center' })
+          .bindTooltip(plainTooltip(p.name), { permanent: true, direction: 'center' })
           .addTo(instance);
         edited.current.set(p.number, layer);
         layer.pm.enable({ allowSelfIntersection: false });
@@ -199,7 +220,9 @@ export const TerritoryMap = forwardRef<TerritoryMapHandle, Props>(
           fillOpacity: 0.95,
         })
           .bindTooltip(
-            `${c.name}${c.code ? ` (${c.code})` : ''}${c.partId ? '' : ' · hors partie'}`,
+            plainTooltip(
+              `${c.name}${c.code ? ` (${c.code})` : ''}${c.partId ? '' : ' · hors partie'}`,
+            ),
           )
           .on('click', () => latest.current.onCustomerClick(c))
           .addTo(group);
@@ -216,13 +239,16 @@ export const TerritoryMap = forwardRef<TerritoryMapHandle, Props>(
         L.marker([f.latitude, f.longitude], {
           icon: L.divIcon({
             className: '',
-            html: `<div style="background:#001850;color:#fff;border:2px solid #fff;border-radius:9999px;padding:2px 6px;font:600 11px sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.4)">${f.code}</div>`,
+            html: `<div style="background:#001850;color:#fff;border:2px solid #fff;border-radius:9999px;padding:2px 6px;font:600 11px sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.4)">${escapeHtml(f.code)}</div>`,
             iconSize: [40, 20],
             iconAnchor: [20, 10],
           }),
         })
           .bindTooltip(
-            `${f.name} · ${f.role}<br>${new Date(f.at).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}${f.batteryLevel !== null ? ` · batterie ${f.batteryLevel} %` : ''}`,
+            plainTooltip(
+              `${f.name} · ${f.role}`,
+              `${new Date(f.at).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}${f.batteryLevel !== null ? ` · batterie ${f.batteryLevel} %` : ''}`,
+            ),
           )
           .addTo(group);
       }

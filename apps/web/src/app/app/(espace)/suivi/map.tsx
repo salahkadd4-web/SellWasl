@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import type { SupervisorMapDto } from '@sellwasl/validation';
 import L from 'leaflet';
 import { useEffect, useRef } from 'react';
-import { TERRITORY_COLORS } from '@/components/territory-map';
+import { plainTooltip, TERRITORY_COLORS } from '@/components/territory-map';
 
 const TILE_URL =
   process.env.NEXT_PUBLIC_MAP_TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -48,7 +48,7 @@ export default function SupervisorMap({ data }: { data: SupervisorMapDto }) {
         polygon.coordinates[0]!.map(([lng, lat]) => [lat!, lng!] as L.LatLngTuple),
         { color, weight: 2, fillOpacity: 0.08 },
       )
-        .bindTooltip(`${p.territory} · ${p.name}`)
+        .bindTooltip(plainTooltip(`${p.territory} · ${p.name}`))
         .addTo(group);
       bounds.extend(shape.getBounds());
     });
@@ -60,7 +60,7 @@ export default function SupervisorMap({ data }: { data: SupervisorMapDto }) {
         fillOpacity: 0.8,
         weight: 1,
       })
-        .bindTooltip(`${c.name} · ${c.visited ? 'visité' : 'à visiter'}`)
+        .bindTooltip(plainTooltip(`${c.name} · ${c.visited ? 'visité' : 'à visiter'}`))
         .addTo(group);
       bounds.extend([c.latitude, c.longitude]);
     }
@@ -72,7 +72,7 @@ export default function SupervisorMap({ data }: { data: SupervisorMapDto }) {
         fillOpacity: 1,
         weight: 2,
       })
-        .bindTooltip(`${p.name} · ${new Date(p.at).toLocaleTimeString('fr-DZ')}`)
+        .bindTooltip(plainTooltip(`${p.name} · ${new Date(p.at).toLocaleTimeString('fr-DZ')}`))
         .addTo(group);
       bounds.extend([p.latitude, p.longitude]);
     }
