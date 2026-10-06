@@ -1074,6 +1074,12 @@ Login · Tableau de bord · Réception du chargement · Ma tournée (liste / car
 - [ ] Commandes en préparation et en livraison
 - [ ] Échecs de livraison
 - [ ] Stock faible et ruptures
+- [ ] Commandes refusées : nombre, valeur, taux de refus
+- [ ] Retours au déchargement : quantité, valeur, taux de retour
+- [ ] Reventes en tournée : valeur récupérée
+- [ ] Coût net des retours (valeur retournée − valeur revendue)
+- [ ] Écarts au déchargement (stock théorique vs stock compté)
+- [ ] Diagnostics ouverts *(après le MVP)*
 
 ## Suivi temps réel
 
@@ -1089,8 +1095,53 @@ Youcef    🔴 Hors ligne   Dernière sync : 14:32
 - [ ] Prévente : visites, commandes, activité des pré-vendeurs, secteurs
 - [ ] Livraison : livraisons, délais, échecs, activité des livreurs
 - [ ] Stock : disponibilité, mouvements, alertes, rotation *(après le MVP)*
-- [ ] Filtres : période, secteur, partie, utilisateur, client, produit, livreur
+- [ ] Retours : refus, retours au déchargement, reventes en tournée, écarts, coût net
+- [ ] Filtres : période, secteur, partie, utilisateur, client, produit, livreur, lot, fournisseur, motif de refus, état constaté
 - [ ] Exports : CSV dans le MVP ; Excel et PDF *(après le MVP)*
+
+## Analyse des retours (module `RETURNS_ANALYSIS`, activable par entreprise)
+
+**Données attendues des autres phases**
+
+- Livraison : quantités réellement livrées, un motif de refus par commande, reventes en tournée
+- Déchargement : quantités comptées par produit et par lot, état constaté par le magasinier (remis en stock, défectueux, périmé, cassé), photo pour les défectueux
+- Commande : pré-vendeur et livreur enregistrés séparément
+
+**Indicateurs par axe**
+
+- [ ] Par produit et par lot : quantités vendues et retournées, taux de retour, répartition par état constaté
+- [ ] Par fournisseur : taux de retour et part de défectueux sur ses produits
+- [ ] Par pré-vendeur : commandes refusées (nombre, valeur, taux), répartition par motif
+- [ ] Par livreur : refus déclarés, reventes en tournée, écarts de stock et de caisse au déchargement
+- [ ] Par client : commandes refusées totalement ou partiellement, taux, motifs, refus contestés
+- [ ] Par secteur et par tournée : taux de refus et de retour
+- [ ] Par motif de refus : fréquence et valeur
+- [ ] Vue croisée à deux axes au choix (produit × livreur, client × pré-vendeur, produit × secteur…)
+- [ ] Accès depuis chaque chiffre à la liste des commandes et des retours concernés
+- [ ] Indicateurs de retours sur les fiches produit, client, pré-vendeur et livreur
+
+**Analyse des causes** *(après le MVP)*
+
+- [ ] Taux de retour normal par produit, calculé sur l'historique ou sur la catégorie
+- [ ] Indice d'excès de chaque entité : retours observés / retours attendus pour ses propres produits
+- [ ] Contre-épreuve : vérifier que l'excès n'est pas concentré sur un autre axe avant de conclure
+- [ ] Cause attribuée à chaque retour en excès : produit, pré-vendeur, livreur, tournée, client, normal ou indéterminé
+- [ ] Diagnostics : cause, niveau de confiance, preuves, coût, action proposée, statut
+- [ ] Réponse de la personne concernée et correction de la cause par le superviseur
+- [ ] Alerte qualité produit avec blocage du lot
+- [ ] Vue d'ensemble : répartition des retours par cause, en quantité et en valeur
+- [ ] Paramètres par entreprise : axes analysés, fenêtre, seuils
+- [ ] Score de risque client, calculé uniquement sur les retours attribués au client *(optionnel)*
+
+**Règles**
+
+- Plusieurs clients distincts qui retournent le même produit ou lot : la cause est le produit, aucun client n'est pénalisé
+- Un retour n'est attribué qu'à une seule cause
+- Aucune conclusion en dessous d'un volume minimum
+- Un retour « indéterminé » ne pèse sur personne
+- Le motif déclaré par le livreur est un indice, pas une preuve
+- Les indicateurs par pré-vendeur et par livreur restent internes à l'entreprise
+- Exports CSV : refus, retours au déchargement, reventes en tournée, écarts, diagnostics
 
 **Ajouts phase 0** (UC-57, UC-63)
 
