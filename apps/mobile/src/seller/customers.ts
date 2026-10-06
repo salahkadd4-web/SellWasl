@@ -1,10 +1,9 @@
 import { distanceMeters, type LatLng } from '@sellwasl/business-rules';
-import type { CustomerDto, Page } from '@sellwasl/validation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { customersView } from '@sellwasl/offline';
+import { useMemo } from 'react';
 import { Alert, Linking } from 'react-native';
-import { request } from '@/api/client';
+import { useLocal, useSync } from '@/offline/SyncProvider';
 import { useToday } from '@/today/TodayContext';
-import { errorMessage } from './format';
 
 /** Client tel que l'affichent la liste et la carte du vendeur. */
 export interface FieldCustomer {
@@ -25,45 +24,15 @@ export interface FieldCustomer {
 
 export type CustomerScope = 'day' | 'sector';
 
-/** Tous les clients du secteur, page par page (limités au secteur du vendeur par le serveur). */
-async function sectorCustomers(): Promise<CustomerDto[]> {
-  const all: CustomerDto[] = [];
-  let cursor: string | null = null;
-  do {
-    const page: Page<CustomerDto> = await request<Page<CustomerDto>>(
-      `/customers?limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
-    );
-    all.push(...page.data);
-    cursor = page.nextCursor;
-  } while (cursor);
-  return all;
-}
-
 /**
  * Clients du jour ou de tout le secteur, triés du plus proche au plus loin (BR-VIS-10), par nom
  * sans position du téléphone (UC-10).
  */
 export function useFieldCustomers(scope: CustomerScope, position: LatLng | null) {
   const { today } = useToday();
-  const [sector, setSector] = useState<CustomerDto[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadSector = useCallback(async () => {
-    setLoading(true);
-    try {
-      setSector(await sectorCustomers());
-      setError(null);
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (scope === 'sector' && !sector) void loadSector();
-  }, [scope, sector, loadSector]);
+  // Clients du secteur gardés sur le téléphone (phase 23), dette à jour des encaissements en file
+  const { data: sector, error } = useLocal(customersView, []);
+  const { syncing, syncNow } = useSync();
 
   const customers = useMemo(() => {
     const dayIds = new Set(today?.day.customers.map((c) => c.id) ?? []);
@@ -98,7 +67,14 @@ export function useFieldCustomers(scope: CustomerScope, position: LatLng | null)
     });
   }, [scope, sector, today, position]);
 
-  return { customers, loading, error, reload: loadSector };
+  return {
+    customers,
+    loading: syncing,
+    error,
+    reload: async () => {
+      await syncNow();
+    },
+  };
 }
 
 /** Itinéraire dans Google Maps (UC-10), ou dans le navigateur s'il n'est pas installé. */

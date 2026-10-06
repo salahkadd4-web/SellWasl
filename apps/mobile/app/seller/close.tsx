@@ -2,6 +2,7 @@ import { colors } from '@sellwasl/config';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { useSync } from '@/offline/SyncProvider';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { useToday } from '@/today/TodayContext';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
@@ -10,6 +11,7 @@ import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 export default function CloseDayScreen() {
   const router = useRouter();
   const { today, act } = useToday();
+  const { online } = useSync();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Journée d'un autre jour restée ouverte : on la clôture d'abord
@@ -24,7 +26,8 @@ export default function CloseDayScreen() {
     setError(null);
     setBusy(true);
     try {
-      await act('workday.close', { workdayId });
+      // Sans réseau, la clôture part à la prochaine synchronisation (BR-JOU-06)
+      await act('workday.close', { workdayId, ...(online ? {} : { offline: true }) });
       router.back();
     } catch (e) {
       setError(errorMessage(e));

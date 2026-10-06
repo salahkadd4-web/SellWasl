@@ -1,7 +1,8 @@
 import { colors, radius } from '@sellwasl/config';
-import type { CustomerDto, OrderDto, VisitCatalog } from '@sellwasl/validation';
+import { type BuiltOrder, buildOrder, customerView, visitCatalogView } from '@sellwasl/offline';
+import type { OrderDto, VisitCatalog } from '@sellwasl/validation';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ApiClientError, request } from '@/api/client';
+import { useLocal, useSync } from '@/offline/SyncProvider';
 import { printAfter } from '@/printing/printer';
 import { type CartEntry, entriesFromOrder, useCart } from '@/seller/cart';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
@@ -21,29 +22,10 @@ import { newId, nextOrderNumber } from '@/sync/operations';
 import { useToday } from '@/today/TodayContext';
 import { Card, Input, Message, PrimaryButton, Title } from '@/ui';
 
-/** Après une réinstallation, la séquence locale des commandes repart de zéro : on avance. */
-const MAX_NUMBER_RETRIES = 20;
-
-interface ConfirmResult {
-  number: string;
-  totalAmount: number;
-  deliveryDate?: string;
-  pendingLines: { variantId: string; qty: number }[];
-  stockouts: { variantId: string; reservedQty: number; orderedQty: number }[];
-}
-
-/** Vente cash van (BR-CV-05) : livrée et encaissée en une fois. */
-interface SaleResult {
-  number: string;
-  totalAmount: number;
-  cashAmount: number;
-  creditAmount: number;
-  debtAmount: number;
-}
-
 /**
  * Commande prise pendant la visite (UC-14) ou modifiée (UC-17) : produits proposables au client,
- * panier calculé sur le téléphone, confirmation recalculée et figée par le serveur. Vendeur cash
+ * panier calculé sur le téléphone, enregistré sans réseau si besoin (phase 23), recalculé et figé
+ * par le serveur à la réception. Vendeur cash
  * van : vente depuis le stock du camion, encaissée sur place (UC-60, BR-CV-03 à 05).
  */
 export default function OrderScreen() {
@@ -55,44 +37,42 @@ export default function OrderScreen() {
   }>();
   const router = useRouter();
   const { today, act } = useToday();
-  const [catalog, setCatalog] = useState<VisitCatalog | null>(null);
-  const [customer, setCustomer] = useState<CustomerDto | null>(null);
-  const [existing, setExisting] = useState<OrderDto | null>(null);
-  const [ready, setReady] = useState(!params.orderId);
+  const { local, online, ready } = useSync();
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const date = params.date ?? today?.date;
 
-  useEffect(() => {
-    if (!date) return;
-    void Promise.all([
-      request<VisitCatalog>(`/me/visit-catalog?customerId=${params.customerId}&date=${date}`),
-      request<CustomerDto>(`/customers/${params.customerId}`),
-      params.orderId ? request<OrderDto[]>(`/me/orders?date=${date}`) : Promise.resolve([]),
-    ])
-      .then(([c, cu, orders]) => {
-        setCatalog(c);
-        setCustomer(cu);
-        const order = orders.find((o) => o.id === params.orderId) ?? null;
-        setExisting(order);
-        setReady(true);
-      })
-      .catch((e) => setError(errorMessage(e)));
-  }, [date, params.customerId, params.orderId]);
+  // Catalogue, client et commande gardés sur le téléphone (phase 23)
+  const { data: catalog, error: catalogError } = useLocal(
+    (s) => (date ? visitCatalogView(s, params.customerId, date) : null),
+    [params.customerId, date],
+  );
+  const { data: customer } = useLocal(
+    (s) => customerView(s, params.customerId),
+    [params.customerId],
+  );
+  const { data: existing } = useLocal(
+    (s) => (params.orderId ? (s.orders.get(params.orderId) ?? null) : null),
+    [params.orderId],
+  );
 
-  if (!ready || !catalog)
+  if (!ready || !catalog || (params.orderId && !existing))
     return (
       <View style={styles.center}>
-        {error ? <Message>{error}</Message> : <ActivityIndicator color={colors.primary} />}
+        {ready ? (
+          <Message>{catalogError ?? 'Données absentes du téléphone : synchronisez.'}</Message>
+        ) : (
+          <ActivityIndicator color={colors.primary} />
+        )}
       </View>
     );
   return (
     <OrderForm
       catalog={catalog}
       customerName={customer?.name ?? 'Commande'}
-      existing={existing}
+      existing={existing ?? null}
       visitId={params.visitId}
       query={query}
       setQuery={setQuery}
@@ -117,41 +97,53 @@ export default function OrderScreen() {
         setError(null);
         setBusy(true);
         try {
-          let result: ConfirmResult | null = null;
+          if (!local || !customer || !date) throw new Error('Données absentes : synchronisez.');
+          // Découpage calculé comme le serveur : il signalera ce qui diffère (BR-SYN-05)
+          const built = buildOrder(local, {
+            customerTypeId: customer.customerType.id,
+            date,
+            lines,
+            freeVariantChoices,
+            excludeOrderId: existing?.id,
+            cashVan: cashAmount !== undefined,
+          });
           if (cashAmount !== undefined) {
-            const sale = await withFreshNumber((number) =>
-              act<SaleResult>('sale.confirm', {
-                orderId: newId(),
-                number,
-                visitId: params.visitId,
-                lines,
-                freeVariantChoices,
-                cashAmount,
-              }),
-            );
-            showSale(sale);
-            printAfter(sale.number);
+            const number = await nextNumber();
+            await act('sale.confirm', {
+              orderId: newId(),
+              number,
+              visitId: params.visitId,
+              lines,
+              freeVariantChoices,
+              cashAmount,
+              ...(online ? {} : { offline: true }),
+            });
+            const credit = Math.max(0, built.totalAmount - cashAmount);
+            showSale({
+              number,
+              totalAmount: built.totalAmount,
+              cashAmount: Math.min(cashAmount, built.totalAmount),
+              creditAmount: credit,
+              debtAmount: customer.debtAmount + credit,
+              online,
+            });
+            printAfter(number);
             router.dismissTo('/seller');
             return;
           }
-          if (existing) {
-            result = await act<ConfirmResult>('order.update', {
-              orderId: existing.id,
-              lines,
-              freeVariantChoices,
+          const payload = { lines, freeVariantChoices, expected: built.expected };
+          let number = existing?.number ?? '';
+          if (existing) await act('order.update', { orderId: existing.id, ...payload });
+          else {
+            number = await nextNumber();
+            await act('order.confirm', {
+              orderId: newId(),
+              number,
+              visitId: params.visitId,
+              ...payload,
             });
-          } else {
-            result = await withFreshNumber((number) =>
-              act<ConfirmResult>('order.confirm', {
-                orderId: newId(),
-                number,
-                visitId: params.visitId,
-                lines,
-                freeVariantChoices,
-              }),
-            );
           }
-          showResult(result, catalog, existing !== null);
+          showResult(number, built, catalog, existing !== null, online);
           router.dismissTo('/seller');
         } catch (e) {
           setError(errorMessage(e));
@@ -162,43 +154,56 @@ export default function OrderScreen() {
     />
   );
 
-  /** Numéro suivant de la série du téléphone, en sautant ceux déjà connus du serveur. */
-  async function withFreshNumber<T>(send: (number: string) => Promise<T>): Promise<T> {
+  /** Numéro suivant de la série du téléphone (BR-CMD-07). */
+  async function nextNumber(): Promise<string> {
     const series = today?.seller.series;
     if (!today || !series) throw new Error('Série du téléphone inconnue : reconnectez-vous.');
-    for (let attempt = 0; attempt < MAX_NUMBER_RETRIES; attempt += 1) {
-      try {
-        return await send(await nextOrderNumber(today.seller.code, series));
-      } catch (e) {
-        if (!(e instanceof ApiClientError && e.code === 'DUPLICATE')) throw e;
-      }
-    }
-    throw new Error('Aucun numéro de commande libre. Contactez votre superviseur.');
+    return nextOrderNumber(today.seller.code, series);
   }
 }
 
-function showSale(sale: SaleResult) {
+const SAVED_OFFLINE = 'Enregistrée sur le téléphone : elle partira au retour du réseau.';
+
+function showSale(sale: {
+  number: string;
+  totalAmount: number;
+  cashAmount: number;
+  creditAmount: number;
+  debtAmount: number;
+  online: boolean;
+}) {
   const parts = [
     `Total : ${formatDA(sale.totalAmount)}.`,
     `Encaissé : ${formatDA(sale.cashAmount)}.`,
     sale.creditAmount > 0 ? `Reste à crédit : ${formatDA(sale.creditAmount)}.` : null,
     sale.debtAmount > 0 ? `Dette du client : ${formatDA(sale.debtAmount)}.` : null,
+    sale.online ? null : SAVED_OFFLINE,
   ].filter(Boolean);
   Alert.alert(`Vente ${sale.number} enregistrée`, parts.join('\n'));
 }
 
-/** Résumé du serveur : son calcul fait foi (lignes en attente, ruptures). */
-function showResult(result: ConfirmResult, catalog: VisitCatalog, updated: boolean) {
+/** Résumé calculé sur le téléphone ; le serveur recalcule et signale ce qui diffère. */
+function showResult(
+  number: string,
+  built: BuiltOrder,
+  catalog: VisitCatalog,
+  updated: boolean,
+  online: boolean,
+) {
   const name = (variantId: string) =>
     catalog.products.flatMap((p) => p.variants).find((v) => v.id === variantId)?.name ?? 'Article';
   const parts = [
-    `Total : ${formatDA(result.totalAmount)}.`,
-    result.deliveryDate ? `Livraison le ${formatDate(result.deliveryDate)}.` : null,
-    ...result.pendingLines.map((l) => `En attente (quota) : ${name(l.variantId)} × ${l.qty}.`),
-    ...result.stockouts.map((s) => `Rupture : ${name(s.variantId)}, stock insuffisant au dépôt.`),
+    `Total : ${formatDA(built.totalAmount)}.`,
+    ...built.lines
+      .filter((l) => l.kind === 'PENDING')
+      .map((l) => `En attente (quota) : ${name(l.variantId)} × ${l.enteredQty}.`),
+    ...built.lines
+      .filter((l) => l.isStockout)
+      .map((l) => `Rupture : ${name(l.variantId)}, stock insuffisant au dépôt.`),
+    online ? null : SAVED_OFFLINE,
   ].filter(Boolean);
   Alert.alert(
-    updated ? `Commande ${result.number} modifiée` : `Commande ${result.number} confirmée`,
+    updated ? `Commande ${number} modifiée` : `Commande ${number} confirmée`,
     parts.join('\n'),
   );
 }

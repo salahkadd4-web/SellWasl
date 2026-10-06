@@ -1,12 +1,12 @@
 import type { LatLng } from '@sellwasl/business-rules';
 import { colors } from '@sellwasl/config';
-import type { Frequency, TerritoryDto } from '@sellwasl/validation';
+import type { Frequency } from '@sellwasl/validation';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import { request } from '@/api/client';
+import { StyleSheet, Text, View } from 'react-native';
 import { readPosition } from '@/location/useLocation';
+import { useLocal } from '@/offline/SyncProvider';
 import { errorMessage, FREQUENCY_LABELS } from '@/seller/format';
 import { WorkdayGuard } from '@/seller/WorkdayGuard';
 import { newId } from '@/sync/operations';
@@ -46,7 +46,8 @@ function Choices<T extends string>({
 export default function NewCustomerScreen() {
   const router = useRouter();
   const { today, act } = useToday();
-  const [types, setTypes] = useState<{ id: string; name: string }[]>([]);
+  // Secteurs gardés sur le téléphone (phase 23)
+  const { data: territories } = useLocal((s) => s.territories, []);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -58,17 +59,11 @@ export default function NewCustomerScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // Types de clients servis par le secteur du vendeur (BR-CLI-02)
+  const territoryId = today?.day.territory?.id ?? territories?.[0]?.id;
+  const types = territories?.find((t) => t.id === territoryId)?.customerTypes ?? [];
   useEffect(() => {
-    const territoryId = today?.day.territory?.id;
-    if (!territoryId) return;
-    void request<TerritoryDto[]>('/territories')
-      .then((list) => {
-        const served = list.find((t) => t.id === territoryId)?.customerTypes ?? [];
-        setTypes(served);
-        if (served.length === 1) setTypeId(served[0]!.id);
-      })
-      .catch((e) => setError(errorMessage(e)));
-  }, [today?.day.territory?.id]);
+    if (types.length === 1 && !typeId) setTypeId(types[0]!.id);
+  }, [types, typeId]);
 
   async function locate() {
     setLocating(true);
@@ -96,26 +91,18 @@ export default function NewCustomerScreen() {
     setBusy(true);
     try {
       const customerId = newId();
-      const result = await act<{ customerId: string; partName: string | null; outOfPart: boolean }>(
-        'customer.create',
-        {
-          customerId,
-          name: name.trim(),
-          phone: phone.trim() || null,
-          address: address.trim() || null,
-          customerTypeId: typeId,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          frequency,
-        },
-      );
-      if (result.outOfPart)
-        Alert.alert(
-          'Client hors partie',
-          'Sa position est en dehors des parties de votre secteur. Vous pouvez le visiter ; votre superviseur le placera.',
-        );
-      // Après une réponse perdue, c'est le client du premier essai qui a été créé
-      router.replace(`/seller/customer/${result.customerId ?? customerId}`);
+      await act('customer.create', {
+        customerId,
+        name: name.trim(),
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+        customerTypeId: typeId,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        frequency,
+      });
+      // Le serveur le place dans une partie à la réception ; hors partie, le superviseur le placera
+      router.replace(`/seller/customer/${customerId}`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {

@@ -1,9 +1,9 @@
 import { colors } from '@sellwasl/config';
-import type { OrderDto, OrderLineDto } from '@sellwasl/validation';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import type { OrderLineDto } from '@sellwasl/validation';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text } from 'react-native';
-import { request } from '@/api/client';
+import { useLocal } from '@/offline/SyncProvider';
 import { errorMessage, formatDA, formatDate, ORDER_STATUS_LABELS } from '@/seller/format';
 import { useToday } from '@/today/TodayContext';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
@@ -18,23 +18,18 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { today, inProgress, act } = useToday();
-  const [order, setOrder] = useState<OrderDto | null>(null);
+  const { data: order, ready } = useLocal((s) => s.orders.get(id) ?? null, [id]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!today) return;
-      void request<OrderDto[]>(`/me/orders?date=${today.date}`)
-        .then((list) => setOrder(list.find((o) => o.id === id) ?? null))
-        .catch((e) => setError(errorMessage(e)));
-    }, [today, id]),
-  );
 
   if (!order)
     return (
       <Screen>
-        {error ? <Message>{error}</Message> : <ActivityIndicator color={colors.primary} />}
+        {ready ? (
+          <Message>Commande absente de ce téléphone.</Message>
+        ) : (
+          <ActivityIndicator color={colors.primary} />
+        )}
       </Screen>
     );
 

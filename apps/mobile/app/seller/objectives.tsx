@@ -1,10 +1,9 @@
 import { colors, radius } from '@sellwasl/config';
-import type { MyObjective } from '@sellwasl/validation';
-import { useEffect, useState } from 'react';
+import { objectivesView } from '@sellwasl/offline';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { request } from '@/api/client';
+import { useLocal } from '@/offline/SyncProvider';
 import { IncentiveProgress } from '@/pay/IncentiveProgress';
-import { errorMessage, formatDA, formatDate } from '@/seller/format';
+import { formatDA, formatDate } from '@/seller/format';
 import { Card, Message, Screen, Title } from '@/ui';
 
 const MONTHS = [
@@ -24,14 +23,8 @@ const MONTHS = [
 
 /** Objectifs du mois par gamme (UC-20, BR-OBJ-04) : cible, réalisé, taux, prime estimée. */
 export default function ObjectivesScreen() {
-  const [objectives, setObjectives] = useState<MyObjective[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void request<MyObjective[]>('/me/objectives')
-      .then(setObjectives)
-      .catch((e) => setError(errorMessage(e)));
-  }, []);
+  // Objectifs reçus à la dernière synchronisation (le réalisé suit après l'envoi des commandes)
+  const { data: objectives, error } = useLocal(objectivesView, []);
 
   return (
     <Screen>

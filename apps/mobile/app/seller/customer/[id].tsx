@@ -1,9 +1,11 @@
 import { colors } from '@sellwasl/config';
-import type { CustomerDto, CustomerHistory } from '@sellwasl/validation';
+import { customerView } from '@sellwasl/offline';
+import type { CustomerHistory } from '@sellwasl/validation';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { request } from '@/api/client';
+import { useLocal } from '@/offline/SyncProvider';
 import { callCustomer, openDirections } from '@/seller/customers';
 import {
   errorMessage,
@@ -19,24 +21,20 @@ import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 export default function CustomerSheet() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [customer, setCustomer] = useState<CustomerDto | null>(null);
+  // Fiche gardée sur le téléphone (phase 23) ; l'historique demande le réseau
+  const { data: customer, error: localError, ready } = useLocal((s) => customerView(s, id), [id]);
   const [history, setHistory] = useState<CustomerHistory | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Rechargée au retour d'une visite ou d'un encaissement
+  // Historique rechargé au retour d'une visite ou d'un encaissement
   useFocusEffect(
     useCallback(() => {
       void (async () => {
         try {
-          const [c, h] = await Promise.all([
-            request<CustomerDto>(`/customers/${id}`),
-            request<CustomerHistory>(`/customers/${id}/history`),
-          ]);
-          setCustomer(c);
-          setHistory(h);
+          setHistory(await request<CustomerHistory>(`/customers/${id}/history`));
           setError(null);
         } catch (e) {
-          setError(errorMessage(e, 'Fiche indisponible.'));
+          setError(errorMessage(e, 'Historique indisponible sans réseau.'));
         }
       })();
     }, [id]),
@@ -45,7 +43,11 @@ export default function CustomerSheet() {
   if (!customer)
     return (
       <Screen>
-        {error ? <Message>{error}</Message> : <ActivityIndicator color={colors.primary} />}
+        {ready ? (
+          <Message>{localError ?? 'Client absent de ce téléphone : synchronisez.'}</Message>
+        ) : (
+          <ActivityIndicator color={colors.primary} />
+        )}
       </Screen>
     );
 
@@ -58,7 +60,7 @@ export default function CustomerSheet() {
       >
         {customer.name}
       </Title>
-      {error ? <Message>{error}</Message> : null}
+      {error ? <Message tone="info">{error}</Message> : null}
 
       <Card>
         <Text style={customer.debtAmount > 0 ? styles.debt : styles.line}>

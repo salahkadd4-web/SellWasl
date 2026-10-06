@@ -1,10 +1,10 @@
 import { colors } from '@sellwasl/config';
-import type { CustomerDto } from '@sellwasl/validation';
+import { customerView } from '@sellwasl/offline';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
-import { request } from '@/api/client';
 import { readPosition } from '@/location/useLocation';
+import { useLocal } from '@/offline/SyncProvider';
 import { errorMessage, formatDistance } from '@/seller/format';
 import { WorkdayGuard } from '@/seller/WorkdayGuard';
 import { newId } from '@/sync/operations';
@@ -28,17 +28,13 @@ export default function VisitScreen() {
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
   const router = useRouter();
   const { today, act } = useToday();
-  const [customer, setCustomer] = useState<CustomerDto | null>(null);
+  // Client et motifs gardés sur le téléphone (phase 23)
+  const { data: customer } = useLocal((s) => customerView(s, customerId), [customerId]);
+  const { data: allReasons } = useLocal((s) => s.reasons, []);
   const [mode, setMode] = useState<Mode>('ON_SITE');
   const [reasons, setReasons] = useState<ReasonRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void request<CustomerDto>(`/customers/${customerId}`)
-      .then(setCustomer)
-      .catch((e) => setError(errorMessage(e)));
-  }, [customerId]);
 
   const current = today?.currentVisit ?? null;
   const isCashVan = today?.seller.roleCode === 'VENDEUR_CASH_VAN';
@@ -63,14 +59,11 @@ export default function VisitScreen() {
     }
   }
 
-  async function showReasons() {
+  function showReasons() {
     setError(null);
-    try {
-      const all = await request<ReasonRow[]>('/reasons');
-      setReasons(all.filter((r) => r.kind === 'NO_ORDER' && r.isActive));
-    } catch (e) {
-      setError(errorMessage(e));
-    }
+    const list = (allReasons ?? []).filter((r) => r.kind === 'NO_ORDER' && r.isActive);
+    if (list.length === 0) setError('Motifs absents du téléphone : synchronisez.');
+    setReasons(list);
   }
 
   function closeWith(reason: ReasonRow) {

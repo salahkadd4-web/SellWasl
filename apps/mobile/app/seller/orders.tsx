@@ -1,10 +1,9 @@
 import { colors } from '@sellwasl/config';
-import type { OrderDto } from '@sellwasl/validation';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { ordersView } from '@sellwasl/offline';
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { request } from '@/api/client';
-import { errorMessage, formatDA, ORDER_STATUS_LABELS } from '@/seller/format';
+import { useLocal } from '@/offline/SyncProvider';
+import { formatDA, ORDER_STATUS_LABELS } from '@/seller/format';
 import { useToday } from '@/today/TodayContext';
 import { Message } from '@/ui';
 
@@ -12,21 +11,9 @@ import { Message } from '@/ui';
 export default function OrdersScreen() {
   const router = useRouter();
   const { today } = useToday();
-  const [orders, setOrders] = useState<OrderDto[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Rechargées au retour d'une modification ou d'une annulation
-  useFocusEffect(
-    useCallback(() => {
-      if (!today) return;
-      void request<OrderDto[]>(`/me/orders?date=${today.date}`)
-        .then((list) => {
-          setOrders(list);
-          setError(null);
-        })
-        .catch((e) => setError(errorMessage(e)));
-    }, [today]),
-  );
+  // Commandes gardées sur le téléphone, avec celles en attente d'envoi (phase 23)
+  const date = today?.date;
+  const { data: orders, error } = useLocal((s) => (date ? ordersView(s, date) : null), [date]);
 
   return (
     <FlatList

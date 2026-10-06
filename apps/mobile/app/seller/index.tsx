@@ -4,16 +4,18 @@ import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { SyncBar } from '@/offline/SyncBar';
+import { useSync } from '@/offline/SyncProvider';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { newId } from '@/sync/operations';
-import { phoneDate, useToday } from '@/today/TodayContext';
+import { useToday } from '@/today/TodayContext';
 import { Card, Message, PrimaryButton, Title } from '@/ui';
 
 /** Tableau de bord du vendeur (UC-02) : journée, clients du jour, encaissé, accès aux écrans. */
 export default function SellerDashboard() {
   const router = useRouter();
   const { me, profile } = useAuth();
-  const { today, loading, error, refresh, act } = useToday();
+  const { today, loading, error, refresh, startDay: beginDay } = useToday();
+  const { indicator } = useSync();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -21,7 +23,7 @@ export default function SellerDashboard() {
     setActionError(null);
     setBusy(true);
     try {
-      await act('workday.start', { workdayId: newId(), date: phoneDate() });
+      await beginDay(newId());
     } catch (e) {
       setActionError(errorMessage(e));
     } finally {
@@ -55,6 +57,18 @@ export default function SellerDashboard() {
         Bonjour {me?.user.firstName ?? profile?.firstName}
       </Title>
       <SyncBar href="/seller/sync" />
+      {indicator.unseenChanges > 0 ? (
+        <Card title="Changements à la réception">
+          <Message tone="info">
+            Le serveur a modifié {indicator.unseenChanges} de vos actions (quota, stock).
+          </Message>
+          <PrimaryButton
+            title="Voir les changements"
+            variant="secondary"
+            onPress={() => router.push('/seller/sync')}
+          />
+        </Card>
+      ) : null}
       {error ? <Text style={styles.offline}>{error}</Text> : null}
 
       {today?.openWorkday ? (

@@ -1,23 +1,16 @@
 import { colors, radius } from '@sellwasl/config';
 import type { ProductDto } from '@sellwasl/validation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, SectionList, StyleSheet, Text, View } from 'react-native';
-import { request } from '@/api/client';
 import { photoUri } from '@/catalog/photos';
-import { errorMessage } from '@/seller/format';
+import { useLocal } from '@/offline/SyncProvider';
 import { Input, Message } from '@/ui';
 
 /** Catalogue hors visite, sans aucun prix (UC-21, BR-CAT-11), par gamme et catégorie. */
 export default function CatalogScreen() {
-  const [products, setProducts] = useState<ProductDto[] | null>(null);
+  // Catalogue gardé sur le téléphone (phase 23)
+  const { data: products, error } = useLocal((s) => s.products, []);
   const [query, setQuery] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void request<ProductDto[]>('/products?status=ACTIVE')
-      .then(setProducts)
-      .catch((e) => setError(errorMessage(e)));
-  }, []);
 
   const sections = useMemo(() => {
     const q = query.trim().toLowerCase();
