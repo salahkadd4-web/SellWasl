@@ -173,3 +173,71 @@ export function shiftDate(date: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral';
+
+/** Statuts de la paie et de ses éléments (phase 21 bis). */
+export const DISCREPANCY_STATUS: Record<string, { label: string; tone: Tone }> = {
+  VALIDATED: { label: 'À analyser', tone: 'warning' },
+  UNDER_REVIEW: { label: 'En analyse', tone: 'warning' },
+  REJECTED: { label: 'Non fondé', tone: 'neutral' },
+  RESOLVED: { label: 'Sans responsabilité', tone: 'success' },
+  DEDUCTION_PENDING: { label: 'Retenue à approuver', tone: 'warning' },
+  DEDUCTION_APPROVED: { label: 'Retenue approuvée', tone: 'danger' },
+  DEDUCTION_APPLIED: { label: 'Retenue appliquée', tone: 'neutral' },
+};
+export const ADVANCE_STATUS: Record<string, { label: string; tone: Tone }> = {
+  REQUESTED: { label: 'Demandé', tone: 'warning' },
+  APPROVED: { label: 'Approuvé', tone: 'success' },
+  REJECTED: { label: 'Refusé', tone: 'danger' },
+  PAID: { label: 'Payé', tone: 'success' },
+  DEDUCTED: { label: 'Déduit de la paie', tone: 'neutral' },
+};
+export const DEDUCTION_STATUS: Record<string, { label: string; tone: Tone }> = {
+  PENDING: { label: 'À approuver', tone: 'warning' },
+  APPROVED: { label: 'Approuvée', tone: 'success' },
+  REJECTED: { label: 'Refusée', tone: 'danger' },
+  APPLIED: { label: 'Appliquée', tone: 'neutral' },
+};
+export const DEDUCTION_SOURCE: Record<string, string> = {
+  STOCK_DISCREPANCY: 'Écart de stock',
+  FINANCIAL_DISCREPANCY: 'Écart de caisse',
+  OTHER: 'Autre',
+};
+export const INCENTIVE_STATUS: Record<string, { label: string; tone: Tone }> = {
+  CALCULATED: { label: 'À vérifier', tone: 'warning' },
+  VALIDATED: { label: 'Validée', tone: 'success' },
+  REJECTED: { label: 'Refusée', tone: 'danger' },
+  APPLIED: { label: 'Payée en paie', tone: 'neutral' },
+};
+export const INCENTIVE_KIND: Record<string, string> = {
+  PER_UNIT: 'Par unité',
+  PERCENT_REVENUE: 'Pourcentage du CA',
+  THRESHOLD: 'Seuil',
+  TIERED: 'Paliers',
+  REVENUE_TARGET: 'Objectif de CA',
+};
+export const PAYROLL_STATUS: Record<string, { label: string; tone: Tone }> = {
+  OPEN: { label: 'Brouillon', tone: 'neutral' },
+  CALCULATED: { label: 'Calculée', tone: 'warning' },
+  APPROVED: { label: 'Approuvée', tone: 'success' },
+  PAID: { label: 'Payée', tone: 'success' },
+  CLOSED: { label: 'Clôturée', tone: 'neutral' },
+};
+export const PAY_LINE_KIND: Record<string, string> = {
+  BASE_SALARY: 'Salaire de base',
+  INCENTIVE: 'Prime',
+  OBJECTIVE_BONUS: 'Objectif',
+  DRIVER_BONUS: 'Objectif livreur',
+  ADJUSTMENT: 'Ajustement',
+  ADVANCE: 'Acompte',
+  DEDUCTION: 'Retenue',
+};
+
+/** Mois AAAA-MM lisible : « août 2027 ». */
+export function formatMonth(month: string): string {
+  return new Date(`${month}-15T12:00:00Z`).toLocaleDateString('fr-DZ', {
+    month: 'long',
+    year: 'numeric',
+  });
+}

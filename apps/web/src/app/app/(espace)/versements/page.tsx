@@ -1,11 +1,20 @@
 'use client';
 
-import type { DaySummaryDto, SettlementRowDto } from '@sellwasl/validation';
+import type { SettlementDetailDto, SettlementRowDto } from '@sellwasl/validation';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
-import { formatDA, formatDate, formatDateTime, todayDate, WORKDAY_STATUS } from '@/lib/labels';
+import {
+  DISCREPANCY_STATUS,
+  formatDA,
+  formatDate,
+  formatDateTime,
+  todayDate,
+  WORKDAY_STATUS,
+} from '@/lib/labels';
 
 /**
  * Versements au comptable (UC-70, BR-PAY-08) : pour chaque journée où de l'argent a été encaissé,
@@ -17,7 +26,8 @@ export default function SettlementsPage() {
   const [date, setDate] = useState(todayDate);
   const [rows, setRows] = useState<SettlementRowDto[] | null>(null);
   const [remitted, setRemitted] = useState<Record<string, string>>({});
-  const [summary, setSummary] = useState<DaySummaryDto | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [summary, setSummary] = useState<SettlementDetailDto | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +60,11 @@ export default function SettlementsPage() {
     try {
       await api('company', '/settlements', {
         method: 'POST',
-        body: JSON.stringify({ workdayId: row.workdayId, remittedAmount: value }),
+        body: JSON.stringify({
+          workdayId: row.workdayId,
+          remittedAmount: value,
+          note: notes[row.workdayId]?.trim() || undefined,
+        }),
       });
       await load();
     } catch (err) {
@@ -63,7 +77,7 @@ export default function SettlementsPage() {
   async function openSummary(row: SettlementRowDto) {
     setError(null);
     try {
-      setSummary(await api<DaySummaryDto>('company', `/workdays/${row.workdayId}/summary`));
+      setSummary(await api<SettlementDetailDto>('company', `/settlements/${row.workdayId}/detail`));
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -77,6 +91,7 @@ export default function SettlementsPage() {
         title="Versements"
         subtitle="Argent remis par les vendeurs et les livreurs : attendu, remis, écart."
       />
+      <AccountingTabs />
       {error && <Alert>{error}</Alert>}
       <Card className="grid gap-3 sm:grid-cols-[1fr_2fr]">
         <Field
@@ -138,6 +153,13 @@ export default function SettlementsPage() {
                               setRemitted((m) => ({ ...m, [r.workdayId]: e.target.value }))
                             }
                           />
+                          <Field
+                            label="Justification (facultatif)"
+                            value={notes[r.workdayId] ?? ''}
+                            onChange={(e) =>
+                              setNotes((m) => ({ ...m, [r.workdayId]: e.target.value }))
+                            }
+                          />
                           <Button disabled={busy} onClick={() => void settle(r)}>
                             Enregistrer
                           </Button>
@@ -145,7 +167,7 @@ export default function SettlementsPage() {
                       )
                     )}
                     <Button variant="secondary" onClick={() => void openSummary(r)}>
-                      Récapitulatif
+                      Détail
                     </Button>
                   </span>
                 </div>
@@ -155,17 +177,50 @@ export default function SettlementsPage() {
         </Card>
       )}
       {summary && (
-        <Modal title={`Récapitulatif · ${summary.user.name}`} onClose={() => setSummary(null)}>
+        <Modal title={`Versement · ${summary.user.name}`} onClose={() => setSummary(null)}>
           <div className="flex flex-col gap-2 text-sm">
             <p className="text-muted">{formatDate(summary.date)}</p>
             <p>Bons : {summary.receipts}</p>
-            <p>Total livré ou vendu : {formatDA(summary.totalSold)}</p>
+            <p>Total livré ou vendu : {formatDA(summary.sales)}</p>
             <p>Espèces sur les livraisons et ventes : {formatDA(summary.cashSales)}</p>
             <p>Espèces sur les dettes : {formatDA(summary.cashDebts)}</p>
             <p>Crédits accordés : {formatDA(summary.credit)}</p>
+            <p>Retours au déchargement : {formatDA(summary.returnedValue)}</p>
             <p className="font-semibold text-text-dark">
               Montant attendu : {formatDA(summary.expected)}
             </p>
+            {summary.remitted !== null && (
+              <p className="font-semibold text-text-dark">
+                Remis : {formatDA(summary.remitted)} · écart{' '}
+                <span className={summary.gap === 0 ? 'text-synced' : 'text-error'}>
+                  {formatDA(summary.gap ?? 0)}
+                </span>
+              </p>
+            )}
+            {summary.note && <p className="text-muted">« {summary.note} »</p>}
+            {(summary.stockDiscrepancies.length > 0 || summary.financialDiscrepancy) && (
+              <div className="flex flex-col gap-1 border-t border-border pt-2">
+                <p className="font-semibold text-text-dark">Écarts de la journée</p>
+                {[
+                  ...summary.stockDiscrepancies,
+                  ...(summary.financialDiscrepancy ? [summary.financialDiscrepancy] : []),
+                ].map((d) => (
+                  <p key={d.id} className="flex flex-wrap items-center gap-2">
+                    <span>
+                      {d.kind === 'STOCK' ? `${d.article} : ${d.qty}` : 'Caisse'} ·{' '}
+                      {formatDA(d.amount)}
+                      {d.cause ? ` · ${d.cause}` : ''}
+                    </span>
+                    <Badge tone={DISCREPANCY_STATUS[d.status]!.tone}>
+                      {DISCREPANCY_STATUS[d.status]!.label}
+                    </Badge>
+                  </p>
+                ))}
+                <Link href="/app/ecarts" className="font-semibold text-deep-blue">
+                  Analyser les écarts →
+                </Link>
+              </div>
+            )}
           </div>
         </Modal>
       )}

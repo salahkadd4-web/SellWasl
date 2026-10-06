@@ -2,6 +2,7 @@
 
 import type { DebtorDto, PaymentRowDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
+import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, PageTitle } from '@/components/ui';
 import { api, errorMessage, getAccessToken } from '@/lib/api';
 import { formatDA, formatDateTime, todayDate } from '@/lib/labels';
@@ -62,6 +63,7 @@ export default function PaymentsPage() {
           </Button>
         }
       />
+      <AccountingTabs />
       {error && <Alert>{error}</Alert>}
       <Card className="grid gap-3 sm:grid-cols-2">
         <Field

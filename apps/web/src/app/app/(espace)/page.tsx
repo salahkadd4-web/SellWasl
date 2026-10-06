@@ -2,6 +2,7 @@
 
 import type { StockAlertDto } from '@sellwasl/validation';
 import { Dashboard } from './dashboard';
+import { PayrollSummary } from './payroll-summary';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui';
@@ -40,6 +41,7 @@ export default function CompanyHomePage() {
         </p>
       </div>
 
+      {can('payroll.read') && <PayrollSummary />}
       {can('reports.read') && <Dashboard />}
 
       <div className="grid gap-4 sm:grid-cols-2">

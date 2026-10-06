@@ -259,6 +259,11 @@ function SettingsForm({ section, editable }: { section: 'general' | 'rules'; edi
               />
             ))}
           </div>
+          <PayrollFields
+            value={data.payroll}
+            editable={editable}
+            onChange={(payroll) => set({ payroll })}
+          />
         </>
       ) : (
         <div className="flex flex-col gap-1">
@@ -749,5 +754,118 @@ function WarehouseForm({
       <Toggle label="Actif" checked={active} onChange={setActive} />
       <Button type="submit">Enregistrer</Button>
     </form>
+  );
+}
+
+/**
+ * Paie (phase 21 bis) : activation, acomptes et leur plafond, début de semaine des primes,
+ * calendrier des échéances (la somme doit faire 100 %, vérifiée aussi par le serveur).
+ */
+function PayrollFields({
+  value,
+  editable,
+  onChange,
+}: {
+  value: CompanySettings['payroll'];
+  editable: boolean;
+  onChange: (value: CompanySettings['payroll']) => void;
+}) {
+  const total = value.schedule.reduce((sum, s) => sum + s.percent, 0);
+  const setItem = (i: number, patch: Partial<{ day: number; percent: number }>) =>
+    onChange({
+      ...value,
+      schedule: value.schedule.map((s, j) => (j === i ? { ...s, ...patch } : s)),
+    });
+  return (
+    <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <p className="font-semibold text-text-dark">Paie</p>
+      <Toggle
+        label="Paie activée"
+        description="Rémunérations, primes, retenues et paie mensuelle calculée par SellWasl."
+        checked={value.enabled}
+        disabled={!editable}
+        onChange={(enabled) => onChange({ ...value, enabled })}
+      />
+      <Toggle
+        label="Acomptes activés"
+        description="Désactivés : aucun nouvel acompte ; l'historique reste visible."
+        checked={value.advancesEnabled}
+        disabled={!editable}
+        onChange={(advancesEnabled) => onChange({ ...value, advancesEnabled })}
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label="Plafond des acomptes (% du salaire du mois)"
+          type="number"
+          min={1}
+          max={100}
+          value={value.advanceMaxPercent}
+          disabled={!editable}
+          onChange={(e) => onChange({ ...value, advanceMaxPercent: Number(e.target.value) })}
+        />
+        <Select
+          label="Début de semaine (primes hebdomadaires)"
+          value={value.weekStartsOn}
+          disabled={!editable}
+          onChange={(e) =>
+            onChange({ ...value, weekStartsOn: e.target.value as typeof value.weekStartsOn })
+          }
+          options={WEEKDAYS.map(([code, label]) => ({ value: code, label }))}
+        />
+      </div>
+      <p className="text-sm font-medium text-text-dark">
+        Échéances de paiement{' '}
+        <span className={total === 100 ? 'text-synced' : 'text-error'}>({total} % du net)</span>
+      </p>
+      {value.schedule.map((s, i) => (
+        <div key={i} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <Field
+            label="Jour du mois"
+            type="number"
+            min={1}
+            max={31}
+            value={s.day}
+            disabled={!editable}
+            onChange={(e) => setItem(i, { day: Number(e.target.value) })}
+            hint="31 : dernier jour du mois"
+          />
+          <Field
+            label="Part du net (%)"
+            type="number"
+            min={1}
+            max={100}
+            value={s.percent}
+            disabled={!editable}
+            onChange={(e) => setItem(i, { percent: Number(e.target.value) })}
+          />
+          {editable && value.schedule.length > 1 && (
+            <Button
+              variant="secondary"
+              onClick={() =>
+                onChange({ ...value, schedule: value.schedule.filter((_, j) => j !== i) })
+              }
+            >
+              Retirer
+            </Button>
+          )}
+        </div>
+      ))}
+      {editable && value.schedule.length < 4 && (
+        <Button
+          variant="secondary"
+          onClick={() =>
+            onChange({
+              ...value,
+              schedule: [
+                ...value.schedule,
+                { day: Math.min(31, (value.schedule.at(-1)?.day ?? 0) + 15), percent: 0 },
+              ],
+            })
+          }
+        >
+          Ajouter une échéance
+        </Button>
+      )}
+    </div>
   );
 }

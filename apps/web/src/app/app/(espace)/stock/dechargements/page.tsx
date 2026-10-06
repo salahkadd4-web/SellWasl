@@ -9,6 +9,7 @@ import { CompanyAuth } from '@/lib/auth';
 import {
   articleLabel,
   CONDITION_LABELS,
+  formatDA,
   formatDate,
   formatDateTime,
   todayDate,
@@ -178,6 +179,10 @@ export default function UnloadsPage() {
           title={`Déchargement · ${warehouseLabel(detail.truck)}`}
           onClose={() => setDetail(null)}
         >
+          <p className="mb-2 text-sm text-muted">
+            Contrôlé par {detail.validatedBy ?? '—'} le {formatDateTime(detail.validatedAt)} · écart
+            total {formatDA(detail.lines.reduce((sum, l) => sum + l.gapValue, 0))}
+          </p>
           <div className="overflow-hidden rounded-xl border border-border">
             {detail.lines.map((l) => (
               <div
@@ -210,7 +215,7 @@ export default function UnloadsPage() {
                 </span>
                 <span className={l.gap === 0 ? 'text-muted' : 'font-semibold text-error'}>
                   {l.theoretical} → {l.counted}
-                  {l.gap !== 0 ? ` (${signed(l.gap)})` : ''}
+                  {l.gap !== 0 ? ` (${signed(l.gap)} · ${formatDA(l.gapValue)})` : ''}
                 </span>
               </div>
             ))}
@@ -373,6 +378,11 @@ function UnloadCount({
                         }`}
                       >
                         {gap === null ? '—' : signed(gap)}
+                        {gap ? (
+                          <span className="block text-xs font-normal">
+                            {formatDA(gap * l.unitValue)}
+                          </span>
+                        ) : null}
                       </td>
                       <td className="py-1.5 pr-3">
                         {gap ? (

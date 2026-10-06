@@ -8,7 +8,14 @@ import { FullPageMessage } from '@/components/ui';
 import { CompanyAuth } from '@/lib/auth';
 
 /** Entrées du menu ; un module, s'il est indiqué, doit être actif dans l'entreprise. */
-const NAV: { href: string; label: string; permission: string | null; module?: string }[] = [
+const NAV: {
+  href: string;
+  label: string;
+  permission: string | null;
+  module?: string;
+  /** Autres pages de la même entrée (onglets). */
+  also?: string[];
+}[] = [
   { href: '/app', label: 'Accueil', permission: null },
   { href: '/app/suivi', label: 'Suivi du jour', permission: 'reports.read' },
   { href: '/app/clients', label: 'Clients', permission: 'customers.read' },
@@ -22,8 +29,20 @@ const NAV: { href: string; label: string; permission: string | null; module?: st
   { href: '/app/quotas', label: 'Quotas', permission: 'quotas.read' },
   { href: '/app/objectifs', label: 'Objectifs', permission: 'objectives.read' },
   { href: '/app/stock', label: 'Stock', permission: 'stock.read' },
-  { href: '/app/versements', label: 'Versements', permission: 'settlements.read' },
-  { href: '/app/paiements', label: 'Dettes et paiements', permission: 'payments.read' },
+  {
+    href: '/app/versements',
+    label: 'Comptabilité',
+    permission: 'settlements.read',
+    also: [
+      '/app/paiements',
+      '/app/ecarts',
+      '/app/retenues',
+      '/app/acomptes',
+      '/app/primes',
+      '/app/paie',
+    ],
+  },
+  { href: '/app/remunerations', label: 'Rémunérations', permission: 'compensation.read' },
   { href: '/app/rapports', label: 'Rapports', permission: 'reports.read' },
   {
     href: '/app/retours',
@@ -34,6 +53,7 @@ const NAV: { href: string; label: string; permission: string | null; module?: st
   { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
   { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },
+  { href: '/app/ma-paie', label: 'Ma paie', permission: 'pay.mine' },
 ];
 
 /** Espace entreprise : réservé aux sessions Web valides (docs/rbac.md §9). */
@@ -79,7 +99,8 @@ export default function CompanySpaceLayout({ children }: { children: React.React
               href={item.href}
               className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
                 pathname === item.href ||
-                (item.href !== '/app' && pathname.startsWith(`${item.href}/`))
+                (item.href !== '/app' && pathname.startsWith(`${item.href}/`)) ||
+                !!item.also?.some((p) => pathname === p || pathname.startsWith(`${p}/`))
                   ? 'border-accent text-white'
                   : 'border-transparent text-white/70 hover:text-white'
               }`}
