@@ -141,3 +141,16 @@ describe('cash van hors connexion (spec phase 23 §4.4)', () => {
     expect(daySummaryView(s, DATE).expected).toBe(18_400);
   });
 });
+
+describe('bon par numéro', () => {
+  it('retrouve le bon d’une vente en file pour l’imprimer tout de suite', async () => {
+    const { receiptByNumber } = await import('./views/truck');
+    const s = applyOps(cashVanState(), [...start(), sale(1, 5800)]);
+    expect(receiptByNumber(s, 'C01-B0001')).toMatchObject({
+      kind: 'SALE',
+      total: 5800,
+      paid: 5800,
+    });
+    expect(receiptByNumber(s, 'INCONNU')).toBeNull();
+  });
+});

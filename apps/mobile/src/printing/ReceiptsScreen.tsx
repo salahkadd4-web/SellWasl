@@ -1,9 +1,11 @@
 import { colors } from '@sellwasl/config';
-import type { DaySummaryDto, ReceiptPrintDto } from '@sellwasl/validation';
-import { useCallback, useEffect, useState } from 'react';
+import { daySummaryView, openWorkday, receiptsView } from '@sellwasl/offline';
+import type { ReceiptPrintDto } from '@sellwasl/validation';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { BluetoothDevice } from 'react-native-bluetooth-classic';
-import { request } from '@/api/client';
+import { phoneDate } from '@/offline/ids';
+import { useLocal, useSync } from '@/offline/SyncProvider';
 import { errorMessage, formatDA } from '@/seller/format';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 import {
@@ -29,31 +31,29 @@ const time = (iso: string) =>
  * tracée (BR-IMP-03), récapitulatif de la journée (BR-PAY-07).
  */
 export function ReceiptsScreen({ reprint }: { reprint: (number: string) => Promise<unknown> }) {
-  const [receipts, setReceipts] = useState<ReceiptPrintDto[] | null>(null);
-  const [summary, setSummary] = useState<DaySummaryDto | null>(null);
+  // Bons et récapitulatif calculés sur le téléphone, même sans réseau (phase 23)
+  const { ops } = useSync();
+  const { data } = useLocal((s) => {
+    const date = openWorkday(s)?.date ?? phoneDate();
+    return { receipts: receiptsView(s, date), summary: daySummaryView(s, date) };
+  }, []);
+  // Réimpressions encore en file : comptées en plus de celles connues
+  const receipts = data?.receipts.map((r) => ({
+    ...r,
+    reprints:
+      r.reprints +
+      ops.filter((o) => o.type === 'receipt.reprint' && o.payload.number === r.number).length,
+  }));
+  const summary = data?.summary ?? null;
   const [printer, setPrinter] = useState<SavedPrinter | null>(null);
   const [paired, setPaired] = useState<BluetoothDevice[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const [r, s] = await Promise.all([
-        request<ReceiptPrintDto[]>('/me/receipts'),
-        request<DaySummaryDto>('/me/day-summary'),
-      ]);
-      setReceipts(r);
-      setSummary(s);
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }, []);
-
   useEffect(() => {
-    void load();
     void savedPrinter().then(setPrinter);
-  }, [load]);
+  }, []);
 
   async function choosePrinter() {
     setError(null);
@@ -100,16 +100,13 @@ export function ReceiptsScreen({ reprint }: { reprint: (number: string) => Promi
         } catch (e) {
           return errorMessage(e);
         }
-        const failure = await printReceipt(receipt.number, { duplicate: true, receipt });
-        void load();
-        return failure;
+        return printReceipt(receipt.number, { duplicate: true, receipt });
       },
       `Duplicata du bon ${receipt.number} imprimé.`,
     );
   }
 
-  if (!receipts && !error)
-    return <ActivityIndicator style={styles.loader} color={colors.primary} />;
+  if (!receipts) return <ActivityIndicator style={styles.loader} color={colors.primary} />;
 
   return (
     <Screen>

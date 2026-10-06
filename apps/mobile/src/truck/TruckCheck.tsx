@@ -1,8 +1,8 @@
 import { colors } from '@sellwasl/config';
-import type { TruckCheckLine } from '@sellwasl/validation';
+import { truckCheckView } from '@sellwasl/offline';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
-import { request } from '@/api/client';
+import { useLocal } from '@/offline/SyncProvider';
 import { errorMessage } from '@/seller/format';
 import { sendOperation } from '@/sync/operations';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
@@ -21,19 +21,21 @@ export function TruckCheck({
   workdayId: string | null;
   onDone: () => void;
 }) {
-  const [lines, setLines] = useState<TruckCheckLine[] | null>(null);
+  // Lignes à pointer gardées sur le téléphone (phase 23)
+  const { data: lines } = useLocal(truckCheckView, []);
   const [counted, setCounted] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Compté proposé : ce qui est attendu dans le camion (chargement validé compris)
   useEffect(() => {
-    void request<TruckCheckLine[]>('/me/truck-check')
-      .then((list) => {
-        setLines(list);
-        setCounted(Object.fromEntries(list.map((l) => [l.variantId, String(l.inTruck)])));
-      })
-      .catch((e) => setError(errorMessage(e)));
-  }, []);
+    if (!lines) return;
+    setCounted((current) =>
+      Object.keys(current).length > 0
+        ? current
+        : Object.fromEntries(lines.map((l) => [l.variantId, String(l.inTruck)])),
+    );
+  }, [lines]);
 
   async function submit() {
     if (!lines) return;
@@ -42,7 +44,8 @@ export function TruckCheck({
     setError(null);
     setBusy(true);
     try {
-      const result = await sendOperation<{ hasGap: boolean }>(
+      const hasGap = lines.some((l) => Number(counted[l.variantId]) !== l.inTruck);
+      await sendOperation(
         'truck.check',
         {
           lines: lines.map((l) => ({
@@ -52,10 +55,7 @@ export function TruckCheck({
         },
         workdayId,
       );
-      Alert.alert(
-        'Camion pointé',
-        result.hasGap ? "L'écart est signalé au superviseur." : 'Sans écart.',
-      );
+      Alert.alert('Camion pointé', hasGap ? "L'écart est signalé au superviseur." : 'Sans écart.');
       onDone();
     } catch (e) {
       setError(errorMessage(e));

@@ -1,10 +1,6 @@
 import { colors } from '@sellwasl/config';
-import type {
-  DeliveryPreviewDto,
-  DriverDeliveryDto,
-  DriverRouteDto,
-  TruckStockDto,
-} from '@sellwasl/validation';
+import { deliveryPreviewView, driverRouteView, truckStockView } from '@sellwasl/offline';
+import type { DeliveryPreviewDto, DriverDeliveryDto } from '@sellwasl/validation';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -16,9 +12,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { request } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { readPosition } from '@/location/useLocation';
+import { phoneDate } from '@/offline/ids';
+import { useLocal, useSync } from '@/offline/SyncProvider';
 import { printAfter } from '@/printing/printer';
 import { errorMessage, formatDA } from '@/seller/format';
 import { newId, nextDeliveryNumber, sendOperation } from '@/sync/operations';
@@ -48,11 +45,19 @@ export default function DeliveryScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const router = useRouter();
   const { profile, me } = useAuth();
-  const [route, setRoute] = useState<DriverRouteDto | null>(null);
-  const [truck, setTruck] = useState<TruckStockDto[]>([]);
-  const [reasons, setReasons] = useState<Reason[]>([]);
+  // Tournée, stock du camion et motifs gardés sur le téléphone (phase 23)
+  const { local, online, ready } = useSync();
+  const { data: route } = useLocal((s) => driverRouteView(s, phoneDate()), []);
+  const truck = useMemo(() => (local ? truckStockView(local) : []), [local]);
+  const reasons = useMemo(
+    () => (local?.reasons ?? []).filter((x) => x.kind === 'DELIVERY_FAILURE' && x.isActive),
+    [local],
+  );
   /** Motifs de refus (BR-RET-01) : obligatoires dès qu'une quantité est refusée. */
-  const [refusals, setRefusals] = useState<Reason[]>([]);
+  const refusals = useMemo(
+    () => (local?.reasons ?? []).filter((x) => x.kind === 'REFUSAL' && x.isActive),
+    [local],
+  );
   const [refusalId, setRefusalId] = useState<string | null>(null);
   const [refusedFailure, setRefusedFailure] = useState<Reason | null>(null);
   const [qty, setQty] = useState<Record<string, string>>({});
@@ -64,28 +69,20 @@ export default function DeliveryScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Quantités proposées : le préparé, une fois la livraison connue
+  const known = route?.deliveries.find((x) => x.orderId === orderId);
   useEffect(() => {
-    void Promise.all([
-      request<DriverRouteDto>('/me/route'),
-      request<TruckStockDto[]>('/me/truck-stock'),
-      request<Reason[]>('/reasons'),
-    ])
-      .then(([r, stock, all]) => {
-        setRoute(r);
-        setTruck(stock);
-        setReasons(all.filter((x) => x.kind === 'DELIVERY_FAILURE' && x.isActive));
-        setRefusals(all.filter((x) => x.kind === 'REFUSAL' && x.isActive));
-        const d = r.deliveries.find((x) => x.orderId === orderId);
-        setQty(
-          Object.fromEntries(
-            (d?.lines ?? [])
+    if (!known) return;
+    setQty((current) =>
+      Object.keys(current).length > 0
+        ? current
+        : Object.fromEntries(
+            known.lines
               .filter((l) => l.kind === 'NORMAL')
               .map((l) => [l.lineId, String(l.preparedQty)]),
           ),
-        );
-      })
-      .catch((e) => setError(errorMessage(e)));
-  }, [orderId]);
+    );
+  }, [known]);
 
   const delivery: DriverDeliveryDto | undefined = route?.deliveries.find(
     (d) => d.orderId === orderId,
@@ -115,21 +112,17 @@ export default function DeliveryScreen() {
     );
   const upToDate = preview?.key === bodyKey;
 
-  async function calculate() {
+  // Calculé sur le téléphone comme sur le serveur (P-04, plafond de crédit) ; le serveur recalcule
+  function calculate() {
     if (!body) return setError('Saisissez des quantités entières.');
+    if (!local) return;
     setError(null);
-    setBusy(true);
     try {
-      const value = await request<DeliveryPreviewDto>('/me/deliveries/preview', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
+      const value = deliveryPreviewView(local, body);
       setPreview({ key: bodyKey, value });
       setCash(String(value.dueAmount));
     } catch (e) {
       setError(errorMessage(e));
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -160,7 +153,10 @@ export default function DeliveryScreen() {
         },
         route.workday.id,
       );
-      Alert.alert('Livraison enregistrée', `Encaissé : ${formatDA(amount)}`);
+      Alert.alert(
+        'Livraison enregistrée',
+        `Encaissé : ${formatDA(amount)}${online ? '' : '\nEnregistrée sur le téléphone : elle partira au retour du réseau.'}`,
+      );
       printAfter(number);
       router.back();
     } catch (e) {
@@ -177,7 +173,7 @@ export default function DeliveryScreen() {
     try {
       const position = await readPosition();
       const userCode = me?.user.code ?? profile!.userCode;
-      const result = await sendOperation<{ orderStatus: string }>(
+      await sendOperation(
         'delivery.fail',
         {
           deliveryId: newId(),
@@ -190,11 +186,10 @@ export default function DeliveryScreen() {
         },
         route.workday.id,
       );
+      // Reprogrammation au jour ouvré suivant décidée par le serveur (P-05)
       Alert.alert(
         'Échec enregistré',
-        result.orderStatus === 'LOCKED'
-          ? 'La livraison est reprogrammée au prochain jour ouvré.'
-          : 'La commande est en échec.',
+        'La commande est en échec ; elle sera reprogrammée si l’entreprise le prévoit.',
       );
       router.back();
     } catch (e) {
@@ -204,7 +199,7 @@ export default function DeliveryScreen() {
     }
   }
 
-  if (!route && !error) return <ActivityIndicator style={styles.loader} color={colors.primary} />;
+  if (!ready || !route) return <ActivityIndicator style={styles.loader} color={colors.primary} />;
   if (!delivery)
     return (
       <Screen>

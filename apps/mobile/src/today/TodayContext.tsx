@@ -2,18 +2,13 @@ import { todayView } from '@sellwasl/offline';
 import type { OperationType, TodayResponse } from '@sellwasl/validation';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { ApiClientError } from '@/api/client';
 import { setPositionSharing } from '@/device/heartbeat';
-import { offlineStore } from '@/offline/engine';
 import { phoneDate } from '@/offline/ids';
 import { useLocal, useSync } from '@/offline/SyncProvider';
+import { startWorkday } from '@/offline/workday';
 import { sendOperation } from '@/sync/operations';
 
 export { phoneDate };
-
-/** Démarrage sans réseau et sans synchronisation complète ce jour-là (décision phase 23). */
-export const START_NEEDS_NETWORK =
-  'Réseau nécessaire pour démarrer : aucune synchronisation aujourd’hui.';
 
 interface TodayState {
   today: TodayResponse | null;
@@ -67,18 +62,7 @@ export function TodayProvider({ children }: { children: ReactNode }) {
   );
 
   const startDay = useCallback(
-    async (workdayId: string) => {
-      const day = phoneDate();
-      if (online) await syncNow();
-      // Réception complète réussie aujourd'hui (BR-JOU-04) ; sinon le réseau est obligatoire
-      const synced = (await offlineStore.getMeta('lastFullSyncDate')) === day;
-      if (!synced) throw new ApiClientError(0, 'NETWORK', START_NEEDS_NETWORK);
-      await sendOperation('workday.start', {
-        workdayId,
-        date: day,
-        ...(online ? {} : { offline: true }),
-      });
-    },
+    (workdayId: string) => startWorkday(workdayId, online, syncNow),
     [online, syncNow],
   );
 

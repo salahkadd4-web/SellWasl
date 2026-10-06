@@ -163,11 +163,16 @@ function progressOf(s: LocalState, day: DriverRouteDto): RouteProgress {
 }
 
 /** Tournée du jour du livreur, comme GET /me/route (la plus récente si le jour manque). */
-export function driverRouteView(s: LocalState, date: string): DriverRouteDto | null {
-  const day =
-    s.driverDays.get(date) ??
-    [...s.driverDays.values()].sort((a, b) => b.date.localeCompare(a.date))[0];
-  if (!day) return null;
+export function driverRouteView(s: LocalState, date: string): DriverRouteDto {
+  const day = s.driverDays.get(date) ??
+    [...s.driverDays.values()].sort((a, b) => b.date.localeCompare(a.date))[0] ?? {
+      date,
+      workday: null,
+      loadToReceive: null,
+      route: null,
+      deliveries: [],
+      progress: { delivered: 0, partial: 0, failed: 0, pending: 0, collected: 0 },
+    };
   const workday =
     s.workdays.find((w) => w.status === 'IN_PROGRESS') ??
     s.workdays.find((w) => w.date === day.date);

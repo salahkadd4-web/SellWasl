@@ -1,10 +1,7 @@
 import { colors } from '@sellwasl/config';
-import type { TruckStockDto } from '@sellwasl/validation';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { truckStockView } from '@sellwasl/offline';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { request } from '@/api/client';
-import { errorMessage } from '@/seller/format';
+import { useLocal } from '@/offline/SyncProvider';
 import { Message } from '@/ui';
 
 const label = (a: { productName: string; variantName: string | null }) =>
@@ -15,20 +12,8 @@ const label = (a: { productName: string; variantName: string | null }) =>
  * Ce qui reste en fin de journée revient au dépôt au déchargement : c'est le retour.
  */
 export function TruckStockList() {
-  const [stock, setStock] = useState<TruckStockDto[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Relu au retour d'une livraison
-  useFocusEffect(
-    useCallback(() => {
-      void request<TruckStockDto[]>('/me/truck-stock')
-        .then((list) => {
-          setStock(list);
-          setError(null);
-        })
-        .catch((e) => setError(errorMessage(e)));
-    }, []),
-  );
+  // Stock du camion gardé sur le téléphone, ventes et livraisons en file déduites (phase 23)
+  const { data: stock, error } = useLocal(truckStockView, []);
 
   return (
     <FlatList

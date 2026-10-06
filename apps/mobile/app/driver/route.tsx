@@ -1,11 +1,13 @@
 import { distanceMeters } from '@sellwasl/business-rules';
 import { colors } from '@sellwasl/config';
-import type { DriverDeliveryDto, DriverRouteDto } from '@sellwasl/validation';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { driverRouteView } from '@sellwasl/offline';
+import type { DriverDeliveryDto } from '@sellwasl/validation';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { request } from '@/api/client';
 import { useCurrentPosition } from '@/location/useLocation';
+import { phoneDate } from '@/offline/ids';
+import { useLocal } from '@/offline/SyncProvider';
 import { CustomerMap } from '@/seller/CustomerMap';
 import { type FieldCustomer, openDirections } from '@/seller/customers';
 import { errorMessage, formatDA, formatDistance } from '@/seller/format';
@@ -51,22 +53,10 @@ function Toggle<T extends string>({
 export default function RouteScreen() {
   const router = useRouter();
   const { position, status } = useCurrentPosition();
-  const [route, setRoute] = useState<DriverRouteDto | null>(null);
+  // Tournée gardée sur le téléphone (phase 23)
+  const { data: route, error } = useLocal((s) => driverRouteView(s, phoneDate()), []);
   const [view, setView] = useState<'list' | 'map'>('list');
   const [selected, setSelected] = useState<Stop | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Rechargée au retour d'une livraison
-  useFocusEffect(
-    useCallback(() => {
-      void request<DriverRouteDto>('/me/route')
-        .then((r) => {
-          setRoute(r);
-          setError(null);
-        })
-        .catch((e) => setError(errorMessage(e)));
-    }, []),
-  );
 
   // À faire d'abord, du plus proche au plus loin ; les livraisons faites ensuite
   const stops = useMemo<Stop[]>(

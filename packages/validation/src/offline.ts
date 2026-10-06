@@ -86,6 +86,8 @@ export interface OfflineSettings {
 export interface OfflineReason {
   id: string;
   kind: string;
+  /** Motif système (par exemple « REFUSED ») ; null pour un motif créé par l'entreprise. */
+  systemCode: string | null;
   label: string;
   isActive: boolean;
 }

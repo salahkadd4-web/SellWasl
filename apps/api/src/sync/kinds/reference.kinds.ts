@@ -78,6 +78,7 @@ export class ReferenceKinds implements OnModuleInit {
           const data: OfflineReason = {
             id: r.id,
             kind: r.kind,
+            systemCode: r.systemCode,
             label: r.label,
             isActive: r.isActive,
           };

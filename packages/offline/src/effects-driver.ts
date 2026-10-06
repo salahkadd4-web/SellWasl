@@ -69,5 +69,7 @@ export const DRIVER_EFFECTS: Partial<Record<OutboxOp['type'], Effect>> = {
     const found = findDelivery(s, str(p.orderId) ?? '');
     if (!found || found.delivery.delivery) return;
     found.delivery.delivery = { number: str(p.number) ?? '', result: 'FAILED' };
+    // Reprogrammée ou non : le serveur décide (P-05) ; la livraison n'est plus à faire
+    found.delivery.status = 'FAILED';
   },
 };

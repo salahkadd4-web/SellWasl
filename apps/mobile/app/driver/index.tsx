@@ -1,6 +1,6 @@
 import { colors } from '@sellwasl/config';
-import type { DriverRouteDto } from '@sellwasl/validation';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { driverRouteView } from '@sellwasl/offline';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,44 +10,34 @@ import {
   StyleSheet,
   Text,
 } from 'react-native';
-import { request } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { setPositionSharing } from '@/device/heartbeat';
+import { phoneDate } from '@/offline/ids';
 import { SyncBar } from '@/offline/SyncBar';
+import { useLocal, useSync } from '@/offline/SyncProvider';
+import { startWorkday } from '@/offline/workday';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { newId, sendOperation } from '@/sync/operations';
-import { phoneDate } from '@/today/TodayContext';
 import { Card, Message, PrimaryButton, Title } from '@/ui';
 
 /** Tableau de bord du livreur : journée, chargement à recevoir, avancement de la tournée. */
 export default function DriverDashboard() {
   const router = useRouter();
   const { me, profile } = useAuth();
-  const [route, setRoute] = useState<DriverRouteDto | null>(null);
+  // Tournée gardée sur le téléphone, avec les actions en attente d'envoi (phase 23)
+  const { online, syncNow, ready } = useSync();
+  const { data: route } = useLocal((s) => driverRouteView(s, phoneDate()), []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const refresh = useCallback(async () => {
-    try {
-      setRoute(await request<DriverRouteDto>('/me/route'));
-      setError(null);
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void refresh();
-    }, [refresh]),
-  );
+    await syncNow();
+  }, [syncNow]);
 
   async function act(action: () => Promise<unknown>) {
     setError(null);
     setBusy(true);
     try {
       await action();
-      await refresh();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -62,7 +52,7 @@ export default function DriverDashboard() {
     return () => setPositionSharing(false);
   }, [inProgress]);
 
-  if (!route && !error) return <ActivityIndicator style={styles.loader} color={colors.primary} />;
+  if (!ready || !route) return <ActivityIndicator style={styles.loader} color={colors.primary} />;
 
   const status = route?.workday?.status ?? 'NOT_STARTED';
 
@@ -90,11 +80,7 @@ export default function DriverDashboard() {
             <PrimaryButton
               title="Démarrer la journée"
               busy={busy}
-              onPress={() =>
-                void act(() =>
-                  sendOperation('workday.start', { workdayId: newId(), date: phoneDate() }),
-                )
-              }
+              onPress={() => void act(() => startWorkday(newId(), online, syncNow))}
             />
           </>
         ) : status === 'IN_PROGRESS' ? (
@@ -121,8 +107,11 @@ export default function DriverDashboard() {
                         void act(() =>
                           sendOperation(
                             'workday.close',
-                            { workdayId: route!.workday!.id },
-                            route!.workday!.id,
+                            {
+                              workdayId: route.workday!.id,
+                              ...(online ? {} : { offline: true }),
+                            },
+                            route.workday!.id,
                           ),
                         ),
                     },

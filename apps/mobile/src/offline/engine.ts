@@ -1,4 +1,4 @@
-import { SyncEngine } from '@sellwasl/offline';
+import { applyOps, type LocalState, loadState, SyncEngine } from '@sellwasl/offline';
 import type { SyncOperationInput } from '@sellwasl/validation';
 import { secureStorage } from '@/auth/storage';
 import { newId, phoneDate } from './ids';
@@ -62,4 +62,11 @@ export async function unsentCount(): Promise<number> {
 export async function wipeOffline(): Promise<void> {
   await offlineStore.wipe();
   migrated = null;
+}
+
+/** Vue locale du moment, hors d'un écran (impression juste après une action). */
+export async function currentLocal(): Promise<LocalState> {
+  await migrateLegacy();
+  const [rows, ops] = await Promise.all([offlineStore.allRows(), offlineStore.outbox()]);
+  return applyOps(loadState(rows), ops);
 }

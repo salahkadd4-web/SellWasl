@@ -1,15 +1,17 @@
+import { receiptByNumber } from '@sellwasl/offline';
 import type { DaySummaryDto, ReceiptPrintDto, TicketSettingsDto } from '@sellwasl/validation';
 import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
 import { request } from '@/api/client';
+import { currentLocal } from '@/offline/engine';
 import { errorMessage } from '@/seller/format';
 import { isBluetoothPrintingAvailable, printBytes } from './bluetooth';
 import { encodeDaySummary, encodeReceipt } from './receipt';
 
 /**
  * Impression des bons (BR-IMP-01 à 06) : imprimante choisie une fois et gardée sur le téléphone,
- * contenu lu sur le serveur (son calcul fait foi). Une impression ratée ne bloque jamais le travail :
- * le bon reste réimprimable depuis « Bons du jour ».
+ * contenu construit sur le téléphone, même sans réseau (phase 23). Une impression ratée ne bloque
+ * jamais le travail : le bon reste réimprimable depuis « Bons du jour ».
  */
 const PRINTER_KEY = 'sellwasl.printer';
 
@@ -31,8 +33,10 @@ export async function savePrinter(printer: SavedPrinter): Promise<void> {
   await SecureStore.setItemAsync(PRINTER_KEY, JSON.stringify(printer));
 }
 
-/** Format du ticket : relu à chaque impression, l'administrateur peut le changer. */
-function ticketSettings(): Promise<TicketSettingsDto> {
+/** Format du ticket réglé par l'administrateur, reçu à la synchronisation. */
+async function ticketSettings(): Promise<TicketSettingsDto> {
+  const ticket = (await currentLocal()).settings?.ticket;
+  if (ticket) return ticket;
   return request<TicketSettingsDto>('/me/ticket');
 }
 
@@ -55,9 +59,7 @@ export async function printReceipt(
   options: { duplicate: boolean; receipt?: ReceiptPrintDto },
 ): Promise<string | null> {
   try {
-    const receipt =
-      options.receipt ??
-      (await request<ReceiptPrintDto[]>('/me/receipts')).find((r) => r.number === number);
+    const receipt = options.receipt ?? receiptByNumber(await currentLocal(), number);
     if (!receipt) return `Bon ${number} introuvable.`;
     return send((ticket) => encodeReceipt(receipt, ticket, { duplicate: options.duplicate }));
   } catch (e) {

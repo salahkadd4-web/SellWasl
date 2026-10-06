@@ -103,3 +103,12 @@ function deliveryOf(s: LocalState, orderId: string | null) {
   }
   return undefined;
 }
+
+/** Bon d'un numéro, quel que soit son jour (impression juste après l'action, réimpression). */
+export function receiptByNumber(s: LocalState, number: string): ReceiptPrintDto | null {
+  for (const date of new Set(s.workdays.map((w) => w.date))) {
+    const receipt = receiptsView(s, date).find((r) => r.number === number);
+    if (receipt) return receipt;
+  }
+  return null;
+}
