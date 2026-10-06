@@ -5,6 +5,10 @@ import type {
   LotDto,
   ProductDto,
   ReceiptDto,
+  RefusalDto,
+  ReturnFactDto,
+  ReturnsAxisDto,
+  ReturnsCrossDto,
   RouteCandidateDto,
   RoutePreparationDto,
   SupplierDto,
@@ -14,6 +18,7 @@ import type {
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
+import { ModulesService } from '../src/modules/modules.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { type Phone, Phones } from './phone';
@@ -591,6 +596,185 @@ describe('analyse des retours (phase 21)', () => {
             condition: 'RESTOCK',
             qty: l.theoretical,
           });
+      });
+    });
+
+    describe('analyse des retours et contestation (module RETURNS_ANALYSIS)', () => {
+      const period = `from=${DELIVERY}&to=${DELIVERY}`;
+      const axis = (name: string, extra = '') =>
+        call<ReturnsAxisDto>(t.url, 'GET', `/returns/axis/${name}?${period}${extra}`, {
+          token: sup,
+        });
+      const setModule = async (active: boolean) => {
+        if (active)
+          await raw.companyModule.upsert({
+            where: { companyId_moduleCode: { companyId, moduleCode: 'RETURNS_ANALYSIS' } },
+            create: {
+              id: uuidv7(),
+              companyId,
+              moduleCode: 'RETURNS_ANALYSIS',
+              activatedAt: new Date(),
+            },
+            update: { status: 'ACTIVE' },
+          });
+        else
+          await raw.companyModule.deleteMany({
+            where: { companyId, moduleCode: 'RETURNS_ANALYSIS' },
+          });
+        t.app.get(ModulesService).invalidate(companyId);
+      };
+
+      afterAll(() => setModule(false));
+
+      it('module inactif : analyse des retours refusée (403)', async () => {
+        expect((await axis('product')).status).toBe(403);
+      });
+
+      it('par produit : refusé, retourné, revendu, taux de retour sur le livré, part du défectueux', async () => {
+        await setModule(true);
+        const thon = item('THON-TOM');
+        const reply = await axis('product');
+        expect(reply.status, JSON.stringify(reply.body)).toBe(200);
+        const row = reply.body.rows.find((r) => r.key === thon.productId)!;
+        const returned = (
+          await raw.unloadLine.findFirstOrThrow({
+            where: { productVariantId: thon.variantId, unload: { workdayId: driverWorkday } },
+          })
+        ).countedQty;
+        expect(row).toMatchObject({
+          refusals: 2,
+          refusedQty: 4 * thon.baseQty,
+          returnedQty: returned,
+          resoldQty: thon.baseQty,
+          gapQty: -1,
+        });
+        expect(row.netCost).toBe(row.returnedValue - row.resoldValue);
+        // Livré : 4 cartons au client A et 1 revendu au client C
+        expect(row.rate).toEqual({
+          rate: Math.round((returned / (5 * thon.baseQty)) * 1000) / 10,
+          volume: 5 * thon.baseQty,
+          insufficient: false,
+        });
+        expect(row.defectiveShare?.volume).toBe(returned);
+      });
+
+      it('par pré-vendeur : sous le volume minimum, aucun taux', async () => {
+        const v07 = await raw.user.findFirstOrThrow({ where: { companyId, code: 'V07' } });
+        const row = (await axis('seller')).body.rows.find((r) => r.key === v07.id)!;
+        expect(row).toMatchObject({
+          refusals: 2,
+          rate: { rate: null, volume: 2, insufficient: true },
+        });
+      });
+
+      it('par motif, par état et par lot', async () => {
+        const reasons = (await axis('reason')).body.rows.map((r) => r.label);
+        expect(reasons).toEqual(expect.arrayContaining(['Prix', 'Stock suffisant']));
+        const conditions = (await axis('condition')).body.rows;
+        expect(conditions.map((r) => r.key)).toEqual(
+          expect.arrayContaining(['RESTOCK', 'DEFECTIVE', 'BROKEN']),
+        );
+        const thon = item('THON-TOM');
+        const lot = (await axis('lot')).body.rows.find((r) => r.label.includes('L-2027-06'))!;
+        expect(lot).toMatchObject({
+          returnedQty: thon.baseQty,
+          rate: { volume: 3 * thon.baseQty },
+        });
+      });
+
+      it('vue croisée produit × état ; deux fois le même axe refusé', async () => {
+        const thon = item('THON-TOM');
+        const cross = await call<ReturnsCrossDto>(
+          t.url,
+          'GET',
+          `/returns/cross?${period}&rows=product&cols=condition&kind=RETURN`,
+          { token: sup },
+        );
+        expect(cross.status, JSON.stringify(cross.body)).toBe(200);
+        expect(
+          cross.body.cells.find((c) => c.row === thon.productId && c.col === 'DEFECTIVE'),
+        ).toMatchObject({ qty: thon.baseQty });
+        const same = await call(
+          t.url,
+          'GET',
+          `/returns/cross?${period}&rows=product&cols=product`,
+          {
+            token: sup,
+          },
+        );
+        expect(same.status).toBe(400);
+      });
+
+      it('remonte aux faits derrière un chiffre', async () => {
+        const price = await reasonOf('REFUSAL', { label: 'Prix' });
+        const facts = await call<ReturnFactDto[]>(
+          t.url,
+          'GET',
+          `/returns/facts?${period}&kind=REFUSAL&axis=reason&value=${price}`,
+          { token: sup },
+        );
+        expect(facts.status).toBe(200);
+        expect(facts.body).toHaveLength(1);
+        expect(facts.body[0]).toMatchObject({
+          kind: 'REFUSAL',
+          reason: 'Prix',
+          order: { id: orders.A!.id },
+          delivery: { number: expect.any(String) },
+        });
+      });
+
+      it('le pré-vendeur conteste un refus ; le superviseur tranche une seule fois', async () => {
+        const v07 = await phones.get('V07');
+        const mine = await call<RefusalDto[]>(
+          t.url,
+          'GET',
+          `/me/refusals?from=${DELIVERY}&to=${DELIVERY}`,
+          { token: v07.token },
+        );
+        expect(mine.status).toBe(200);
+        const a = mine.body.find((r) => r.order.id === orders.A!.id)!;
+        expect(a).toMatchObject({ result: 'PARTIAL', reason: 'Prix', contestStatus: 'NONE' });
+        expect(a.refusedValue).toBeGreaterThan(0);
+
+        const v08 = await phones.get('V08');
+        const notHis = await phones.send(v08, 'refusal.contest', {
+          deliveryId: a.deliveryId,
+          comment: 'Ce client est le mien',
+        });
+        expect(notHis.status).toBe('REJECTED');
+        const contested = await phones.send(v07, 'refusal.contest', {
+          deliveryId: a.deliveryId,
+          comment: 'Le client avait confirmé le prix au téléphone.',
+        });
+        expect(contested.status, JSON.stringify(contested)).toBe('APPLIED');
+        const twice = await phones.send(v07, 'refusal.contest', {
+          deliveryId: a.deliveryId,
+          comment: 'Encore',
+        });
+        expect(twice.status).toBe('REJECTED');
+
+        const queue = await call<RefusalDto[]>(t.url, 'GET', '/refusals/contested', { token: sup });
+        expect(queue.body.find((r) => r.deliveryId === a.deliveryId)).toMatchObject({
+          contestStatus: 'CONTESTED',
+          contestComment: 'Le client avait confirmé le prix au téléphone.',
+        });
+        const decided = await call<RefusalDto>(t.url, 'POST', `/refusals/${a.deliveryId}/decide`, {
+          token: sup,
+          body: { upheld: true },
+        });
+        expect(decided.status, JSON.stringify(decided.body)).toBe(200);
+        expect(decided.body.contestStatus).toBe('UPHELD');
+        const again = await call(t.url, 'POST', `/refusals/${a.deliveryId}/decide`, {
+          token: sup,
+          body: { upheld: false },
+        });
+        expect(again.status).toBe(409);
+
+        // Contestation retenue : le refus ne pèse plus sur le client
+        const customer = (await axis('customer')).body.rows.find(
+          (r) => r.key === orders.A!.customer.id,
+        );
+        expect(customer?.refusals ?? 0).toBe(0);
       });
     });
   });
