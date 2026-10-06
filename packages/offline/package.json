@@ -1,0 +1,25 @@
+{
+  "name": "@sellwasl/offline",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Moteur hors connexion du téléphone : file d'envoi, synchronisation, vues locales (phase 23).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sellwasl/business-rules": "workspace:*",
+    "@sellwasl/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "@sellwasl/config": "workspace:*",
+    "vitest": "^5.0.3"
+  }
+}
