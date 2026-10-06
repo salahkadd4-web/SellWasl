@@ -1,7 +1,25 @@
-import type { LotDto, ProductDto, ReceiptDto, SupplierDto } from '@sellwasl/validation';
+import type {
+  CustomerDto,
+  DeliveryPreviewDto,
+  DriverRouteDto,
+  LotDto,
+  ProductDto,
+  ReceiptDto,
+  RouteCandidateDto,
+  RoutePreparationDto,
+  SupplierDto,
+  TruckCheckLine,
+} from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
+import { type Phone, Phones } from './phone';
+
+/** Samedi réservé à cette suite (commandes), livraison le dimanche. */
+const DAY = '2027-06-05';
+const DELIVERY = '2027-06-06';
+const at = (d: string) => new Date(`${d}T00:00:00Z`);
 
 /** Fournisseurs, lots, refus, retours et analyse des retours (phase 21). */
 describe('analyse des retours (phase 21)', () => {
@@ -138,6 +156,263 @@ describe('analyse des retours (phase 21)', () => {
         },
       });
       expect(wrong.status).toBe(422);
+    });
+  });
+
+  describe('livraison : refus et reventes (BR-RET-01)', () => {
+    let phones: Phones;
+    let driver: Phone;
+    let driverWorkday: string;
+    let driverUserId: string;
+    let routeId: string;
+    let receipt = 0;
+    const orders: Record<string, { id: string; customer: CustomerDto }> = {};
+    const nextNumber = () => `L01-${driver.series}${String(++receipt + 600).padStart(4, '0')}`;
+    const line = (ref: string, qty: number) => {
+      const i = item(ref);
+      return { variantId: i.variantId, unitId: i.unitId, qty };
+    };
+    const reasonOf = async (kind: 'REFUSAL' | 'DELIVERY_FAILURE', where: object) =>
+      (await raw.reason.findFirstOrThrow({ where: { companyId, kind, ...where } })).id;
+    const myRoute = async () =>
+      (await call<DriverRouteDto>(t.url, 'GET', '/me/route', { token: driver.token })).body;
+    const deliveryOf = async (key: string) =>
+      (await myRoute()).deliveries.find((d) => d.orderId === orders[key]!.id)!;
+    const factsOf = (deliveryId: string) =>
+      raw.returnFact.findMany({ where: { deliveryId }, orderBy: { kind: 'asc' } });
+
+    async function customersOf(p: Phone) {
+      const day = (await phones.today(p, DAY)).body.day;
+      const list: CustomerDto[] = [];
+      for (const c of day.customers)
+        list.push(
+          (await call<CustomerDto>(t.url, 'GET', `/customers/${c.id}`, { token: sup })).body,
+        );
+      return list;
+    }
+
+    async function order(
+      p: Phone,
+      key: string,
+      customer: CustomerDto,
+      lines: unknown[],
+      n: number,
+    ) {
+      const visitId = await phones.startVisit(p, customer.id, 'PHONE');
+      const orderId = uuidv7();
+      const reply = await phones.send(p, 'order.confirm', {
+        orderId,
+        number: `R${key}-${p.series}21${String(n).padStart(2, '0')}`,
+        visitId,
+        lines,
+      });
+      expect(reply.status, JSON.stringify(reply)).toBe('APPLIED');
+      orders[key] = { id: orderId, customer };
+    }
+
+    beforeAll(async () => {
+      phones = new Phones(t, { 'DISTRI-ORAN': sup });
+      const v07 = await phones.get('V07');
+      const w07 = await phones.startDay(v07, DAY);
+      const c07 = await customersOf(v07);
+      await order(v07, 'A', c07[0]!, [line('THON-TOM', 6)], 1);
+      await order(v07, 'B', c07[1]!, [line('THON-TOM', 2)], 2);
+      await phones.closeDay(v07, w07);
+      const v08 = await phones.get('V08');
+      const w08 = await phones.startDay(v08, DAY);
+      const c08 = await customersOf(v08);
+      await order(v08, 'C', c08[0]!, [line('THON-HUI', 2)], 1);
+      await order(v08, 'D', c08[1]!, [line('BIMO-CHOC', 1)], 2);
+      await phones.closeDay(v08, w08);
+
+      const [group] = (
+        await call<RouteCandidateDto[]>(t.url, 'GET', `/routes?date=${DELIVERY}`, { token: sup })
+      ).body;
+      const launched = await call<RouteCandidateDto>(t.url, 'POST', '/routes/launch', {
+        token: sup,
+        body: { date: DELIVERY, driverId: group!.driver!.id },
+      });
+      expect(launched.status, JSON.stringify(launched.body)).toBe(201);
+      routeId = launched.body.routeId!;
+      const view = (
+        await call<RoutePreparationDto>(t.url, 'GET', `/routes/${routeId}/preparation`, {
+          token: sup,
+        })
+      ).body;
+      await call(t.url, 'POST', `/routes/${routeId}/prepare`, {
+        token: sup,
+        body: {
+          lines: view.orders
+            .flatMap((o) => o.lines)
+            .map((l) => ({ lineId: l.lineId, preparedQty: l.defaultPrepared })),
+        },
+      });
+      expect((await call(t.url, 'POST', `/routes/${routeId}/load`, { token: sup })).status).toBe(
+        201,
+      );
+
+      driver = await phones.get('L01');
+      driverUserId = (await raw.user.findFirstOrThrow({ where: { companyId, code: 'L01' } })).id;
+      driverWorkday = uuidv7();
+      const started = await phones.send(driver, 'workday.start', {
+        workdayId: driverWorkday,
+        date: DELIVERY,
+      });
+      expect(started.status, JSON.stringify(started)).toBe('APPLIED');
+      const toCheck = (
+        await call<TruckCheckLine[]>(t.url, 'GET', '/me/truck-check', { token: driver.token })
+      ).body;
+      const checked = await phones.send(driver, 'truck.check', {
+        lines: toCheck.map((l) => ({ variantId: l.variantId, countedQty: l.inTruck })),
+      });
+      expect(checked.status, JSON.stringify(checked)).toBe('APPLIED');
+    });
+
+    afterAll(async () => {
+      // Commandes annulées, tournée et journées closes : les autres suites ne les voient plus
+      await raw.order.updateMany({
+        where: { id: { in: Object.values(orders).map((o) => o.id) } },
+        data: { status: 'CANCELLED' },
+      });
+      await raw.deliveryRoute.updateMany({ where: { id: routeId }, data: { status: 'CLOSED' } });
+      await raw.workday.updateMany({
+        where: { companyId, date: { in: [at(DAY), at(DELIVERY)] } },
+        data: { status: 'CLOSED', closedAt: new Date() },
+      });
+    });
+
+    it('livraison partielle : le motif de refus est obligatoire, puis un refus par ligne réduite', async () => {
+      const a = await deliveryOf('A');
+      const thon = item('THON-TOM');
+      const lines = a.lines
+        .filter((l) => l.kind === 'NORMAL')
+        .map((l) => ({
+          lineId: l.lineId,
+          qty: l.variantId === thon.variantId ? 4 : l.preparedQty,
+        }));
+      const priced = await call<DeliveryPreviewDto>(t.url, 'POST', '/me/deliveries/preview', {
+        token: driver.token,
+        body: { orderId: a.orderId, lines, added: [] },
+      });
+      const base = { orderId: a.orderId, lines, added: [], cashAmount: priced.body.dueAmount };
+      const missing = await phones.send(driver, 'delivery.confirm', {
+        ...base,
+        deliveryId: uuidv7(),
+        number: nextNumber(),
+      });
+      expect(missing.status).toBe('REJECTED');
+      expect(JSON.stringify(missing)).toContain('motif du refus');
+
+      const price = await reasonOf('REFUSAL', { label: 'Prix' });
+      const deliveryId = uuidv7();
+      const done = await phones.send(driver, 'delivery.confirm', {
+        ...base,
+        deliveryId,
+        number: nextNumber(),
+        refusalReasonId: price,
+      });
+      expect(done.status, JSON.stringify(done)).toBe('APPLIED');
+      expect(await raw.delivery.findUniqueOrThrow({ where: { id: deliveryId } })).toMatchObject({
+        refusalReasonId: price,
+        contestStatus: 'NONE',
+      });
+      const ordered = await raw.order.findUniqueOrThrow({
+        where: { id: a.orderId },
+        include: { customer: true, orderLines: { where: { kind: 'NORMAL' } } },
+      });
+      const facts = await factsOf(deliveryId);
+      expect(facts).toHaveLength(1);
+      expect(facts[0]).toMatchObject({
+        kind: 'REFUSAL',
+        productVariantId: thon.variantId,
+        qty: 2 * thon.baseQty,
+        sellerUserId: ordered.sellerUserId,
+        driverUserId: driverUserId,
+        customerId: ordered.customerId,
+        territoryId: ordered.customer.territoryId,
+        routeId,
+        orderId: a.orderId,
+        reasonId: price,
+        date: at(DELIVERY),
+      });
+      // Valeur au prix de la commande, avant tout recalcul
+      const ordinal = a.lines.find((l) => l.variantId === thon.variantId)!;
+      expect(facts[0]!.value).toBe(BigInt(2 * ordinal.unitPrice));
+      expect(ordered.orderLines[0]!.addedQty).toBe(0);
+    });
+
+    it('échec « refus » : le motif est obligatoire, toute la commande est refusée', async () => {
+      const refused = await reasonOf('DELIVERY_FAILURE', { systemCode: 'REFUSED' });
+      const failWith = (refusalReasonId?: string) =>
+        phones.send(driver, 'delivery.fail', {
+          deliveryId: uuidv7(),
+          number: nextNumber(),
+          orderId: orders.B!.id,
+          reasonId: refused,
+          ...(refusalReasonId && { refusalReasonId }),
+        });
+      const missing = await failWith();
+      expect(missing.status).toBe('REJECTED');
+      expect(JSON.stringify(missing)).toContain('motif du refus');
+      const stock = await reasonOf('REFUSAL', { label: 'Stock suffisant' });
+      const done = await failWith(stock);
+      expect(done.status, JSON.stringify(done)).toBe('APPLIED');
+      const delivery = await raw.delivery.findFirstOrThrow({ where: { orderId: orders.B!.id } });
+      expect(delivery.refusalReasonId).toBe(stock);
+      const facts = await factsOf(delivery.id);
+      const thon = item('THON-TOM');
+      expect(facts).toHaveLength(1);
+      expect(facts[0]).toMatchObject({ kind: 'REFUSAL', qty: 2 * thon.baseQty, reasonId: stock });
+    });
+
+    it('revend en tournée la marchandise refusée : quantité ajoutée gardée et fait RESALE', async () => {
+      const c = await deliveryOf('C');
+      const thon = item('THON-TOM');
+      const body = {
+        orderId: c.orderId,
+        lines: c.lines
+          .filter((l) => l.kind === 'NORMAL')
+          .map((l) => ({ lineId: l.lineId, qty: l.preparedQty })),
+        added: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 1 }],
+      };
+      const priced = await call<DeliveryPreviewDto>(t.url, 'POST', '/me/deliveries/preview', {
+        token: driver.token,
+        body,
+      });
+      expect(priced.status, JSON.stringify(priced.body)).toBe(200);
+      const deliveryId = uuidv7();
+      const done = await phones.send(driver, 'delivery.confirm', {
+        ...body,
+        deliveryId,
+        number: nextNumber(),
+        cashAmount: priced.body.dueAmount,
+      });
+      expect(done.status, JSON.stringify(done)).toBe('APPLIED');
+      const added = await raw.orderLine.findFirstOrThrow({
+        where: { orderId: c.orderId, productVariantId: thon.variantId },
+      });
+      expect(added.addedQty).toBe(thon.baseQty);
+      const facts = await factsOf(deliveryId);
+      expect(facts).toHaveLength(1);
+      expect(facts[0]).toMatchObject({
+        kind: 'RESALE',
+        qty: thon.baseQty,
+        value: BigInt(Number(added.unitPrice)),
+        supplierId: expect.any(String),
+      });
+    });
+
+    it('client absent : aucun fait de refus', async () => {
+      const absent = await reasonOf('DELIVERY_FAILURE', { systemCode: 'CUSTOMER_ABSENT' });
+      const deliveryId = uuidv7();
+      const done = await phones.send(driver, 'delivery.fail', {
+        deliveryId,
+        number: nextNumber(),
+        orderId: orders.D!.id,
+        reasonId: absent,
+      });
+      expect(done.status, JSON.stringify(done)).toBe('APPLIED');
+      expect(await factsOf(deliveryId)).toHaveLength(0);
     });
   });
 });

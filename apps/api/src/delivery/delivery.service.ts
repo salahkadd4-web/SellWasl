@@ -21,6 +21,7 @@ import { articleName, articleOf, toBaseLines } from '../stock/stock-helpers';
 import { type Move, StockLedger } from '../stock/stock-ledger.service';
 import { SyncHandlers } from '../sync/sync.handlers';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
+import { orderAxes, refusalReason, writeFacts } from '../returns/return-facts';
 import { assertTruckChecked } from './load-receive.service';
 
 type Tx = Prisma.TransactionClient;
@@ -44,6 +45,8 @@ interface Computed {
     line: LoadedOrder['orderLines'][number];
     qty: number;
     added: number;
+    /** Quantité refusée par le client, dans l'unité de la ligne (phase 21). */
+    refused: number;
     unitPrice: bigint;
   }[];
   fresh: { variantId: string; unitId: string; qty: number; productId: string; unitPrice: bigint }[];
@@ -102,6 +105,9 @@ export class DeliveryService implements OnModuleInit {
       where: { id: payload.reasonId, kind: 'DELIVERY_FAILURE', deletedAt: null },
     });
     if (!reason) throw rule("Motif d'échec inconnu.");
+    // Un refus porte son motif (BR-RET-01) ; toute la commande est refusée
+    const refusalReasonId =
+      reason.systemCode === 'REFUSED' ? await refusalReason(tx, payload.refusalReasonId) : null;
     const status = await this.failOrder(tx, actor.companyId, order, reason, workday, occurredAt, {
       byUserId: actor.userId,
       deviceId: actor.deviceId,
@@ -109,7 +115,35 @@ export class DeliveryService implements OnModuleInit {
       deliveryId: payload.deliveryId,
       latitude: payload.latitude ?? null,
       longitude: payload.longitude ?? null,
+      refusalReasonId,
     });
+    if (refusalReasonId) {
+      const lines = await tx.orderLine.findMany({
+        where: { orderId: order.id, kind: 'NORMAL' },
+        include: { unit: true, product: true },
+      });
+      const customer = await tx.customer.findUniqueOrThrow({ where: { id: order.customerId } });
+      await writeFacts(
+        tx,
+        actor.companyId,
+        workday.date,
+        lines.map((l) => {
+          const qty = l.preparedQty ?? l.orderedQty;
+          return {
+            ...orderAxes({ ...order, customer }),
+            driverUserId: actor.userId,
+            deliveryId: payload.deliveryId,
+            reasonId: refusalReasonId,
+            kind: 'REFUSAL' as const,
+            productVariantId: l.productVariantId,
+            productId: l.productId,
+            supplierId: l.product.supplierId,
+            qty,
+            value: (qty * Number(l.unitPrice)) / l.unit.baseQty,
+          };
+        }),
+      );
+    }
     await this.audit.write(
       {
         companyId: actor.companyId,
@@ -143,6 +177,7 @@ export class DeliveryService implements OnModuleInit {
       deliveryId: string;
       latitude: number | null;
       longitude: number | null;
+      refusalReasonId?: string | null;
     },
   ): Promise<'LOCKED' | 'FAILED'> {
     const attempt = (await tx.delivery.count({ where: { orderId: order.id } })) + 1;
@@ -160,6 +195,7 @@ export class DeliveryService implements OnModuleInit {
         workdayId: workday.id,
         userId: workday.userId,
         reasonId: reason.id,
+        refusalReasonId: by.refusalReasonId ?? null,
         createdByUserId: by.byUserId,
         createdByDeviceId: by.deviceId,
         occurredAt: at,
@@ -291,6 +327,10 @@ export class DeliveryService implements OnModuleInit {
       });
     if (payload.cashAmount > c.due) throw rule('Le montant encaissé dépasse le montant dû.');
     const credit = c.due - payload.cashAmount;
+    // Un refus, même partiel, porte son motif (BR-RET-01)
+    const refusalReasonId = c.lines.some((l) => l.refused > 0)
+      ? await refusalReason(tx, payload.refusalReasonId)
+      : null;
 
     const moves: Move[] = [];
     const out = (variantId: string, qty: number) => {
@@ -313,6 +353,7 @@ export class DeliveryService implements OnModuleInit {
             ? {
                 enteredQty: l.line.enteredQty + l.added,
                 orderedQty: l.line.orderedQty + l.added * l.line.unit.baseQty,
+                addedQty: l.line.addedQty + l.added * l.line.unit.baseQty,
               }
             : {}),
           deliveredQty: base,
@@ -336,6 +377,7 @@ export class DeliveryService implements OnModuleInit {
           kind: 'NORMAL',
           enteredQty: f.qty,
           orderedQty: base,
+          addedQty: base,
           deliveredQty: base,
           unitPrice: f.unitPrice,
           lineAmount: f.unitPrice * BigInt(f.qty),
@@ -365,11 +407,13 @@ export class DeliveryService implements OnModuleInit {
         routeId: c.order.routeId,
         workdayId: workday.id,
         userId: actor.userId,
+        refusalReasonId,
         createdByUserId: actor.userId,
         createdByDeviceId: actor.deviceId,
         occurredAt,
       },
     });
+    await this.facts(tx, actor, c, units, workday.date, payload.deliveryId, refusalReasonId);
     const paymentId = uuidv7();
     await tx.payment.create({
       data: {
@@ -448,6 +492,59 @@ export class DeliveryService implements OnModuleInit {
     };
   }
 
+  /**
+   * Faits de l'analyse des retours (phase 21) : un refus par ligne livrée sous le préparé, au prix
+   * de la commande ; une revente par quantité ajoutée en tournée, au prix de la livraison.
+   */
+  private async facts(
+    tx: Tx,
+    actor: AuthUser,
+    c: Computed,
+    units: { id: string; baseQty: number }[],
+    date: Date,
+    deliveryId: string,
+    refusalReasonId: string | null,
+  ): Promise<void> {
+    const axes = { ...orderAxes(c.order), driverUserId: actor.userId, deliveryId };
+    const products = await tx.product.findMany({
+      where: { id: { in: c.fresh.map((f) => f.productId) } },
+    });
+    await writeFacts(tx, actor.companyId, date, [
+      ...c.lines
+        .filter((l) => l.line.kind === 'NORMAL' && l.refused > 0)
+        .map((l) => ({
+          ...axes,
+          kind: 'REFUSAL' as const,
+          productVariantId: l.line.productVariantId,
+          productId: l.line.productId,
+          supplierId: l.line.productVariant.product.supplierId,
+          reasonId: refusalReasonId,
+          qty: l.refused * l.line.unit.baseQty,
+          value: l.refused * Number(l.line.unitPrice),
+        })),
+      ...c.lines
+        .filter((l) => l.added > 0)
+        .map((l) => ({
+          ...axes,
+          kind: 'RESALE' as const,
+          productVariantId: l.line.productVariantId,
+          productId: l.line.productId,
+          supplierId: l.line.productVariant.product.supplierId,
+          qty: l.added * l.line.unit.baseQty,
+          value: l.added * Number(l.unitPrice),
+        })),
+      ...c.fresh.map((f) => ({
+        ...axes,
+        kind: 'RESALE' as const,
+        productVariantId: f.variantId,
+        productId: f.productId,
+        supplierId: products.find((p) => p.id === f.productId)?.supplierId ?? null,
+        qty: f.qty * units.find((u) => u.id === f.unitId)!.baseQty,
+        value: f.qty * Number(f.unitPrice),
+      })),
+    ]);
+  }
+
   /** Quantités livrées, ajouts, prix et minimum à encaisser — commun à l'aperçu et à la livraison. */
   private async compute(tx: Tx, actor: AuthUser, input: Content): Promise<Computed> {
     const order = await tx.order.findFirst({
@@ -505,10 +602,17 @@ export class DeliveryService implements OnModuleInit {
       ...normals.map((l) => ({
         line: l,
         added: addedTo(l),
+        refused: Math.max(0, prepared(l) - delivered.get(l.id)!),
         qty: delivered.get(l.id)! + addedTo(l),
         unitPrice: priced.prices.get(l.id)!,
       })),
-      ...bonuses.map((b) => ({ line: b, added: 0, qty: priced.bonus.get(b.id)!, unitPrice: 0n })),
+      ...bonuses.map((b) => ({
+        line: b,
+        added: 0,
+        refused: 0,
+        qty: priced.bonus.get(b.id)!,
+        unitPrice: 0n,
+      })),
     ];
     const due =
       lines

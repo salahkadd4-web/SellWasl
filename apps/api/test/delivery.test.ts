@@ -84,6 +84,13 @@ describe('livraison (phase 19)', () => {
       body,
     });
   let receipt = 0;
+  /** Motif de refus, obligatoire dès qu'une quantité est refusée (phase 21). */
+  const refusalReason = async () =>
+    (
+      await raw.reason.findFirstOrThrow({
+        where: { company: { code: 'DISTRI-ORAN' }, kind: 'REFUSAL', systemCode: 'OTHER' },
+      })
+    ).id;
   const nextNumber = () => `L01-${driver.series}${String(++receipt).padStart(4, '0')}`;
 
   beforeAll(async () => {
@@ -238,7 +245,8 @@ describe('livraison (phase 19)', () => {
       expect(priced.body.minimumCash).toBe(priced.body.dueAmount);
       expect(priced.body.lines.find((l) => l.kind === 'BONUS')).toMatchObject({ qty: 32 });
 
-      const base = { orderId: a.orderId, lines, added: [] };
+      // Livraison partielle : le refus porte son motif (BR-RET-01, phase 21)
+      const base = { orderId: a.orderId, lines, added: [], refusalReasonId: await refusalReason() };
       const short = await phones.send(driver, 'delivery.confirm', {
         ...base,
         deliveryId: uuidv7(),
@@ -366,6 +374,7 @@ describe('livraison (phase 19)', () => {
         number: nextNumber(),
         orderId: orders[key]!.id,
         reasonId: await failureReason(code),
+        ...(code === 'REFUSED' && { refusalReasonId: await refusalReason() }),
       });
 
     it('client absent : la livraison est reprogrammée au jour ouvré suivant', async () => {
