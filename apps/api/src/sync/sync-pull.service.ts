@@ -133,6 +133,12 @@ export class SyncPullService {
         rows.push(toPulled(def.kind, r));
       }
     }
+    // Réception complète : preuve, côté serveur, du dernier contact de l'appareil (vente cash van
+    // hors connexion, spec §3.4)
+    await this.db.device.updateMany({
+      where: { id: actor.deviceId },
+      data: { lastSyncAt: new Date() },
+    });
     return {
       rows,
       replace: [...replace].filter((kind) => !token.r.includes(kind)),

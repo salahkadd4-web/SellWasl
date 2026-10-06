@@ -19,7 +19,9 @@ type Tx = Prisma.TransactionClient;
 
 /**
  * Délai minimal entre la vente sur le téléphone et sa réception pour la traiter comme faite hors
- * connexion : un drapeau « offline » envoyé tout de suite ne contourne pas BR-QUO-04.
+ * connexion : un drapeau « offline » envoyé tout de suite ne contourne pas BR-QUO-04. La vente doit
+ * aussi être postérieure à la dernière réception complète de l'appareil (enregistrée par le
+ * serveur) : un téléphone en ligne se synchronise après chaque action.
  */
 export const OFFLINE_MIN_DELAY_MS = 30_000;
 
@@ -77,8 +79,7 @@ export class SaleService implements OnModuleInit {
 
     // Prix du type du client, bonus limités par le camion (BR-CV-03). Hors connexion, la vente
     // est déjà faite : le stock connu du serveur ne limite plus les bonus (spec phase 23 §3.4).
-    const offline =
-      payload.offline === true && Date.now() - occurredAt.getTime() >= OFFLINE_MIN_DELAY_MS;
+    const offline = payload.offline === true && (await this.wasOffline(tx, actor, occurredAt));
     const truckStock = await this.orders.truckStock(tx, actor.userId);
     const availableStock = offline
       ? await this.ampleStock(customer.customerTypeId, truckStock)
@@ -230,6 +231,15 @@ export class SaleService implements OnModuleInit {
       debtAmount: Number(debt),
       ...(changes.length ? { changes } : {}),
     };
+  }
+
+  /** La vente a-t-elle pu être faite sans réseau ? Preuves du serveur, pas seulement du téléphone. */
+  private async wasOffline(tx: Tx, actor: AuthUser, occurredAt: Date): Promise<boolean> {
+    if (Date.now() - occurredAt.getTime() < OFFLINE_MIN_DELAY_MS) return false;
+    const device = actor.deviceId
+      ? await tx.device.findFirst({ where: { id: actor.deviceId }, select: { lastSyncAt: true } })
+      : null;
+    return !device?.lastSyncAt || device.lastSyncAt <= occurredAt;
   }
 
   /** Stock du camion sans limite pour les bonus, en gardant l'ordre des quantités (BR-CAT-15). */

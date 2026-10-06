@@ -499,6 +499,21 @@ describe('synchronisation hors connexion (phase 23)', () => {
         expect(Number(gap.amount)).toBeLessThanOrEqual(0);
       });
 
+      it('vente antidatée par un téléphone synchronisé depuis : règles en ligne', async () => {
+        const quota = await raw.quota.findFirstOrThrow({
+          where: { date: new Date(`${WORK_DAY}T00:00:00Z`), qty: 1, user: { code: 'C02' } },
+        });
+        const product = products.find((pr) =>
+          pr.variants.some((v) => v.id === quota.productVariantId),
+        )!;
+        const ref = product.variants.find((v) => v.id === quota.productVariantId)!.reference;
+        const base = product.units.find((u) => u.baseQty === 1)!;
+        // Réception complète maintenant : la vente « faite il y a 5 minutes » ne peut pas être hors connexion
+        await pullAll(seller);
+        const backdated = await sell(customers[1]!.id, ref, base.name, 1, true);
+        expect(backdated.status).toBe('REJECTED');
+      });
+
       it('journée démarrée et clôturée hors connexion : signalées', async () => {
         const p = await phones.get('C01', 'CASHVAN-EST');
         const workdayId = uuidv7();
