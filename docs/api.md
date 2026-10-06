@@ -243,14 +243,17 @@ Phase 17 (réalisé) — toute variation passe par le registre de stock (verrou,
 | `GET` | `/stock/movements?warehouseId=&variantId=&type=&from=&to=` | `stock.read` — 200 derniers |
 | `GET` | `/stock/alerts` | `stock.read` — articles sous leur seuil dans un dépôt actif |
 | `PUT` | `/stock/thresholds` | `products.write` — `{ entries: [{ variantId, lowStockQty \| null }] }` |
-| `GET`, `POST` | `/stock/receipts?from=&to=`, `/stock/receipts/{id}` | `stock.read`, `stock.receive` — entrée au dépôt (UC-40) : un `IN` par ligne |
+| `GET`, `POST` | `/stock/receipts?from=&to=`, `/stock/receipts/{id}` | `stock.read`, `stock.receive` — entrée au dépôt (UC-40) : un `IN` par ligne ; phase 21 : `supplierId` (liste des fournisseurs), `lotNumber` et `expiresAt` par ligne, lot créé ou cumulé |
+| `GET`, `POST`, `PATCH` | `/suppliers`, `/suppliers/{id}` | `products.read`, `products.write` — fournisseurs, nom unique (`409`) ; `supplierId` sur `PATCH /products/{id}` (fournisseur habituel) |
+| `GET` | `/lots?variantId=` | `stock.read` — lots d'un article : n°, péremption, reçu, fournisseur |
+| `POST` | `/unloads/photos` | `unloads.validate` — photo d'un produit défectueux (multipart `file`) → `{ key, url }` |
 | `GET`, `POST` | `/inventories`, `/inventories/{id}` | `stock.read`, `inventory.count` — un brouillon par dépôt |
 | `PUT` | `/inventories/{id}/lines` | `inventory.count` — remplace le comptage du brouillon |
 | `POST` | `/inventories/{id}/validate` | `inventory.count` — `ADJUSTMENT` par écart ; compté sous le réservé : réservations des commandes les plus récentes réduites, lignes en rupture (UC-44) |
 | `DELETE` | `/inventories/{id}` | `inventory.count` — brouillon seulement |
 | `GET`, `POST` | `/loads?date=`, `/loads/{id}` | `loads.read`, `loads.load` — transfert dépôt → camion sur le disponible ; `CASH_VAN`, `RELOAD` (P-07) ou `ROUTE` (UC-42) |
 | `GET` | `/unloads/pending`, `/unloads/preview?workdayId=`, `/unloads?date=` | `loads.read` |
-| `POST` | `/unloads` | `unloads.validate` — journée clôturée ; écart signé avec motif `ADJUSTMENT` ; retour au dépôt ou stock gardé (P-06) ; la journée ne peut plus être rouverte (UC-43, BR-JOU-08) |
+| `POST` | `/unloads` | `unloads.validate` — journée clôturée ; écart signé avec motif `ADJUSTMENT` ; retour au dépôt ou stock gardé (P-06) ; la journée ne peut plus être rouverte (UC-43, BR-JOU-08) ; phase 21 : `conditions: [{ variantId, condition, qty, lotId?, photoKey? }]` (`RESTOCK`, `DEFECTIVE` avec photo, `EXPIRED`, `BROKEN`), somme = compté ; seul `RESTOCK` revient au dépôt, le reste sort en `WRITE_OFF` ; sans répartition, tout est remis en stock |
 
 Phase 18 (réalisé) — tournées et préparation :
 
@@ -315,6 +318,29 @@ Phase 20 (réalisé) :
 | `GET` | `/reports/map?date=…` | `reports.read` — polygones, clients visités ou non, dernières positions |
 | `GET` | `/reports/users/{id}` | `reports.read` — fiche d'un vendeur ou d'un livreur |
 | `GET` | `/reports/lost-sales` | `reports.read` |
+
+Phase 21 (réalisé). Périodes `from`, `to` (jours inclus, 366 au plus, sinon `400`) ; filtres `territoryId`, `partId`, `userId`, `customerId`, `productId`, `driverId` ; calcul à la demande.
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET` | `/reports/dashboard?from&to&territoryId` | `reports.read` — CA, commandes, visites planifiées et réalisées, clients non visités et en retard, conversion, pré-vendeurs et livreurs actifs, commandes en préparation et en livraison, échecs, stock faible et ruptures ; bloc `returns` si le module `RETURNS_ANALYSIS` est actif et le droit `returns.read` accordé |
+| `GET` | `/reports/today` | `reports.read` — une ligne par utilisateur de terrain : journée, x/N, hors zone, par téléphone, commandes, CA, dernière position, dernière synchronisation, batterie, opérations en attente, `online` (signal de moins de 3 × l'intervalle de position) |
+| `GET` | `/reports/map?date` | `reports.read` — parties du jour, clients du jour (visités ou non), dernière position du jour de chaque utilisateur |
+| `GET` | `/reports/users/{id}?from&to` | `reports.read` — fiche en lecture seule ; `returns` si le module est actif |
+| `GET` | `/reports/commercial`, `/reports/presales`, `/reports/delivery`, `/reports/lost-sales` | `reports.read` — par jour, produit et client ; par pré-vendeur et secteur ; par livreur (délai moyen) et motif d'échec ; par article, client et vendeur |
+
+Analyse des retours (module `RETURNS_ANALYSIS`, désactivé par défaut ; sinon `403`). Filtres en plus : `sellerId`, `lotId`, `supplierId`, `reasonId`, `condition`. Sous le volume minimum (`returnsMinVolume`, défaut 20), un taux vaut `null` avec `insufficient: true`.
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET` | `/returns/axis/{axis}?from&to` | `returns.read` — `axis` : `product`, `lot`, `supplier`, `seller`, `driver`, `customer`, `territory`, `route`, `reason`, `condition` ; refusé, retourné, revendu, écarts, coût net, taux de l'axe (`rateLabel`), part du défectueux ; un refus dont la contestation est retenue ne compte pas pour le client |
+| `GET` | `/returns/cross?rows&cols&kind` | `returns.read` — deux axes différents (`400` sinon), faits `REFUSAL`, `RESALE`, `RETURN` ou `GAP` |
+| `GET` | `/returns/facts?kind&axis&value` | `returns.read` — 200 faits au plus, avec commande, bon et déchargement ; `value=none` : faits sans valeur pour l'axe |
+| `GET` | `/me/refusals?from&to` | `returns.contest` — refus des commandes du pré-vendeur (30 derniers jours par défaut) |
+| `GET` | `/refusals/contested` | `returns.decide` — contestations à trancher |
+| `POST` | `/refusals/{deliveryId}/decide` | `returns.decide` — `{ upheld }` → `UPHELD` (contestation retenue) ou `REJECTED` ; une seule fois (`409`), audité |
+
+Les faits (`ReturnFact`) sont écrits dans la transaction qui les produit : `delivery.confirm` (un refus par ligne livrée sous le préparé, au prix de la commande ; une revente par quantité ajoutée), `delivery.fail` avec le motif système `REFUSED` (toute la commande), validation du déchargement (un retour par état constaté, un écart par ligne, valorisés au prix moyen des ventes du jour). Ils gardent les axes du moment.
 
 ---
 
@@ -431,8 +457,9 @@ Chaque type a un schéma Zod dans `packages/validation/sync`. Le serveur vérifi
 | `payment.debt` | Pré-vendeur, cash van, livreur (P-08) | `payments.collect_debt` | Encaissement de dette ; excédent en avance si double encaissement (BR-PAY-04) |
 | `load.receive` | Livreur, cash van | `loads.receive` | Réception ; écart signalé au superviseur (BR-PRE-05) |
 | `truck.check` | Livreur, cash van | `loads.receive` | Pointage de tout le camion : écarts ajustés (« Marchandise manquante », « Autre »), chargements `RECEIVED`, tournées démarrées (BR-CV-02) |
-| `delivery.complete` | Livreur | `deliveries.own` | Livrée ou partielle, recalcul selon P-04, sortie du stock du camion |
-| `delivery.fail` | Livreur | `deliveries.own` | Échec avec motif ; reprogrammation selon P-05 (BR-LIV-06) |
+| `delivery.complete` | Livreur | `deliveries.own` | Livrée ou partielle, recalcul selon P-04, sortie du stock du camion ; une quantité refusée exige `refusalReasonId` (BR-RET-01) ; quantités ajoutées gardées (`addedQty`) |
+| `delivery.fail` | Livreur | `deliveries.own` | Échec avec motif ; reprogrammation selon P-05 (BR-LIV-06) ; motif « refus » : `refusalReasonId` obligatoire (BR-RET-01) |
+| `refusal.contest` | Pré-vendeur | `returns.contest` | `{ deliveryId, comment }` : conteste un refus sur l'une de ses commandes, une fois (phase 21) |
 | `receipt.reprint` | Livreur, cash van, pré-vendeur | `workdays.own` (ses propres bons) | Réimpression tracée dans l'audit ; le téléphone imprime « DUPLICATA » (BR-IMP-03) |
 | `stock_receipt.create` | Magasinier | `stock.receive` | Entrée au dépôt (`IN`) |
 | `preparation.submit` | Magasinier | `preparation.do` | Quantités préparées ; ruptures ; commandes `READY` (BR-PRE-03) |
@@ -465,8 +492,10 @@ Fichier des produits : une ligne par produit (`reference_produit`*, `nom_produit
 
 ```text
 GET /exports/{type}?from=…&to=…&territoryId=…&userId=…
-type : sales, visits, objectives, debts, settlements
+type : sales, visits, objectives, debts, settlements, refusals, returns, resales, gaps
 ```
+
+Permission `reports.export` ; `refusals`, `returns`, `resales` et `gaps` exigent aussi le module `RETURNS_ANALYSIS` (`403`). Un texte qui commence comme une formule est neutralisé.
 
 La réponse est le fichier CSV (séparateur `;`, encodage UTF-8 avec BOM, pour une ouverture directe dans Excel), dans la limite de 100 000 lignes. Les exports ne contiennent que les données des modules actifs.
 

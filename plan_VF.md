@@ -1065,20 +1065,20 @@ Login · Tableau de bord · Réception du chargement · Ma tournée (liste / car
 
 ## Dashboard entreprise
 
-- [ ] Chiffre d'affaires
-- [ ] Commandes
-- [ ] Visites planifiées et réalisées
-- [ ] Clients non visités et retards
-- [ ] Taux de conversion
-- [ ] Pré-vendeurs et livreurs actifs
-- [ ] Commandes en préparation et en livraison
-- [ ] Échecs de livraison
-- [ ] Stock faible et ruptures
-- [ ] Commandes refusées : nombre, valeur, taux de refus
-- [ ] Retours au déchargement : quantité, valeur, taux de retour
-- [ ] Reventes en tournée : valeur récupérée
-- [ ] Coût net des retours (valeur retournée − valeur revendue)
-- [ ] Écarts au déchargement (stock théorique vs stock compté)
+- [x] Chiffre d'affaires
+- [x] Commandes
+- [x] Visites planifiées et réalisées
+- [x] Clients non visités et retards
+- [x] Taux de conversion
+- [x] Pré-vendeurs et livreurs actifs
+- [x] Commandes en préparation et en livraison
+- [x] Échecs de livraison
+- [x] Stock faible et ruptures
+- [x] Commandes refusées : nombre, valeur, taux de refus
+- [x] Retours au déchargement : quantité, valeur, taux de retour
+- [x] Reventes en tournée : valeur récupérée
+- [x] Coût net des retours (valeur retournée − valeur revendue)
+- [x] Écarts au déchargement (stock théorique vs stock compté)
 - [ ] Diagnostics ouverts *(après le MVP)*
 
 ## Suivi temps réel
@@ -1091,13 +1091,13 @@ Youcef    🔴 Hors ligne   Dernière sync : 14:32
 
 ## Rapports (module `ANALYTICS`)
 
-- [ ] Commercial : commandes, CA, produits, clients *(rapports détaillés après le MVP)*
-- [ ] Prévente : visites, commandes, activité des pré-vendeurs, secteurs
-- [ ] Livraison : livraisons, délais, échecs, activité des livreurs
+- [x] Commercial : commandes, CA, produits, clients *(rapports détaillés après le MVP)*
+- [x] Prévente : visites, commandes, activité des pré-vendeurs, secteurs
+- [x] Livraison : livraisons, délais, échecs, activité des livreurs
 - [ ] Stock : disponibilité, mouvements, alertes, rotation *(après le MVP)*
-- [ ] Retours : refus, retours au déchargement, reventes en tournée, écarts, coût net
-- [ ] Filtres : période, secteur, partie, utilisateur, client, produit, livreur, lot, fournisseur, motif de refus, état constaté
-- [ ] Exports : CSV dans le MVP ; Excel et PDF *(après le MVP)*
+- [x] Retours : refus, retours au déchargement, reventes en tournée, écarts, coût net
+- [x] Filtres : période, secteur, partie, utilisateur, client, produit, livreur, lot, fournisseur, motif de refus, état constaté *(tous dans l'API ; le Web filtre par période et secteur)*
+- [x] Exports : CSV dans le MVP ; Excel et PDF *(après le MVP)*
 
 ## Analyse des retours (module `RETURNS_ANALYSIS`, activable par entreprise)
 
@@ -1109,16 +1109,16 @@ Youcef    🔴 Hors ligne   Dernière sync : 14:32
 
 **Indicateurs par axe**
 
-- [ ] Par produit et par lot : quantités vendues et retournées, taux de retour, répartition par état constaté
-- [ ] Par fournisseur : taux de retour et part de défectueux sur ses produits
-- [ ] Par pré-vendeur : commandes refusées (nombre, valeur, taux), répartition par motif
-- [ ] Par livreur : refus déclarés, reventes en tournée, écarts de stock et de caisse au déchargement
-- [ ] Par client : commandes refusées totalement ou partiellement, taux, motifs, refus contestés
-- [ ] Par secteur et par tournée : taux de refus et de retour
-- [ ] Par motif de refus : fréquence et valeur
-- [ ] Vue croisée à deux axes au choix (produit × livreur, client × pré-vendeur, produit × secteur…)
-- [ ] Accès depuis chaque chiffre à la liste des commandes et des retours concernés
-- [ ] Indicateurs de retours sur les fiches produit, client, pré-vendeur et livreur
+- [x] Par produit et par lot : quantités vendues et retournées, taux de retour, répartition par état constaté
+- [x] Par fournisseur : taux de retour et part de défectueux sur ses produits
+- [x] Par pré-vendeur : commandes refusées (nombre, valeur, taux), répartition par motif
+- [x] Par livreur : refus déclarés, reventes en tournée, écarts de stock et de caisse au déchargement *(écarts de caisse : page Versements)*
+- [x] Par client : commandes refusées totalement ou partiellement, taux, motifs, refus contestés
+- [x] Par secteur et par tournée : taux de refus et de retour
+- [x] Par motif de refus : fréquence et valeur
+- [x] Vue croisée à deux axes au choix (produit × livreur, client × pré-vendeur, produit × secteur…)
+- [x] Accès depuis chaque chiffre à la liste des commandes et des retours concernés
+- [x] Indicateurs de retours sur les fiches produit, client, pré-vendeur et livreur
 
 **Analyse des causes** *(après le MVP)*
 
@@ -1145,11 +1145,11 @@ Youcef    🔴 Hors ligne   Dernière sync : 14:32
 
 **Ajouts phase 0** (UC-57, UC-63)
 
-- [ ] Tableau du jour, par utilisateur : état de la journée, x/N, hors zone, par téléphone, commandes, CA, dernière position et dernière synchronisation, batterie, opérations en attente
-- [ ] Carte du superviseur : polygones, clients rouges ou verts, positions des équipes
-- [ ] Fiche d'un vendeur ou d'un livreur en consultation seule
-- [ ] Exports CSV : ventes, visites, objectifs, dettes, versements (BR-IO-03)
-- [ ] Statistiques des ventes perdues et des demandes perdues
+- [x] Tableau du jour, par utilisateur : état de la journée, x/N, hors zone, par téléphone, commandes, CA, dernière position et dernière synchronisation, batterie, opérations en attente
+- [x] Carte du superviseur : polygones, clients rouges ou verts, positions des équipes
+- [x] Fiche d'un vendeur ou d'un livreur en consultation seule
+- [x] Exports CSV : ventes, visites, objectifs, dettes, versements (BR-IO-03)
+- [x] Statistiques des ventes perdues et des demandes perdues
 
 ---
 
