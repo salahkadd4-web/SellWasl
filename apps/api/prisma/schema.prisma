@@ -386,6 +386,17 @@ model Company {
   lots                    Lot[]
   unloadLineConditions    UnloadLineCondition[]
   returnFacts             ReturnFact[]
+  discrepancies           Discrepancy[]
+  employeeCompensations   EmployeeCompensation[]
+  salaryAdvances          SalaryAdvance[]
+  payrollDeductions       PayrollDeduction[]
+  incentiveRules          IncentiveRule[]
+  incentives              Incentive[]
+  payrollPeriods          PayrollPeriod[]
+  payrollEntries          PayrollEntry[]
+  payrollLines            PayrollLine[]
+  payrollPayments         PayrollPayment[]
+  payrollAdjustments      PayrollAdjustment[]
 
   @@map("company")
 }
@@ -555,6 +566,14 @@ model User {
   unloads                        Unload[]
   deliveryRoutesAsDeliveryUser   DeliveryRoute[]        @relation("RouteDriver")
   deliveryRoutesAsLaunchedByUser DeliveryRoute[]        @relation("RouteLauncher")
+  discrepancies                  Discrepancy[]
+  employeeCompensations          EmployeeCompensation[]
+  salaryAdvances                 SalaryAdvance[]
+  payrollDeductions              PayrollDeduction[]
+  incentiveRules                 IncentiveRule[]
+  incentives                     Incentive[]
+  payrollEntries                 PayrollEntry[]
+  payrollAdjustments             PayrollAdjustment[]
   deliveries                     Delivery[]
   payments                       Payment[]
   settlements                    Settlement[]
@@ -880,6 +899,7 @@ model Product {
   bonusRulesAsFreeProduct BonusRule[]      @relation("BonusFreeProduct")
   orderLines              OrderLine[]
   supplier                Supplier?        @relation(fields: [supplierId], references: [id])
+  incentiveRules          IncentiveRule[]
 
   @@unique([companyId, reference])
   @@index([companyId, changeSeq])
@@ -1773,6 +1793,7 @@ model UnloadLine {
   unload            Unload                @relation(fields: [unloadId], references: [id], onDelete: Cascade)
   productVariant    ProductVariant        @relation(fields: [productVariantId], references: [id])
   conditions        UnloadLineCondition[]
+  discrepancy       Discrepancy?
 
   @@index([companyId])
   @@index([companyId, changeSeq])
@@ -1908,20 +1929,23 @@ model CustomerDebtEntry {
 
 /// Versement d’une journée (BR-PAY-08).
 model Settlement {
-  id               String   @id @db.Uuid
-  expectedAmount   BigInt   @map("expected_amount")
-  remittedAmount   BigInt   @map("remitted_amount")
-  gapAmount        BigInt   @map("gap_amount")
-  validatedAt      DateTime @map("validated_at") @db.Timestamptz(3)
-  isRecalculated   Boolean  @default(false) @map("is_recalculated")
-  companyId        String   @map("company_id") @db.Uuid
-  workdayId        String   @unique @map("workday_id") @db.Uuid
-  accountantUserId String   @map("accountant_user_id") @db.Uuid
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  company          Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  workday          Workday  @relation(fields: [workdayId], references: [id])
-  accountantUser   User     @relation(fields: [accountantUserId], references: [id])
+  id               String       @id @db.Uuid
+  expectedAmount   BigInt       @map("expected_amount")
+  remittedAmount   BigInt       @map("remitted_amount")
+  /// Justification du comptable (phase 21 bis).
+  note             String?
+  gapAmount        BigInt       @map("gap_amount")
+  validatedAt      DateTime     @map("validated_at") @db.Timestamptz(3)
+  isRecalculated   Boolean      @default(false) @map("is_recalculated")
+  companyId        String       @map("company_id") @db.Uuid
+  workdayId        String       @unique @map("workday_id") @db.Uuid
+  accountantUserId String       @map("accountant_user_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company          Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  workday          Workday      @relation(fields: [workdayId], references: [id])
+  accountantUser   User         @relation(fields: [accountantUserId], references: [id])
+  discrepancy      Discrepancy?
 
   @@index([companyId])
   @@map("settlement")
@@ -2168,4 +2192,399 @@ model ReturnFact {
   @@index([companyId, kind, date])
   @@index([companyId, deliveryId])
   @@map("return_fact")
+}
+
+/// Écart de stock (déchargement) ou de caisse (versement), jusqu'à la décision du comptable (phase 21 bis).
+enum DiscrepancyKind {
+  STOCK
+  FINANCIAL
+}
+
+enum DiscrepancyStatus {
+  VALIDATED
+  UNDER_REVIEW
+  REJECTED
+  RESOLVED
+  DEDUCTION_PENDING
+  DEDUCTION_APPROVED
+  DEDUCTION_APPLIED
+}
+
+enum AdvanceStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PAID
+  DEDUCTED
+}
+
+enum DeductionSource {
+  STOCK_DISCREPANCY
+  FINANCIAL_DISCREPANCY
+  OTHER
+}
+
+enum DeductionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
+}
+
+enum IncentiveKind {
+  PER_UNIT
+  PERCENT_REVENUE
+  THRESHOLD
+  TIERED
+  REVENUE_TARGET
+}
+
+enum IncentiveFrequency {
+  WEEKLY
+  MONTHLY
+}
+
+enum IncentiveStatus {
+  CALCULATED
+  VALIDATED
+  REJECTED
+  APPLIED
+}
+
+enum PayrollStatus {
+  OPEN
+  CALCULATED
+  APPROVED
+  PAID
+  CLOSED
+}
+
+enum PayrollLineKind {
+  BASE_SALARY
+  INCENTIVE
+  OBJECTIVE_BONUS
+  DRIVER_BONUS
+  ADJUSTMENT
+  ADVANCE
+  DEDUCTION
+}
+
+/// Écart constaté, validé par qui l'a constaté (magasinier ou comptable). [S]
+model Discrepancy {
+  id                String            @id @db.Uuid
+  kind              DiscrepancyKind
+  status            DiscrepancyStatus @default(VALIDATED)
+  date              DateTime          @db.Date
+  /// Unité de base, signée (négatif : manque).
+  qty               Int?
+  unitValue         BigInt?           @map("unit_value")
+  /// DA, signé (négatif : manque).
+  amount            BigInt
+  cause             String?
+  decisionNote      String?           @map("decision_note")
+  validatedByUserId String            @map("validated_by_user_id") @db.Uuid
+  validatedAt       DateTime          @map("validated_at") @db.Timestamptz(3)
+  decidedByUserId   String?           @map("decided_by_user_id") @db.Uuid
+  decidedAt         DateTime?         @map("decided_at") @db.Timestamptz(3)
+  companyId         String            @map("company_id") @db.Uuid
+  userId            String            @map("user_id") @db.Uuid
+  workdayId         String            @map("workday_id") @db.Uuid
+  productVariantId  String?           @map("product_variant_id") @db.Uuid
+  unloadLineId      String?           @unique @map("unload_line_id") @db.Uuid
+  settlementId      String?           @unique @map("settlement_id") @db.Uuid
+  deletedAt         DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  version           Int               @default(1)
+  changeSeq         BigInt            @default(0) @map("change_seq")
+  createdByUserId   String?           @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user              User              @relation(fields: [userId], references: [id])
+  unloadLine        UnloadLine?       @relation(fields: [unloadLineId], references: [id])
+  settlement        Settlement?       @relation(fields: [settlementId], references: [id])
+  deduction         PayrollDeduction?
+
+  @@index([companyId, status])
+  @@index([companyId, changeSeq])
+  @@map("discrepancy")
+}
+
+/// Rémunération d'un employé, avec son historique (phase 21 bis). [S]
+model EmployeeCompensation {
+  id              String    @id @db.Uuid
+  /// DA par mois.
+  baseSalary      BigInt    @map("base_salary")
+  effectiveFrom   DateTime  @map("effective_from") @db.Date
+  effectiveTo     DateTime? @map("effective_to") @db.Date
+  note            String?
+  companyId       String    @map("company_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version         Int       @default(1)
+  changeSeq       BigInt    @default(0) @map("change_seq")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@unique([companyId, userId, effectiveFrom])
+  @@index([companyId, changeSeq])
+  @@map("employee_compensation")
+}
+
+/// Acompte sur salaire, déduit de la paie du mois (phase 21 bis). [S]
+model SalaryAdvance {
+  id              String        @id @db.Uuid
+  month           DateTime      @db.Date
+  amount          BigInt
+  reason          String?
+  status          AdvanceStatus @default(REQUESTED)
+  requestedAt     DateTime      @default(now()) @map("requested_at") @db.Timestamptz(3)
+  decidedByUserId String?       @map("decided_by_user_id") @db.Uuid
+  decidedAt       DateTime?     @map("decided_at") @db.Timestamptz(3)
+  paidByUserId    String?       @map("paid_by_user_id") @db.Uuid
+  paidAt          DateTime?     @map("paid_at") @db.Timestamptz(3)
+  deductedAt      DateTime?     @map("deducted_at") @db.Timestamptz(3)
+  payrollPeriodId String?       @map("payroll_period_id") @db.Uuid
+  companyId       String        @map("company_id") @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(3)
+  version         Int           @default(1)
+  changeSeq       BigInt        @default(0) @map("change_seq")
+  createdByUserId String?       @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@index([companyId, month])
+  @@index([companyId, changeSeq])
+  @@map("salary_advance")
+}
+
+/// Retenue sur rémunération, jamais appliquée sans approbation (phase 21 bis). [S]
+model PayrollDeduction {
+  id               String          @id @db.Uuid
+  amount           BigInt
+  reason           String
+  sourceType       DeductionSource @map("source_type")
+  /// Mois de paie visé ; null : la prochaine paie calculée.
+  month            DateTime?       @db.Date
+  status           DeductionStatus @default(PENDING)
+  approvedByUserId String?         @map("approved_by_user_id") @db.Uuid
+  approvedAt       DateTime?       @map("approved_at") @db.Timestamptz(3)
+  appliedAt        DateTime?       @map("applied_at") @db.Timestamptz(3)
+  payrollPeriodId  String?         @map("payroll_period_id") @db.Uuid
+  companyId        String          @map("company_id") @db.Uuid
+  userId           String          @map("user_id") @db.Uuid
+  discrepancyId    String?         @unique @map("discrepancy_id") @db.Uuid
+  deletedAt        DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  version          Int             @default(1)
+  changeSeq        BigInt          @default(0) @map("change_seq")
+  createdByUserId  String?         @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user             User            @relation(fields: [userId], references: [id])
+  discrepancy      Discrepancy?    @relation(fields: [discrepancyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([companyId, changeSeq])
+  @@map("payroll_deduction")
+}
+
+/// Règle de prime : par unité, pourcentage, seuil, paliers ou objectif de CA (phase 21 bis). [S]
+model IncentiveRule {
+  id              String             @id @db.Uuid
+  name            String
+  kind            IncentiveKind
+  frequency       IncentiveFrequency
+  amount          BigInt?
+  percentBp       Int?               @map("percent_bp")
+  threshold       BigInt?
+  tiers           Json?
+  roleCode        RoleCode?          @map("role_code")
+  isActive        Boolean            @default(true) @map("is_active")
+  validFrom       DateTime           @map("valid_from") @db.Date
+  validTo         DateTime?          @map("valid_to") @db.Date
+  unitId          String?            @map("unit_id") @db.Uuid
+  companyId       String             @map("company_id") @db.Uuid
+  productId       String?            @map("product_id") @db.Uuid
+  userId          String?            @map("user_id") @db.Uuid
+  deletedAt       DateTime?          @map("deleted_at") @db.Timestamptz(3)
+  version         Int                @default(1)
+  changeSeq       BigInt             @default(0) @map("change_seq")
+  createdByUserId String?            @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  product         Product?           @relation(fields: [productId], references: [id])
+  user            User?              @relation(fields: [userId], references: [id])
+  incentives      Incentive[]
+
+  @@index([companyId, changeSeq])
+  @@map("incentive_rule")
+}
+
+/// Prime calculée d'un employé pour une période ; une seule par règle, employé et période. [S]
+model Incentive {
+  id                String          @id @db.Uuid
+  periodStart       DateTime        @map("period_start") @db.Date
+  periodEnd         DateTime        @map("period_end") @db.Date
+  quantity          Int
+  revenue           BigInt          @default(0)
+  unitAmount        BigInt?         @map("unit_amount")
+  amount            BigInt
+  /// Ventes comptées : commande, livraison, quantité, montant.
+  details           Json            @default("[]")
+  status            IncentiveStatus @default(CALCULATED)
+  validatedByUserId String?         @map("validated_by_user_id") @db.Uuid
+  validatedAt       DateTime?       @map("validated_at") @db.Timestamptz(3)
+  appliedAt         DateTime?       @map("applied_at") @db.Timestamptz(3)
+  payrollPeriodId   String?         @map("payroll_period_id") @db.Uuid
+  companyId         String          @map("company_id") @db.Uuid
+  ruleId            String          @map("rule_id") @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  version           Int             @default(1)
+  changeSeq         BigInt          @default(0) @map("change_seq")
+  createdByUserId   String?         @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  rule              IncentiveRule   @relation(fields: [ruleId], references: [id])
+  user              User            @relation(fields: [userId], references: [id])
+
+  @@unique([ruleId, userId, periodStart])
+  @@index([companyId, changeSeq])
+  @@map("incentive")
+}
+
+/// Paie d'un mois (phase 21 bis). [S]
+model PayrollPeriod {
+  id                 String         @id @db.Uuid
+  month              DateTime       @db.Date
+  status             PayrollStatus  @default(OPEN)
+  calculatedAt       DateTime?      @map("calculated_at") @db.Timestamptz(3)
+  calculatedByUserId String?        @map("calculated_by_user_id") @db.Uuid
+  approvedAt         DateTime?      @map("approved_at") @db.Timestamptz(3)
+  approvedByUserId   String?        @map("approved_by_user_id") @db.Uuid
+  paidAt             DateTime?      @map("paid_at") @db.Timestamptz(3)
+  closedAt           DateTime?      @map("closed_at") @db.Timestamptz(3)
+  closedByUserId     String?        @map("closed_by_user_id") @db.Uuid
+  companyId          String         @map("company_id") @db.Uuid
+  deletedAt          DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version            Int            @default(1)
+  changeSeq          BigInt         @default(0) @map("change_seq")
+  createdByUserId    String?        @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company            Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  entries            PayrollEntry[]
+
+  @@unique([companyId, month])
+  @@index([companyId, changeSeq])
+  @@map("payroll_period")
+}
+
+/// Fiche de paie d'un employé pour un mois. [S]
+model PayrollEntry {
+  id              String           @id @db.Uuid
+  baseSalary      BigInt           @map("base_salary")
+  earnings        BigInt           @default(0)
+  advances        BigInt           @default(0)
+  deductions      BigInt           @default(0)
+  net             BigInt
+  companyId       String           @map("company_id") @db.Uuid
+  periodId        String           @map("period_id") @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  deletedAt       DateTime?        @map("deleted_at") @db.Timestamptz(3)
+  version         Int              @default(1)
+  changeSeq       BigInt           @default(0) @map("change_seq")
+  createdByUserId String?          @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  period          PayrollPeriod    @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id])
+  lines           PayrollLine[]
+  payments        PayrollPayment[]
+
+  @@unique([periodId, userId])
+  @@index([companyId, changeSeq])
+  @@map("payroll_entry")
+}
+
+/// Ligne d'une fiche de paie, avec sa source (rémunération, prime, acompte, retenue…). [S]
+model PayrollLine {
+  id              String          @id @db.Uuid
+  kind            PayrollLineKind
+  label           String
+  /// DA, signé.
+  amount          BigInt
+  sourceType      String?         @map("source_type")
+  sourceId        String?         @map("source_id") @db.Uuid
+  companyId       String          @map("company_id") @db.Uuid
+  entryId         String          @map("entry_id") @db.Uuid
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  version         Int             @default(1)
+  changeSeq       BigInt          @default(0) @map("change_seq")
+  createdByUserId String?         @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  entry           PayrollEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, changeSeq])
+  @@map("payroll_line")
+}
+
+/// Échéance de paiement d'une fiche, payée une seule fois. [S]
+model PayrollPayment {
+  id              String       @id @db.Uuid
+  installment     Int
+  dueDate         DateTime     @map("due_date") @db.Date
+  percent         Int
+  amount          BigInt
+  paidAt          DateTime?    @map("paid_at") @db.Timestamptz(3)
+  paidByUserId    String?      @map("paid_by_user_id") @db.Uuid
+  companyId       String       @map("company_id") @db.Uuid
+  entryId         String       @map("entry_id") @db.Uuid
+  deletedAt       DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  version         Int          @default(1)
+  changeSeq       BigInt       @default(0) @map("change_seq")
+  createdByUserId String?      @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  entry           PayrollEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, installment])
+  @@index([companyId, changeSeq])
+  @@map("payroll_payment")
+}
+
+/// Correction contrôlée d'une paie : prise dans la paie du mois tant qu'elle n'est pas approuvée. [S]
+model PayrollAdjustment {
+  id              String    @id @db.Uuid
+  month           DateTime  @db.Date
+  /// DA, signé.
+  amount          BigInt
+  reason          String
+  payrollPeriodId String?   @map("payroll_period_id") @db.Uuid
+  companyId       String    @map("company_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+  version         Int       @default(1)
+  changeSeq       BigInt    @default(0) @map("change_seq")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@index([companyId, month])
+  @@index([companyId, changeSeq])
+  @@map("payroll_adjustment")
 }
