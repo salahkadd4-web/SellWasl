@@ -587,3 +587,12 @@ Ces décisions ont été reportées le 2026-10-02 dans `business-rules.md` et `u
 | Hébergement en Europe ou en Algérie, selon la loi 18-07 | Avant la phase 30 (déploiement) |
 | Hébergeur précis | Phase 29 |
 | Facturation fiscale (TVA, factures légales) | Après le MVP |
+
+## Web responsive et PWA (phase 22)
+
+- **Mise en page** (`components/app-shell.tsx`, menu dans `lib/navigation.ts`) : barre latérale repliable sur desktop (≥ 1024 px), panneau ouvert par l'en-tête sur tablette, en-tête compact et barre du bas sur smartphone (< 640 px) avec trois entrées choisies selon le rôle et ses droits, plus « Plus » (menu complet). Espaces entreprise et plateforme.
+- **Manifeste** : `app/manifest.ts` (servi sur `/manifest.webmanifest`), démarrage sur `/app`, mode `standalone`, icônes 192, 512 et 512 « maskable » générées depuis `public/logo.png` par `node scripts/icons.mjs` (dans `apps/web`).
+- **Service worker** : `public/sw.js`, enregistré en production seulement. Cache d'abord pour `/_next/static/*`, polices et icônes ; réseau d'abord pour les pages, avec `/offline.html` si le réseau manque ; **jamais** de cache pour `/api/*` ni pour une requête autre que GET : les chiffres affichés sont toujours ceux du serveur. Nouvelle version : changer `VERSION` dans `sw.js` ; l'ancien cache est supprimé à l'activation. `sw.js` n'est jamais mis en cache par le navigateur (`Cache-Control: no-cache, no-store`).
+- **Installation** : invite du navigateur (Android, Chrome, Edge) ; sur iPhone et iPad, une bannière explique « Partager → Sur l'écran d'accueil ». Installation possible en HTTPS seulement.
+- **Vérification manuelle** : Chrome DevTools → Application (manifeste installable, service worker actif, mode hors ligne : page hors ligne, aucune réponse de `/api` en cache) ; affichage smartphone (barre du bas, « Plus »), tablette (panneau), desktop (barre latérale repliable).
+- La PWA ne remplace pas l'application native du terrain (hors ligne, impression, GPS) : voir la phase 23.

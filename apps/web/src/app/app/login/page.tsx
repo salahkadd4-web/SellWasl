@@ -53,6 +53,10 @@ export default function CompanyLoginPage() {
         required
         autoComplete="current-password"
       />
+      <p className="text-xs text-muted">
+        Vendeurs, livreurs et magasiniers : utilisez l'application mobile SellWasl, qui fonctionne
+        sans connexion.
+      </p>
     </LoginForm>
   );
 }

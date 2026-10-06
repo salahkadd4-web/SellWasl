@@ -1202,20 +1202,20 @@ Fonctionne sur desktop, tablette et smartphone.
 
 ## Desktop
 
-Sidebar, dashboard, tableaux, cartes, graphiques.
+- [x] Sidebar (repliable), dashboard, tableaux, cartes, graphiques (SVG, sans dépendance)
 
 ## Mobile
 
-Header, navigation inférieure, boutons tactiles, carte plein écran, contenu simplifié.
+- [x] Header, navigation inférieure (selon le rôle, + « Plus »), boutons tactiles, carte plein écran, contenu simplifié
 
 ## PWA
 
-- [ ] Manifest
-- [ ] Icône (logo SellWasl)
-- [ ] Splash screen
-- [ ] Installation sur l'écran d'accueil
-- [ ] Mode standalone
-- [ ] Cache approprié
+- [x] Manifest
+- [x] Icône (logo SellWasl)
+- [x] Splash screen
+- [x] Installation sur l'écran d'accueil
+- [x] Mode standalone
+- [x] Cache approprié : fichiers statiques et page hors ligne seulement, jamais les données de l'API
 
 La Web mobile ne remplace pas l'application native pour le terrain.
 
