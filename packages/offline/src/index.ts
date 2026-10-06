@@ -6,3 +6,5 @@ export * from './local-state';
 export * from './order-build';
 export * from './effects';
 export * from './views/seller';
+export * from './effects-truck';
+export * from './views/truck';

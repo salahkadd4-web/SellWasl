@@ -81,3 +81,14 @@ export function loadState(rows: RowsByKind): LocalState {
 export function cloneState(s: LocalState): LocalState {
   return structuredClone(s);
 }
+
+/** Journée en cours du téléphone (une seule à la fois, BR-JOU-01). */
+export function openWorkday(s: LocalState) {
+  return s.workdays.find((w) => w.status === 'IN_PROGRESS') ?? null;
+}
+
+/** Utilisateur du téléphone, au format des écrans. */
+export function meOf(s: LocalState) {
+  const m = s.settings?.me;
+  return { id: m?.userId ?? '', code: m?.code ?? '', name: m?.name ?? '' };
+}

@@ -1,27 +1,15 @@
 import { distanceMeters, missedCustomers } from '@sellwasl/business-rules';
 import type { CustomerDto, OfflineOrder, OfflineVisit } from '@sellwasl/validation';
-import { cloneState, type LocalState } from './local-state';
+import { cloneState, type LocalState, meOf as me, openWorkday } from './local-state';
 import { buildOrder } from './order-build';
 import type { OutboxOp } from './types';
 
-type Payload = Record<string, unknown>;
-type Effect = (s: LocalState, payload: Payload, op: OutboxOp) => void;
-
-const str = (v: unknown) => (typeof v === 'string' ? v : null);
-const num = (v: unknown) => (typeof v === 'number' ? v : null);
-
-/** Journée en cours du téléphone (une seule à la fois, BR-JOU-01). */
-export function openWorkday(s: LocalState) {
-  return s.workdays.find((w) => w.status === 'IN_PROGRESS') ?? null;
-}
-
-function me(s: LocalState) {
-  const m = s.settings?.me;
-  return { id: m?.userId ?? '', code: m?.code ?? '', name: m?.name ?? '' };
-}
+import { type Effect, num, str } from './effect-kit';
+import { TRUCK_EFFECTS } from './effects-truck';
 
 /** Effet local de chaque opération du terrain (spec phase 23 §4.4). */
 export const EFFECTS: Partial<Record<OutboxOp['type'], Effect>> = {
+  ...TRUCK_EFFECTS,
   'workday.start': (s, p, op) => {
     const id = str(p.workdayId)!;
     if (s.workdays.some((w) => w.id === id)) return;
