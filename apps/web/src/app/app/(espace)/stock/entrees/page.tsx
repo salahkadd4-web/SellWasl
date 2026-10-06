@@ -1,13 +1,13 @@
 'use client';
 
-import type { ProductDto, ReceiptDto } from '@sellwasl/validation';
+import type { ProductDto, ReceiptDto, SupplierDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
 import { emptyLine, type StockLine, StockLinesEditor, toPayload } from '@/components/stock-lines';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
-import { articleLabel, formatDateTime } from '@/lib/labels';
+import { articleLabel, formatDate, formatDateTime } from '@/lib/labels';
 import { useWarehouses, warehouseLabel } from '@/lib/stock';
 
 /** Entrées au dépôt (UC-40) : réception d'un fournisseur, convertie en unité de base. */
@@ -88,7 +88,7 @@ export default function ReceiptsPage() {
               >
                 <span className="flex flex-col">
                   <span className="font-medium text-text-dark">
-                    {r.supplier ?? 'Fournisseur non précisé'}
+                    {r.supplierRef?.name ?? r.supplier ?? 'Fournisseur non précisé'}
                     {r.reference ? ` · ${r.reference}` : ''}
                   </span>
                   <span className="text-xs text-muted">
@@ -107,7 +107,9 @@ export default function ReceiptsPage() {
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               {formatDateTime(detail.receivedAt)} · {warehouseLabel(detail.warehouse)}
-              {detail.supplier ? ` · ${detail.supplier}` : ''}
+              {(detail.supplierRef?.name ?? detail.supplier)
+                ? ` · ${detail.supplierRef?.name ?? detail.supplier}`
+                : ''}
               {detail.reference ? ` · ${detail.reference}` : ''}
             </p>
             <div className="overflow-hidden rounded-xl border border-border">
@@ -116,7 +118,15 @@ export default function ReceiptsPage() {
                   key={l.variantId}
                   className="flex justify-between gap-3 border-b border-border px-3 py-2 text-sm last:border-0"
                 >
-                  <span className="text-text-dark">{articleLabel(l)}</span>
+                  <span className="text-text-dark">
+                    {articleLabel(l)}
+                    {l.lotNumber && (
+                      <span className="block text-xs text-muted">
+                        Lot {l.lotNumber}
+                        {l.expiresAt ? ` · péremption ${formatDate(l.expiresAt)}` : ''}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-muted">
                     {l.enteredQty} {l.unitName} · {l.qty}
                   </span>
@@ -142,11 +152,18 @@ function NewReceipt({
   onDone: () => void;
 }) {
   const [warehouseId, setWarehouseId] = useState(depots[0]?.id ?? '');
-  const [supplier, setSupplier] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [reference, setReference] = useState('');
   const [lines, setLines] = useState<StockLine[]>([emptyLine()]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<SupplierDto[]>('company', '/suppliers')
+      .then((list) => setSuppliers(list.filter((s) => s.isActive)))
+      .catch(() => setSuppliers([]));
+  }, []);
 
   async function submit() {
     setError(null);
@@ -161,7 +178,7 @@ function NewReceipt({
         method: 'POST',
         body: JSON.stringify({
           warehouseId,
-          supplier: supplier.trim() || undefined,
+          supplierId: supplierId || undefined,
           reference: reference.trim() || undefined,
           lines: payload,
         }),
@@ -184,14 +201,22 @@ function NewReceipt({
           onChange={(e) => setWarehouseId(e.target.value)}
           options={depots.map((d) => ({ value: d.id, label: warehouseLabel(d) }))}
         />
-        <Field label="Fournisseur" value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+        <Select
+          label="Fournisseur"
+          value={supplierId}
+          onChange={(e) => setSupplierId(e.target.value)}
+          options={[
+            { value: '', label: 'Non précisé' },
+            ...suppliers.map((s) => ({ value: s.id, label: s.name })),
+          ]}
+        />
         <Field
           label="Référence du bon"
           value={reference}
           onChange={(e) => setReference(e.target.value)}
         />
       </div>
-      <StockLinesEditor products={products} lines={lines} onChange={setLines} />
+      <StockLinesEditor products={products} lines={lines} onChange={setLines} withLots />
       {error && <Alert>{error}</Alert>}
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel}>

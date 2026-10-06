@@ -10,6 +10,7 @@ export const MODULE_LABELS: Record<string, string> = {
   CASH_VAN: 'Cash van',
   WAREHOUSE: 'Entrepôt et stock',
   ANALYTICS: 'Analyse',
+  RETURNS_ANALYSIS: 'Analyse des retours',
 };
 export const COMPANY_STATUS: Record<
   string,
@@ -132,5 +133,43 @@ export const ROUTE_STATUS: Record<
 export function nextDate(date: string): string {
   const d = new Date(`${date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** État constaté au déchargement (phase 21). */
+export const CONDITION_LABELS: Record<string, string> = {
+  RESTOCK: 'Remis en stock',
+  DEFECTIVE: 'Défectueux',
+  EXPIRED: 'Périmé',
+  BROKEN: 'Cassé',
+};
+
+export const FACT_KIND_LABELS: Record<string, string> = {
+  REFUSAL: 'Refus',
+  RESALE: 'Revente en tournée',
+  RETURN: 'Retour au déchargement',
+  GAP: 'Écart au déchargement',
+};
+
+export const CONTEST_STATUS: Record<
+  string,
+  { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
+> = {
+  NONE: { label: 'Non contesté', tone: 'neutral' },
+  CONTESTED: { label: 'Contesté', tone: 'warning' },
+  UPHELD: { label: 'Contestation retenue', tone: 'success' },
+  REJECTED: { label: 'Refus confirmé', tone: 'danger' },
+};
+
+/** Taux d'un indicateur : « 7,5 % », ou « volume insuffisant » sous le minimum. */
+export function formatRate(r: { rate: number | null; insufficient: boolean }): string {
+  if (r.rate === null) return r.insufficient ? 'Volume insuffisant' : '—';
+  return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(r.rate)} %`;
+}
+
+/** Date du jour décalée de `days` jours (négatif : dans le passé), au format AAAA-MM-JJ. */
+export function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }

@@ -235,6 +235,15 @@ function SettingsForm({ section, editable }: { section: 'general' | 'rules'; edi
               disabled={!editable}
               onChange={(e) => set({ positionIntervalMin: Number(e.target.value) })}
             />
+            <Field
+              label="Volume minimum d'un taux de retour"
+              hint="En dessous, aucun taux n'est conclu (analyse des retours)."
+              type="number"
+              min={1}
+              value={data.returnsMinVolume}
+              disabled={!editable}
+              onChange={(e) => set({ returnsMinVolume: Number(e.target.value) })}
+            />
           </div>
           <p className="font-semibold text-text-dark">En-tête des bons</p>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -464,6 +473,7 @@ const REASON_KINDS: Record<string, string> = {
   ADJUSTMENT: 'Écart de stock',
   FORCED_CLOSE: "Clôture d'office",
   REOPEN: 'Réouverture de journée',
+  REFUSAL: 'Refus à la livraison',
 };
 
 function Reasons({ editable }: { editable: boolean }) {

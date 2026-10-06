@@ -8,6 +8,9 @@ export interface StockLine {
   variantId: string;
   unitId: string;
   qty: string;
+  /** Entrée en stock seulement (phase 21). */
+  lotNumber?: string;
+  expiresAt?: string;
 }
 
 let nextKey = 1;
@@ -18,23 +21,32 @@ export function toPayload(lines: StockLine[]) {
   const filled = lines.filter((l) => l.variantId);
   if (filled.some((l) => !l.unitId || !Number.isInteger(Number(l.qty)) || Number(l.qty) < 1))
     return null;
-  return filled.map((l) => ({ variantId: l.variantId, unitId: l.unitId, qty: Number(l.qty) }));
+  return filled.map((l) => ({
+    variantId: l.variantId,
+    unitId: l.unitId,
+    qty: Number(l.qty),
+    ...(l.lotNumber?.trim() && { lotNumber: l.lotNumber.trim() }),
+    ...(l.expiresAt && { expiresAt: l.expiresAt }),
+  }));
 }
 
 /**
  * Saisie de lignes article + unité + quantité, comme les quotas ; l'unité de base est proposée
- * par défaut. `available` affiche le disponible de chaque article, en unité de base.
+ * par défaut. `available` affiche le disponible de chaque article, en unité de base ; `withLots`
+ * ajoute le lot et la péremption (entrée en stock).
  */
 export function StockLinesEditor({
   products,
   lines,
   onChange,
   available,
+  withLots = false,
 }: {
   products: ProductDto[];
   lines: StockLine[];
   onChange: (lines: StockLine[]) => void;
   available?: Map<string, number>;
+  withLots?: boolean;
 }) {
   const articles = products
     .filter((p) => p.isActive)
@@ -105,6 +117,21 @@ export function StockLinesEditor({
               >
                 Retirer
               </Button>
+              {withLots && (
+                <div className="grid gap-2 sm:col-span-4 sm:grid-cols-2">
+                  <Field
+                    label="Lot (facultatif)"
+                    value={l.lotNumber ?? ''}
+                    onChange={(e) => update(l.key, { lotNumber: e.target.value })}
+                  />
+                  <Field
+                    label="Péremption (facultatif)"
+                    type="date"
+                    value={l.expiresAt ?? ''}
+                    onChange={(e) => update(l.key, { expiresAt: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
           );
         })}

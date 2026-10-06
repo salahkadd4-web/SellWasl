@@ -7,8 +7,10 @@ import { ChangePasswordForm } from '@/components/change-password';
 import { FullPageMessage } from '@/components/ui';
 import { CompanyAuth } from '@/lib/auth';
 
-const NAV = [
+/** Entrées du menu ; un module, s'il est indiqué, doit être actif dans l'entreprise. */
+const NAV: { href: string; label: string; permission: string | null; module?: string }[] = [
   { href: '/app', label: 'Accueil', permission: null },
+  { href: '/app/suivi', label: 'Suivi du jour', permission: 'reports.read' },
   { href: '/app/clients', label: 'Clients', permission: 'customers.read' },
   { href: '/app/produits', label: 'Produits', permission: 'products.read' },
   { href: '/app/secteurs', label: 'Secteurs', permission: 'territories.read' },
@@ -22,10 +24,17 @@ const NAV = [
   { href: '/app/stock', label: 'Stock', permission: 'stock.read' },
   { href: '/app/versements', label: 'Versements', permission: 'settlements.read' },
   { href: '/app/paiements', label: 'Dettes et paiements', permission: 'payments.read' },
+  { href: '/app/rapports', label: 'Rapports', permission: 'reports.read' },
+  {
+    href: '/app/retours',
+    label: 'Analyse des retours',
+    permission: 'returns.read',
+    module: 'RETURNS_ANALYSIS',
+  },
   { href: '/app/utilisateurs', label: 'Utilisateurs', permission: 'users.read' },
   { href: '/app/appareils', label: 'Appareils', permission: 'devices.read' },
   { href: '/app/parametres', label: 'Paramètres', permission: 'settings.read' },
-] as const;
+];
 
 /** Espace entreprise : réservé aux sessions Web valides (docs/rbac.md §9). */
 export default function CompanySpaceLayout({ children }: { children: React.ReactNode }) {
@@ -60,7 +69,11 @@ export default function CompanySpaceLayout({ children }: { children: React.React
           </div>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4">
-          {NAV.filter((item) => item.permission === null || can(item.permission)).map((item) => (
+          {NAV.filter(
+            (item) =>
+              (item.permission === null || can(item.permission)) &&
+              (!item.module || !!me?.modules.includes(item.module as never)),
+          ).map((item) => (
             <Link
               key={item.href}
               href={item.href}

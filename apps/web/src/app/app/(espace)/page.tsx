@@ -1,6 +1,7 @@
 'use client';
 
 import type { StockAlertDto } from '@sellwasl/validation';
+import { Dashboard } from './dashboard';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui';
@@ -13,6 +14,7 @@ const MODULE_NAMES: Record<string, string> = {
   CASH_VAN: 'Cash van',
   WAREHOUSE: 'Entrepôt et stock',
   ANALYTICS: 'Analyse',
+  RETURNS_ANALYSIS: 'Analyse des retours',
 };
 
 export default function CompanyHomePage() {
@@ -37,6 +39,8 @@ export default function CompanyHomePage() {
           {me.role.name} · {me.company.name}
         </p>
       </div>
+
+      {can('reports.read') && <Dashboard />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>

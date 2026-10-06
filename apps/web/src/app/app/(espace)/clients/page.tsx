@@ -10,6 +10,7 @@ import type {
 } from '@sellwasl/validation';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ReturnsCard } from '@/components/returns-card';
 import {
   Alert,
   Badge,
@@ -397,6 +398,7 @@ function CustomerDetail({
           ))}
         </div>
         {error && <Alert>{error}</Alert>}
+        <ReturnsCard axis="customer" id={c.id} />
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
           {rows.map(([label, value]) => (
             <div key={label} className="contents">

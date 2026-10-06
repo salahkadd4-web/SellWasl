@@ -8,6 +8,7 @@ const TABS = [
   { href: '/app/produits', label: 'Catalogue', permission: 'products.read' },
   { href: '/app/produits/bonus', label: 'Règles de bonus', permission: 'prices.read' },
   { href: '/app/produits/simulateur', label: 'Simulateur', permission: 'prices.read' },
+  { href: '/app/produits/fournisseurs', label: 'Fournisseurs', permission: 'products.read' },
   { href: '/app/produits/import', label: 'Importer', permission: 'imports.run' },
 ] as const;
 

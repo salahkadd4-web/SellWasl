@@ -7,12 +7,14 @@ import type {
   ProductDto,
   ProductRangeDto,
   PhotoDto,
+  SupplierDto,
   ProductVariantDto,
 } from '@sellwasl/validation';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CatalogTabs } from '@/components/catalog-tabs';
+import { ReturnsCard } from '@/components/returns-card';
 import { Alert, Badge, Button, Card, Field, Modal, Select, Toggle } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
@@ -68,6 +70,7 @@ export default function ProductPage() {
       <CatalogTabs />
       {error && <Alert>{error}</Alert>}
 
+      <ReturnsCard axis="product" id={product.id} />
       <Photos product={product} writable={writable} onChanged={setProduct} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Units product={product} writable={writable} onChanged={setProduct} />
@@ -105,6 +108,7 @@ function ProductEditDialog({
 }) {
   const [ranges, setRanges] = useState<ProductRangeDto[]>([]);
   const [categories, setCategories] = useState<ProductCategoryDto[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [active, setActive] = useState(product.isActive);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,9 +116,11 @@ function ProductEditDialog({
     void Promise.all([
       api<ProductRangeDto[]>('company', '/product-ranges'),
       api<ProductCategoryDto[]>('company', '/product-categories'),
-    ]).then(([r, c]) => {
+      api<SupplierDto[]>('company', '/suppliers'),
+    ]).then(([r, c, s]) => {
       setRanges(r);
       setCategories(c);
+      setSuppliers(s);
     });
   }, []);
 
@@ -129,6 +135,7 @@ function ProductEditDialog({
             name: form.get('name'),
             rangeId: form.get('rangeId'),
             categoryId: form.get('categoryId') || null,
+            supplierId: form.get('supplierId') || null,
             isActive: active,
           }),
         }),
@@ -169,6 +176,20 @@ function ProductEditDialog({
               ]}
             />
           </div>
+        )}
+        {/* Après le chargement des listes : la valeur initiale doit exister parmi les choix */}
+        {ranges.length > 0 && (
+          <Select
+            label="Fournisseur habituel"
+            name="supplierId"
+            defaultValue={product.supplierId ?? ''}
+            options={[
+              { value: '', label: 'Aucun' },
+              ...suppliers
+                .filter((s) => s.isActive || s.id === product.supplierId)
+                .map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
         )}
         <Toggle
           label="Produit actif"
