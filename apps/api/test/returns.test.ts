@@ -410,6 +410,49 @@ describe('analyse des retours (phase 21)', () => {
       });
     });
 
+    it("objectif mensuel : le réalisé est le montant livré, pas l'unité de base × prix", async () => {
+      const v07 = await raw.user.findFirstOrThrow({ where: { companyId, code: 'V07' } });
+      const thon = await raw.product.findUniqueOrThrow({
+        where: { id: item('THON-TOM').productId },
+      });
+      const objectiveId = uuidv7();
+      await raw.objective.create({
+        data: {
+          id: objectiveId,
+          companyId,
+          userId: v07.id,
+          rangeId: thon.rangeId,
+          month: at('2027-06-01'),
+          targetAmount: 10_000_000n,
+          bonusAmount: 10_000n,
+        },
+      });
+      try {
+        const lines = await raw.orderLine.findMany({
+          where: {
+            kind: { not: 'BONUS' },
+            deliveredQty: { gt: 0 },
+            product: { rangeId: thon.rangeId },
+            order: {
+              sellerUserId: v07.id,
+              deliveryDate: { gte: at('2027-06-01'), lt: at('2027-07-01') },
+            },
+          },
+        });
+        const delivered = lines.reduce((sum, l) => sum + Number(l.lineAmount), 0);
+        expect(delivered).toBeGreaterThan(0);
+        const list = await call<{ user: { id: string }; realizedAmount: number }[]>(
+          t.url,
+          'GET',
+          '/objectives?month=2027-06',
+          { token: sup },
+        );
+        expect(list.body.find((o) => o.user.id === v07.id)?.realizedAmount).toBe(delivered);
+      } finally {
+        await raw.objective.delete({ where: { id: objectiveId } });
+      }
+    });
+
     it('client absent : aucun fait de refus', async () => {
       const absent = await reasonOf('DELIVERY_FAILURE', { systemCode: 'CUSTOMER_ABSENT' });
       const deliveryId = uuidv7();

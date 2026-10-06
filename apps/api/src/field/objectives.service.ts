@@ -74,8 +74,7 @@ export class ObjectivesService {
         },
       },
       select: {
-        deliveredQty: true,
-        unitPrice: true,
+        lineAmount: true,
         product: { select: { rangeId: true } },
         order: { select: { sellerUserId: true } },
       },
@@ -85,7 +84,8 @@ export class ObjectivesService {
     const realized = new Map<string, number>();
     for (const l of lines) {
       const k = key(l.order.sellerUserId, l.product.rangeId);
-      realized.set(k, (realized.get(k) ?? 0) + (l.deliveredQty ?? 0) * Number(l.unitPrice));
+      // Montant livré de la ligne (prix × quantité dans l'unité de la ligne), pas l'unité de base
+      realized.set(k, (realized.get(k) ?? 0) + Number(l.lineAmount));
     }
 
     return objectives.map((o) => {
