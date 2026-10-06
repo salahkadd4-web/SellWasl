@@ -20,6 +20,8 @@ export const saleConfirmPayload = z.object({
   cashAmount: amount,
   latitude: z.number().min(-90).max(90).nullish(),
   longitude: z.number().min(-180).max(180).nullish(),
+  /** Vente enregistrée sans réseau : acceptée au-delà du quota ou du stock, et signalée. */
+  offline: z.boolean().optional(),
 });
 
 export const lostDemandPayload = z.object({

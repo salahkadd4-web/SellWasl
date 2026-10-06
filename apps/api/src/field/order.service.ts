@@ -13,6 +13,7 @@ import {
   orderCancelPayload,
   orderConfirmPayload,
   orderUpdatePayload,
+  type SyncChange,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -60,6 +61,49 @@ export interface BuiltLine {
 const dup = (message: string) => new ApiError(HttpStatus.CONFLICT, 'DUPLICATE', message);
 const validation = (message: string) =>
   new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', message);
+
+/**
+ * Différences entre le découpage calculé par le téléphone et celui du serveur à la réception
+ * (BR-SYN-05) : quota baissé (ligne en attente) ou stock du dépôt épuisé (rupture), en unité de base.
+ */
+export function receptionChanges(
+  expected: { variantId: string; pendingQty: number; stockoutQty: number }[] | undefined,
+  lines: BuiltLine[],
+  stockouts: { variantId: string; reservedQty: number; orderedQty: number }[],
+): SyncChange[] {
+  if (!expected) return [];
+  const sum = (rows: { variantId: string; qty: number }[]) => {
+    const total = new Map<string, number>();
+    for (const r of rows) total.set(r.variantId, (total.get(r.variantId) ?? 0) + r.qty);
+    return total;
+  };
+  const pending = sum(
+    lines
+      .filter((l) => l.kind === 'PENDING')
+      .map((l) => ({ variantId: l.variantId, qty: l.baseQty })),
+  );
+  const short = sum(
+    stockouts.map((s) => ({ variantId: s.variantId, qty: s.orderedQty - s.reservedQty })),
+  );
+  const told = new Map(expected.map((e) => [e.variantId, e]));
+  const variants = new Set([...pending.keys(), ...short.keys(), ...told.keys()]);
+  const changes: SyncChange[] = [];
+  for (const variantId of variants) {
+    const pendingQty = pending.get(variantId) ?? 0;
+    if (pendingQty !== (told.get(variantId)?.pendingQty ?? 0))
+      changes.push({ kind: 'QUOTA_PENDING', productVariantId: variantId, pendingQty });
+    if ((short.get(variantId) ?? 0) !== (told.get(variantId)?.stockoutQty ?? 0)) {
+      const rows = stockouts.filter((x) => x.variantId === variantId);
+      changes.push({
+        kind: 'STOCKOUT',
+        productVariantId: variantId,
+        orderedQty: rows.reduce((n, x) => n + x.orderedQty, 0),
+        reservedQty: rows.reduce((n, x) => n + x.reservedQty, 0),
+      });
+    }
+  }
+  return changes;
+}
 
 /**
  * Commandes de prévente (BR-CMD, UC-14, UC-17) : le serveur recalcule le panier avec la grille en
@@ -158,6 +202,8 @@ export class OrderService implements OnModuleInit {
       excludeOrderId?: string;
       /** Stock qui limite les bonus : le camion en cash van (BR-CV-03) ; sinon le dépôt. */
       availableStock?: Map<string, number>;
+      /** Vente cash van reçue hors connexion au-delà du quota : acceptée (spec phase 23 §3.4). */
+      ignoreQuota?: boolean;
     },
   ) {
     const variantIds = input.lines.map((l) => l.variantId);
@@ -202,7 +248,8 @@ export class OrderService implements OnModuleInit {
     const built: BuiltLine[] = [];
     for (const l of full.lines) {
       const quota = quotas.find((q) => q.productVariantId === l.variantId);
-      const remaining = quota ? quota.qty - (consumed.get(l.variantId) ?? 0) : null;
+      const remaining =
+        quota && !input.ignoreQuota ? quota.qty - (consumed.get(l.variantId) ?? 0) : null;
       const split = splitByQuota(l.qty, unitBase(l.unitId), remaining);
       const base = {
         productId: l.productId,
@@ -463,7 +510,14 @@ export class OrderService implements OnModuleInit {
       },
       tx,
     );
-    return { orderId: payload.orderId, number: payload.number, deliveryDate, ...summary };
+    const changes = receptionChanges(payload.expected, lines, summary.stockouts);
+    return {
+      orderId: payload.orderId,
+      number: payload.number,
+      deliveryDate,
+      ...summary,
+      ...(changes.length ? { changes } : {}),
+    };
   }
 
   /** Commande du vendeur, modifiable : confirmée, journée en cours (BR-CMD-02, UC-17). */
@@ -516,7 +570,13 @@ export class OrderService implements OnModuleInit {
       },
       tx,
     );
-    return { orderId: order.id, number: order.number, ...summary };
+    const changes = receptionChanges(payload.expected, lines, summary.stockouts);
+    return {
+      orderId: order.id,
+      number: order.number,
+      ...summary,
+      ...(changes.length ? { changes } : {}),
+    };
   }
 
   private async cancel(actor: AuthUser, tx: Tx, orderId: string, occurredAt: Date) {

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { isPermissionModuleActive } from '@sellwasl/business-rules';
 import type {
+  SyncChange,
   SyncOperationInput,
   SyncPushInput,
   SyncPushResponse,
@@ -17,6 +18,7 @@ import { SyncHandlers } from './sync.handlers';
 interface StoredResult {
   result?: Record<string, unknown>;
   error?: { code: string; message: string };
+  changes?: SyncChange[];
 }
 
 /** Refus décidé avant le traitement (type inconnu, droit manquant, données invalides). */
@@ -103,7 +105,7 @@ export class SyncService {
   ): Promise<SyncResult> {
     const record = (
       tx: Pick<Prisma.TransactionClient, 'syncOperation'>,
-      status: 'APPLIED' | 'REJECTED',
+      status: 'APPLIED' | 'APPLIED_WITH_CHANGES' | 'REJECTED',
       stored: StoredResult,
     ) =>
       tx.syncOperation.create({
@@ -138,13 +140,22 @@ export class SyncService {
           parsed.error.issues.map((i) => i.message).join(' ; ') || 'Données invalides.',
         );
 
-      const result = await this.db.$transaction(async (tenantTx) => {
+      // Un traitement qui transforme l'opération rend ses changements (BR-SYN-05)
+      const stored = await this.db.$transaction(async (tenantTx) => {
         const tx = tenantTx as unknown as Prisma.TransactionClient;
-        const value = await handler.handle({ actor, op, payload: parsed.data, tx });
-        await record(tx, 'APPLIED', { result: value });
-        return value;
+        const { changes, ...value } = await handler.handle({ actor, op, payload: parsed.data, tx });
+        const list = Array.isArray(changes) ? (changes as SyncChange[]) : [];
+        const done: StoredResult = list.length
+          ? { result: value, changes: list }
+          : { result: value };
+        await record(tx, list.length ? 'APPLIED_WITH_CHANGES' : 'APPLIED', done);
+        return done;
       });
-      return { opId: op.opId, status: 'APPLIED', result };
+      return {
+        opId: op.opId,
+        status: stored.changes ? 'APPLIED_WITH_CHANGES' : 'APPLIED',
+        ...stored,
+      };
     } catch (error) {
       const refusal = toRefusal(error);
       if (!refusal) throw error;

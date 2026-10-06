@@ -47,8 +47,16 @@ export const syncPushSchema = z.object({
 });
 export type SyncPushInput = z.infer<typeof syncPushSchema>;
 
-export const workdayStartPayload = z.object({ workdayId: z.uuid(), date });
-export const workdayClosePayload = z.object({ workdayId: z.uuid() });
+/** offline : action enregistrée sans réseau (BR-JOU-04, BR-JOU-06), vue par le superviseur. */
+export const workdayStartPayload = z.object({
+  workdayId: z.uuid(),
+  date,
+  offline: z.boolean().optional(),
+});
+export const workdayClosePayload = z.object({
+  workdayId: z.uuid(),
+  offline: z.boolean().optional(),
+});
 export const visitStartPayload = z.object({
   visitId: z.uuid(),
   customerId: z.uuid(),
@@ -82,27 +90,52 @@ export const orderLineInput = z.object({
 const orderLines = z.array(orderLineInput).min(1, 'Le panier est vide').max(200);
 /** Parfum offert choisi par le vendeur, par règle de bonus (BR-CAT-15). */
 const freeVariantChoices = z.record(z.uuid(), z.uuid()).optional();
+/**
+ * Découpage calculé par le téléphone, en unité de base (phase 23) : le serveur signale ce qui
+ * diffère à la réception (APPLIED_WITH_CHANGES, BR-SYN-05).
+ */
+const expectedLines = z
+  .array(
+    z.object({
+      variantId: z.uuid(),
+      pendingQty: z.number().int().min(0),
+      stockoutQty: z.number().int().min(0),
+    }),
+  )
+  .max(500)
+  .optional();
 export const orderConfirmPayload = z.object({
   orderId: z.uuid(),
   number: z.string().min(3).max(30),
   visitId: z.uuid(),
   lines: orderLines,
   freeVariantChoices,
+  expected: expectedLines,
 });
 export const orderUpdatePayload = z.object({
   orderId: z.uuid(),
   lines: orderLines,
   freeVariantChoices,
+  expected: expectedLines,
 });
 export const orderCancelPayload = z.object({ orderId: z.uuid() });
 
 export type SyncStatusValue = 'APPLIED' | 'APPLIED_WITH_CHANGES' | 'REJECTED' | 'GAP';
+
+/** Transformation faite par le serveur à la réception (BR-SYN-05, spec phase 23 §3.3-3.4). */
+export type SyncChange =
+  | { kind: 'QUOTA_PENDING'; productVariantId: string; pendingQty: number }
+  | { kind: 'STOCKOUT'; productVariantId: string; orderedQty: number; reservedQty: number }
+  | { kind: 'QUOTA_EXCEEDED'; productVariantId: string; exceededQty: number }
+  | { kind: 'TRUCK_STOCK_SHORT'; productVariantId: string; shortQty: number };
 
 export interface SyncResult {
   opId: string;
   status: SyncStatusValue;
   result?: Record<string, unknown>;
   error?: { code: string; message: string };
+  /** Avec APPLIED_WITH_CHANGES : ce que le serveur a transformé. */
+  changes?: SyncChange[];
 }
 
 export interface SyncPushResponse {

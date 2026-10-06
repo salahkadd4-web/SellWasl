@@ -62,7 +62,13 @@ export class WorkdayService implements OnModuleInit {
       this.start(ctx.actor, ctx.tx, ctx.payload, new Date(ctx.op.occurredAt)),
     );
     this.handlers.register('workday.close', 'workdays.own', workdayClosePayload, (ctx) =>
-      this.close(ctx.actor, ctx.tx, ctx.payload.workdayId, new Date(ctx.op.occurredAt)),
+      this.close(
+        ctx.actor,
+        ctx.tx,
+        ctx.payload.workdayId,
+        new Date(ctx.op.occurredAt),
+        ctx.payload.offline === true,
+      ),
     );
   }
 
@@ -88,7 +94,7 @@ export class WorkdayService implements OnModuleInit {
   private async start(
     actor: AuthUser,
     tx: Prisma.TransactionClient,
-    payload: { workdayId: string; date: string },
+    payload: { workdayId: string; date: string; offline?: boolean },
     occurredAt: Date,
   ) {
     const { workdayId, date } = payload;
@@ -126,6 +132,8 @@ export class WorkdayService implements OnModuleInit {
         date: toDate(date),
         status: 'IN_PROGRESS',
         startedAt: occurredAt,
+        // Démarrée sans réseau : le superviseur le voit (BR-JOU-04)
+        isStartedOffline: payload.offline === true,
         settingsVersion: settings.version,
         userId: actor.userId,
         deviceId: actor.deviceId,
@@ -160,6 +168,7 @@ export class WorkdayService implements OnModuleInit {
     tx: Prisma.TransactionClient,
     workdayId: string,
     occurredAt: Date,
+    offline = false,
   ) {
     const workday = await tx.workday.findFirst({
       where: { id: workdayId, userId: actor.userId, deletedAt: null },
@@ -171,10 +180,14 @@ export class WorkdayService implements OnModuleInit {
     });
     if (current) throw invalidState("Terminez d'abord la visite en cours.");
 
-    const missed = await this.closeEffects(tx, workday, occurredAt, {
-      byUserId: actor.userId,
-      deviceId: actor.deviceId,
-    });
+    // Clôturée sans réseau : enregistrée sur le téléphone puis envoyée (BR-JOU-06)
+    const missed = await this.closeEffects(
+      tx,
+      workday,
+      occurredAt,
+      { byUserId: actor.userId, deviceId: actor.deviceId },
+      offline ? { isClosedOffline: true } : {},
+    );
     await this.audit.write(
       {
         companyId: actor.companyId,

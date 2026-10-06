@@ -1,17 +1,26 @@
+import { priceCart } from '@sellwasl/business-rules';
 import type {
   CustomerDto,
   OfflineKind,
   PlanningDay,
+  ProductDto,
   PulledRow,
   SyncPullResponse,
+  TodayResponse,
+  TruckStockDto,
+  VisitCatalog,
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { uuidv7 } from '../src/common/uuid';
+import { receptionChanges } from '../src/field/order.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { type Phone, Phones } from './phone';
 
 /** Samedi réservé à cette suite. */
 const DAY = '2027-06-05';
+/** Samedi réservé aux changements à la réception. */
+const WORK_DAY = '2027-06-19';
 
 /** Réception différentielle du téléphone (phase 23). */
 describe('synchronisation hors connexion (phase 23)', () => {
@@ -245,6 +254,261 @@ describe('synchronisation hors connexion (phase 23)', () => {
       const storekeeper = await pull(await phones.get('M01'), {});
       expect(storekeeper.status).toBe(403);
       expect(storekeeper.body.error?.code).toBe('OFFLINE_NOT_AVAILABLE');
+    });
+  });
+
+  describe('changements à la réception (BR-SYN-05)', () => {
+    let products: ProductDto[];
+    const item = (reference: string, unitName: string) => {
+      const product = products.find((p) => p.variants.some((v) => v.reference === reference))!;
+      const unit = product.units.find((u) => u.name === unitName)!;
+      return {
+        variantId: product.variants.find((v) => v.reference === reference)!.id,
+        unitId: unit.id,
+        baseQty: unit.baseQty,
+      };
+    };
+
+    afterAll(async () => {
+      // Commandes de test annulées, journées closes (autres suites, modes de l'entreprise)
+      await raw.order.updateMany({
+        where: { orderDate: new Date(`${WORK_DAY}T00:00:00Z`), status: 'CONFIRMED' },
+        data: { status: 'CANCELLED' },
+      });
+      await raw.workday.updateMany({
+        where: { date: new Date(`${WORK_DAY}T00:00:00Z`), status: 'IN_PROGRESS' },
+        data: { status: 'CLOSED', closedAt: new Date() },
+      });
+    });
+
+    it('compare le découpage du téléphone et celui du serveur (fonction pure)', () => {
+      const line = {
+        productId: 'p',
+        variantId: 'v',
+        unitId: 'u',
+        unitPrice: 100,
+        tierMinQty: null,
+        bonusRuleId: null,
+        customerTypeId: 't',
+      };
+      const lines = [
+        { ...line, kind: 'NORMAL' as const, qty: 5, baseQty: 100 },
+        { ...line, kind: 'PENDING' as const, qty: 3, baseQty: 60 },
+      ];
+      expect(receptionChanges(undefined, lines, [])).toEqual([]);
+      expect(
+        receptionChanges([{ variantId: 'v', pendingQty: 60, stockoutQty: 0 }], lines, []),
+      ).toEqual([]);
+      expect(
+        receptionChanges([], lines, [{ variantId: 'v', reservedQty: 40, orderedQty: 100 }]),
+      ).toEqual([
+        { kind: 'QUOTA_PENDING', productVariantId: 'v', pendingQty: 60 },
+        { kind: 'STOCKOUT', productVariantId: 'v', orderedQty: 100, reservedQty: 40 },
+      ]);
+    });
+
+    it('quota baissé pendant la coupure : excédent en attente, signalé, appliqué une fois', async () => {
+      products = (
+        await call<ProductDto[]>(t.url, 'GET', '/products?status=ACTIVE', { token: supA })
+      ).body;
+      const p = await phones.get('V08');
+      const user = await raw.user.findFirstOrThrow({
+        where: { code: 'V08', company: { code: 'DISTRI-ORAN' } },
+      });
+      const thon = item('THON-TOM', 'carton');
+      const quota = await raw.quota.create({
+        data: {
+          id: uuidv7(),
+          companyId: user.companyId,
+          userId: user.id,
+          productVariantId: thon.variantId,
+          date: new Date(`${WORK_DAY}T00:00:00Z`),
+          qty: 10 * thon.baseQty,
+          enteredQty: 10,
+          enteredUnitId: thon.unitId,
+        },
+      });
+      await phones.startDay(p, WORK_DAY);
+      const day = (await phones.today(p, WORK_DAY)).body as TodayResponse;
+      const customer = day.day.customers[0]!;
+      const visitId = await phones.startVisit(p, customer.id, 'PHONE');
+      // Le téléphone a calculé 8 cartons dans le quota ; le superviseur le baisse à 5 avant l'envoi
+      await raw.quota.update({
+        where: { id: quota.id },
+        data: { qty: 5 * thon.baseQty, enteredQty: 5 },
+      });
+      const op = phones.op(p, 'order.confirm', {
+        orderId: uuidv7(),
+        number: `V08-${p.series}7001`,
+        visitId,
+        lines: [{ variantId: thon.variantId, unitId: thon.unitId, qty: 8 }],
+        expected: [],
+      });
+      const first = (await phones.push(p, [op])).body.results[0]!;
+      expect(first.status, JSON.stringify(first)).toBe('APPLIED_WITH_CHANGES');
+      expect(first.changes).toContainEqual({
+        kind: 'QUOTA_PENDING',
+        productVariantId: thon.variantId,
+        pendingQty: 3 * thon.baseQty,
+      });
+      // Renvoyée après une coupure : même résultat, une seule commande
+      const again = (await phones.push(p, [op])).body.results[0]!;
+      expect(again).toEqual(first);
+      const orders = await raw.order.findMany({
+        where: { number: `V08-${p.series}7001` },
+        include: { orderLines: true },
+      });
+      expect(orders).toHaveLength(1);
+      expect(orders[0]!.orderLines.find((l) => l.kind === 'PENDING')).toMatchObject({
+        orderedQty: 3 * thon.baseQty,
+        pendingStatus: 'TO_PROCESS',
+      });
+      const logged = await raw.syncOperation.findFirstOrThrow({ where: { opId: op.opId } });
+      expect(logged.status).toBe('APPLIED_WITH_CHANGES');
+    });
+
+    describe('vente cash van reçue hors connexion (spec §3.4)', () => {
+      let seller: Phone;
+      let truckId: string;
+      let customers: { id: string }[];
+      let n = 0;
+
+      /** Vente d'un article, payée comptant au prix calculé par le téléphone. */
+      async function sell(
+        customerId: string,
+        ref: string,
+        unitName: string,
+        qty: number,
+        offline: boolean,
+        visit?: string,
+      ) {
+        const visitId = visit ?? (await phones.startVisit(seller, customerId, 'ON_SITE'));
+        const catalog = (
+          await call<VisitCatalog>(
+            t.url,
+            'GET',
+            `/me/visit-catalog?customerId=${customerId}&date=${WORK_DAY}`,
+            { token: seller.token },
+          )
+        ).body;
+        const a = item(ref, unitName);
+        const lines = [{ variantId: a.variantId, unitId: a.unitId, qty }];
+        const due = priceCart(catalog.catalog, lines, {
+          customerTypeId: catalog.customerTypeId,
+          date: WORK_DAY,
+        }).total;
+        const result = await phones.send(seller, 'sale.confirm', {
+          orderId: uuidv7(),
+          number: `C02-${seller.series}70${String(++n).padStart(2, '0')}`,
+          visitId,
+          lines,
+          cashAmount: due,
+          ...(offline ? { offline: true } : {}),
+        });
+        return Object.assign(result, { visitId });
+      }
+
+      /** Un article du camion d'au moins `min` unités, vendu à l'unité de base. */
+      async function truckArticle(min: number) {
+        const stock = (
+          await call<TruckStockDto[]>(t.url, 'GET', '/me/truck-stock', { token: seller.token })
+        ).body;
+        const article = stock.find((s) => s.qty >= min && s.units.some((u) => u.baseQty === 1))!;
+        const product = products.find((pr) => pr.id === article.productId)!;
+        return {
+          article,
+          ref: product.variants.find((v) => v.id === article.variantId)!.reference,
+          base: product.units.find((u) => u.baseQty === 1)!,
+        };
+      }
+
+      beforeAll(async () => {
+        seller = await phones.get('C02', 'CASHVAN-EST');
+        const user = await raw.user.findFirstOrThrow({
+          where: { code: 'C02', company: { code: 'CASHVAN-EST' } },
+        });
+        truckId = (
+          await raw.warehouse.findFirstOrThrow({
+            where: { type: 'TRUCK', assignedUserId: user.id },
+          })
+        ).id;
+        // Chargement laissé par une autre suite : pointé, pour pouvoir vendre
+        await raw.load.updateMany({
+          where: { userId: user.id, status: 'LOADED' },
+          data: { status: 'RECEIVED' },
+        });
+        products = (
+          await call<ProductDto[]>(t.url, 'GET', '/products?status=ACTIVE', { token: supB })
+        ).body;
+        await phones.startDay(seller, WORK_DAY);
+        customers = ((await phones.today(seller, WORK_DAY)).body as TodayResponse).day.customers;
+        expect(customers.length).toBeGreaterThan(2);
+      });
+
+      it('au-delà du quota : refusée en ligne, acceptée et signalée hors connexion', async () => {
+        const user = await raw.user.findFirstOrThrow({
+          where: { code: 'C02', company: { code: 'CASHVAN-EST' } },
+        });
+        const { article, ref, base } = await truckArticle(4);
+        await raw.quota.create({
+          data: {
+            id: uuidv7(),
+            companyId: user.companyId,
+            userId: user.id,
+            productVariantId: article.variantId,
+            date: new Date(`${WORK_DAY}T00:00:00Z`),
+            qty: 1,
+            enteredQty: 1,
+            enteredUnitId: base.id,
+          },
+        });
+        const online = await sell(customers[0]!.id, ref, base.name, 2, false);
+        expect(online.status).toBe('REJECTED');
+        // Même visite : la vente refusée l'a laissée en cours
+        const offline = await sell(customers[0]!.id, ref, base.name, 2, true, online.visitId);
+        expect(offline.status, JSON.stringify(offline)).toBe('APPLIED_WITH_CHANGES');
+        expect(offline.changes).toEqual([
+          { kind: 'QUOTA_EXCEEDED', productVariantId: article.variantId, exceededQty: 1 },
+        ]);
+      });
+
+      it('au-delà du stock du camion : stock à zéro, manque enregistré comme écart', async () => {
+        const { article, ref, base } = await truckArticle(1);
+        const result = await sell(customers[2]!.id, ref, base.name, article.qty + 3, true);
+        expect(result.status, JSON.stringify(result)).toBe('APPLIED_WITH_CHANGES');
+        expect(result.changes).toContainEqual({
+          kind: 'TRUCK_STOCK_SHORT',
+          productVariantId: article.variantId,
+          shortQty: 3,
+        });
+        const row = await raw.stock.findFirstOrThrow({
+          where: { warehouseId: truckId, productVariantId: article.variantId },
+        });
+        expect(row.physicalQty).toBe(0);
+        const gap = await raw.discrepancy.findFirstOrThrow({
+          where: { productVariantId: article.variantId, cause: { contains: 'hors connexion' } },
+          orderBy: { createdAt: 'desc' },
+        });
+        expect(gap).toMatchObject({ kind: 'STOCK', qty: -3 });
+        expect(Number(gap.amount)).toBeLessThanOrEqual(0);
+      });
+
+      it('journée démarrée et clôturée hors connexion : signalées', async () => {
+        const p = await phones.get('C01', 'CASHVAN-EST');
+        const workdayId = uuidv7();
+        expect(
+          await phones.send(p, 'workday.start', { workdayId, date: WORK_DAY, offline: true }),
+        ).toMatchObject({ status: 'APPLIED' });
+        expect(await phones.send(p, 'workday.close', { workdayId, offline: true })).toMatchObject({
+          status: 'APPLIED',
+        });
+        const w = await raw.workday.findUniqueOrThrow({ where: { id: workdayId } });
+        expect(w).toMatchObject({
+          isStartedOffline: true,
+          isClosedOffline: true,
+          status: 'CLOSED',
+        });
+      });
     });
   });
 });
