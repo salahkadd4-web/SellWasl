@@ -240,9 +240,10 @@ describe('synchronisation hors connexion (phase 23)', () => {
 
     it('cash van : stock du camion et pointage ; livreur : sa tournée', async () => {
       const cashvan = await pullAll(await phones.get('C01', 'CASHVAN-EST'));
-      expect(kindsOf(cashvan.rows).has('truckStock')).toBe(true);
+      // Camion éventuellement vide : la sorte est quand même remplacée (ensemble vide)
+      expect(cashvan.replace.has('truckStock')).toBe(true);
       expect(kindsOf(cashvan.rows).has('truckCheck')).toBe(true);
-      expect(kindsOf(cashvan.rows).has('depotStock')).toBe(false);
+      expect(cashvan.replace.has('depotStock')).toBe(false);
       const driver = await pullAll(await phones.get('L01'));
       const kinds = kindsOf(driver.rows);
       expect(kinds.has('driverDay')).toBe(true);
