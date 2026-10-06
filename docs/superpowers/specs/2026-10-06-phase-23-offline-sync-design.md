@@ -150,6 +150,11 @@ entière.
     connexion au-delà du stock du camion ») ; changement `TRUCK_STOCK_SHORT`
     (`productVariantId`, `shortQty`).
 - En ligne (`offline` absent ou faux), BR-QUO-04 et le contrôle du stock restent inchangés : refus.
+- Garde-fous (revue de sécurité du 2026-10-06) : la règle assouplie ne vaut que si la vente date
+  d'au moins 30 secondes avant sa réception (`OFFLINE_MIN_DELAY_MS`) — un drapeau envoyé tout de
+  suite ne contourne pas le quota ; l'écart de stock est créé « à examiner » (`UNDER_REVIEW`) : le
+  superviseur décide, comme pour tout écart contesté. Chaque dépassement reste visible dans le
+  journal de synchronisation.
 
 ### 3.5 Journée hors connexion
 

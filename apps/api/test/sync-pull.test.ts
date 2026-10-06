@@ -379,7 +379,7 @@ describe('synchronisation hors connexion (phase 23)', () => {
         ref: string,
         unitName: string,
         qty: number,
-        offline: boolean,
+        offline: boolean | 'now',
         visit?: string,
       ) {
         const visitId = visit ?? (await phones.startVisit(seller, customerId, 'ON_SITE'));
@@ -397,14 +397,17 @@ describe('synchronisation hors connexion (phase 23)', () => {
           customerTypeId: catalog.customerTypeId,
           date: WORK_DAY,
         }).total;
-        const result = await phones.send(seller, 'sale.confirm', {
+        const op = phones.op(seller, 'sale.confirm', {
           orderId: uuidv7(),
           number: `C02-${seller.series}70${String(++n).padStart(2, '0')}`,
           visitId,
           lines,
           cashAmount: due,
-          ...(offline ? { offline: true } : {}),
+          ...(offline !== false ? { offline: true } : {}),
         });
+        // Vente faite hors connexion il y a 5 minutes ; « now » : drapeau envoyé tout de suite
+        if (offline === true) op.occurredAt = new Date(Date.now() - 5 * 60_000).toISOString();
+        const result = (await phones.push(seller, [op])).body.results[0]!;
         return Object.assign(result, { visitId });
       }
 
@@ -464,6 +467,9 @@ describe('synchronisation hors connexion (phase 23)', () => {
         });
         const online = await sell(customers[0]!.id, ref, base.name, 2, false);
         expect(online.status).toBe('REJECTED');
+        // Drapeau « hors connexion » envoyé tout de suite : la règle du quota s'applique
+        const flagged = await sell(customers[0]!.id, ref, base.name, 2, 'now', online.visitId);
+        expect(flagged.status).toBe('REJECTED');
         // Même visite : la vente refusée l'a laissée en cours
         const offline = await sell(customers[0]!.id, ref, base.name, 2, true, online.visitId);
         expect(offline.status, JSON.stringify(offline)).toBe('APPLIED_WITH_CHANGES');
@@ -489,7 +495,7 @@ describe('synchronisation hors connexion (phase 23)', () => {
           where: { productVariantId: article.variantId, cause: { contains: 'hors connexion' } },
           orderBy: { createdAt: 'desc' },
         });
-        expect(gap).toMatchObject({ kind: 'STOCK', qty: -3 });
+        expect(gap).toMatchObject({ kind: 'STOCK', qty: -3, status: 'UNDER_REVIEW' });
         expect(Number(gap.amount)).toBeLessThanOrEqual(0);
       });
 

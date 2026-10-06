@@ -18,6 +18,12 @@ import { recordDeliveryPayment } from './payments';
 type Tx = Prisma.TransactionClient;
 
 /**
+ * Délai minimal entre la vente sur le téléphone et sa réception pour la traiter comme faite hors
+ * connexion : un drapeau « offline » envoyé tout de suite ne contourne pas BR-QUO-04.
+ */
+export const OFFLINE_MIN_DELAY_MS = 30_000;
+
+/**
  * Vente cash van (UC-15, BR-CV-03, BR-CV-04, BR-CV-05) : depuis le stock du camion, livrée tout de
  * suite, payée, définitive. Quota épuisé : la vente est refusée et le vendeur peut enregistrer une
  * demande perdue (BR-QUO-04).
@@ -71,8 +77,10 @@ export class SaleService implements OnModuleInit {
 
     // Prix du type du client, bonus limités par le camion (BR-CV-03). Hors connexion, la vente
     // est déjà faite : le stock connu du serveur ne limite plus les bonus (spec phase 23 §3.4).
+    const offline =
+      payload.offline === true && Date.now() - occurredAt.getTime() >= OFFLINE_MIN_DELAY_MS;
     const truckStock = await this.orders.truckStock(tx, actor.userId);
-    const availableStock = payload.offline
+    const availableStock = offline
       ? await this.ampleStock(customer.customerTypeId, truckStock)
       : truckStock;
     const input = {
@@ -85,7 +93,7 @@ export class SaleService implements OnModuleInit {
     let { lines } = await this.orders.build(tx, actor, input);
     const changes: SyncChange[] = [];
     if (lines.some((l) => l.kind === 'PENDING')) {
-      if (!payload.offline)
+      if (!offline)
         throw rule('Quota épuisé pour un article : la quantité dépasse le reste du quota.', {
           rule: 'BR-QUO-04',
         });
@@ -145,7 +153,7 @@ export class SaleService implements OnModuleInit {
     });
     // Vente = livraison : la marchandise sort du camion (BR-CV-04) ; refusée s'il ne l'a pas.
     // Hors connexion, la sortie s'arrête au stock présent et le manque devient un écart.
-    const out = payload.offline
+    const out = offline
       ? await this.cappedOut(tx, actor, truck.id, lines)
       : lines.map((l) => ({ variantId: l.variantId, qty: l.baseQty }));
     const moves: Move[] = out
@@ -158,7 +166,7 @@ export class SaleService implements OnModuleInit {
         source: { type: 'DELIVERY', id: deliveryId },
       }));
     await this.ledger.apply(tx, actor, moves, occurredAt);
-    if (payload.offline)
+    if (offline)
       changes.push(
         ...(await this.recordShortfalls(tx, actor, workday, lines, out, payload.number)),
       );
@@ -267,6 +275,8 @@ export class SaleService implements OnModuleInit {
           id: uuidv7(),
           companyId: actor.companyId,
           kind: 'STOCK',
+          // Déclaré par le vendeur lui-même : le superviseur décide (docs/stock-discrepancies.md)
+          status: 'UNDER_REVIEW',
           date: workday.date,
           qty: -shortQty,
           unitValue: BigInt(unitValue),
