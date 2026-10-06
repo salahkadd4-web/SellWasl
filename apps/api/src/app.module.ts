@@ -17,6 +17,7 @@ import { FilesModule } from './files/files.module';
 import { CustomersModule } from './customers/customers.module';
 import { TerritoriesModule } from './territories/territories.module';
 import { PlanningModule } from './planning/planning.module';
+import { OfflineKindsModule } from './sync/kinds/offline-kinds.module';
 import { SyncModule } from './sync/sync.module';
 import { FieldModule } from './field/field.module';
 import { AccountingModule } from './accounting/accounting.module';
@@ -78,6 +79,7 @@ import { PrismaModule } from './prisma/prisma.module';
     StockModule,
     PreparationModule,
     DeliveryModule,
+    OfflineKindsModule,
     AccountingModule,
     ReturnsModule,
     ReportsModule,

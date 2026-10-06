@@ -21,6 +21,6 @@ import { SaleService } from './sale.service';
     SaleService,
     ReceiptsService,
   ],
-  exports: [ReceiptsService],
+  exports: [ReceiptsService, DriverRouteService, LoadReceiveService],
 })
 export class DeliveryModule {}

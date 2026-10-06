@@ -8,5 +8,6 @@ import { TerritoriesService } from './territories.service';
   imports: [CustomersModule],
   controllers: [TerritoriesController],
   providers: [TerritoriesService],
+  exports: [TerritoriesService],
 })
 export class TerritoriesModule {}

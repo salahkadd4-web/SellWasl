@@ -1,12 +1,17 @@
 import { Module } from '@nestjs/common';
 import { SyncController } from './sync.controller';
+import { SyncKinds } from './sync-kinds';
+import { SyncPullService } from './sync-pull.service';
 import { SyncHandlers } from './sync.handlers';
 import { SyncService } from './sync.service';
 
-/** Réception des opérations du téléphone ; les modules métier inscrivent leurs traitements. */
+/**
+ * Synchronisation du téléphone : réception des opérations (les modules métier inscrivent leurs
+ * traitements) et envoi des données hors connexion (sortes inscrites par OfflineKindsModule).
+ */
 @Module({
   controllers: [SyncController],
-  providers: [SyncService, SyncHandlers],
-  exports: [SyncHandlers],
+  providers: [SyncService, SyncHandlers, SyncKinds, SyncPullService],
+  exports: [SyncHandlers, SyncKinds],
 })
 export class SyncModule {}

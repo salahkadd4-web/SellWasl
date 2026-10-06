@@ -14,3 +14,4 @@ export * from './delivery';
 export * from './cashvan';
 export * from './reports';
 export * from './payroll';
+export * from './offline';
