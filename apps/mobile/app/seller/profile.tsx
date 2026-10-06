@@ -1,8 +1,9 @@
 import { colors } from '@sellwasl/config';
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { syncCatalogPhotos, usePhotoSyncState } from '@/catalog/photos';
+import { confirmLogout } from '@/offline/logout';
 import { Card, PrimaryButton, Screen, Title } from '@/ui';
 
 /** Profil du vendeur : identité, téléphone, photos du catalogue, imprimante, déconnexion. */
@@ -47,12 +48,7 @@ export default function ProfileScreen() {
       <PrimaryButton
         title="Déconnexion"
         variant="secondary"
-        onPress={() =>
-          Alert.alert('Se déconnecter ?', 'Il faudra saisir de nouveau votre mot de passe.', [
-            { text: 'Annuler', style: 'cancel' },
-            { text: 'Déconnexion', style: 'destructive', onPress: () => void logout() },
-          ])
-        }
+        onPress={() => void confirmLogout(logout)}
       />
     </Screen>
   );

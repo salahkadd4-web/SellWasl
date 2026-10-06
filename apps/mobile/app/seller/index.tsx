@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
+import { SyncBar } from '@/offline/SyncBar';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { newId } from '@/sync/operations';
 import { phoneDate, useToday } from '@/today/TodayContext';
@@ -53,6 +54,7 @@ export default function SellerDashboard() {
       >
         Bonjour {me?.user.firstName ?? profile?.firstName}
       </Title>
+      <SyncBar href="/seller/sync" />
       {error ? <Text style={styles.offline}>{error}</Text> : null}
 
       {today?.openWorkday ? (

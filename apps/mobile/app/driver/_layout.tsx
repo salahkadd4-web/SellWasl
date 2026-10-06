@@ -1,25 +1,29 @@
 import { colors } from '@sellwasl/config';
 import { Stack } from 'expo-router';
+import { SyncProvider } from '@/offline/SyncProvider';
 
-/** Écrans du livreur (phase 19) : journée, chargement, tournée, livraisons. */
+/** Écrans du livreur (phase 19) : journée, chargement, tournée, livraisons, hors connexion (phase 23). */
 export default function DriverLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.primary },
-        headerTintColor: colors.background,
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    >
-      <Stack.Screen name="index" options={{ title: 'SellWasl' }} />
-      <Stack.Screen name="receive" options={{ title: 'Pointer le camion' }} />
-      <Stack.Screen name="route" options={{ title: 'Ma tournée' }} />
-      <Stack.Screen name="truck" options={{ title: 'Stock du camion' }} />
-      <Stack.Screen name="receipts" options={{ title: 'Bons du jour' }} />
-      <Stack.Screen name="delivery/[orderId]" options={{ title: 'Livraison' }} />
-      <Stack.Screen name="objectives" options={{ title: 'Objectifs' }} />
-      <Stack.Screen name="pay" options={{ title: 'Ma paie' }} />
-      <Stack.Screen name="profile" options={{ title: 'Profil' }} />
-    </Stack>
+    <SyncProvider>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.primary },
+          headerTintColor: colors.background,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        <Stack.Screen name="index" options={{ title: 'SellWasl' }} />
+        <Stack.Screen name="receive" options={{ title: 'Pointer le camion' }} />
+        <Stack.Screen name="route" options={{ title: 'Ma tournée' }} />
+        <Stack.Screen name="truck" options={{ title: 'Stock du camion' }} />
+        <Stack.Screen name="receipts" options={{ title: 'Bons du jour' }} />
+        <Stack.Screen name="delivery/[orderId]" options={{ title: 'Livraison' }} />
+        <Stack.Screen name="objectives" options={{ title: 'Objectifs' }} />
+        <Stack.Screen name="pay" options={{ title: 'Ma paie' }} />
+        <Stack.Screen name="profile" options={{ title: 'Profil' }} />
+        <Stack.Screen name="sync" options={{ title: 'Synchronisation' }} />
+      </Stack>
+    </SyncProvider>
   );
 }

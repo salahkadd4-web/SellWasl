@@ -18,6 +18,8 @@ export const RETRY_DELAYS_MS = [5_000, 15_000, 60_000, 300_000] as const;
 /** Opérations par envoi (docs/api.md §6.1). */
 export const PUSH_BATCH = 100;
 
+export type ChangeKind = 'outbox' | 'data';
+
 export interface EngineDeps {
   store: OfflineStore;
   transport: Transport;
@@ -43,21 +45,21 @@ export class SyncEngine {
   private again = false;
   private force = false;
   private lock: Promise<unknown> = Promise.resolve();
-  private readonly listeners = new Set<() => void>();
+  private readonly listeners = new Set<(what: ChangeKind) => void>();
   private readonly now: () => Date;
 
   constructor(private readonly deps: EngineDeps) {
     this.now = deps.now ?? (() => new Date());
   }
 
-  /** Prévenu quand la file ou les données reçues changent. */
-  onChange(listener: () => void): () => void {
+  /** Prévenu quand la file (« outbox ») ou les données reçues (« data ») changent. */
+  onChange(listener: (what: ChangeKind) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  private emit(): void {
-    for (const listener of this.listeners) listener();
+  private emit(what: ChangeKind = 'outbox'): void {
+    for (const listener of this.listeners) listener(what);
   }
 
   /** Exclusion des écritures de numéros (mise en file, renumérotation). */
@@ -304,7 +306,7 @@ export class SyncEngine {
       await store.setMeta('cursor', last.cursor);
       await store.setMeta('scope', last.scope);
       if (cursor === '0') await store.setMeta('lastFullSyncDate', today);
-      this.emit();
+      this.emit('data');
       return rows.length;
     }
     throw new Error('Périmètre de synchronisation instable. Réessayez.');

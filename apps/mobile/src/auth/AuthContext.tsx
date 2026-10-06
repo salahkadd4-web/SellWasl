@@ -5,6 +5,7 @@ import { AppState, Platform } from 'react-native';
 import { ApiClientError, request, setAccessToken, setRefreshHandler } from '@/api/client';
 import { clearCatalogPhotos, useCatalogPhotoSync } from '@/catalog/photos';
 import { useHeartbeat } from '@/device/heartbeat';
+import { wipeOffline } from '@/offline/engine';
 import { type DeviceProfile, secureStorage } from './storage';
 
 /**
@@ -59,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deviceLost = useCallback(async (message: string) => {
     await secureStorage.clearAll();
+    // Appareil oublié ou révoqué : les données hors connexion de cet utilisateur sont effacées
+    await wipeOffline();
     clearCatalogPhotos();
     setAccessToken(null);
     setProfile(null);

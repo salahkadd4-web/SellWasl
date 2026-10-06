@@ -1,6 +1,7 @@
 import { colors } from '@sellwasl/config';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
+import { confirmLogout } from '@/offline/logout';
 import { Card, PrimaryButton, Screen, Title } from '@/ui';
 
 /** Profil du livreur : identité, téléphone, déconnexion. */
@@ -25,12 +26,7 @@ export default function ProfileScreen() {
       <PrimaryButton
         title="Déconnexion"
         variant="secondary"
-        onPress={() =>
-          Alert.alert('Se déconnecter ?', 'Il faudra saisir de nouveau votre mot de passe.', [
-            { text: 'Annuler', style: 'cancel' },
-            { text: 'Déconnexion', style: 'destructive', onPress: () => void logout() },
-          ])
-        }
+        onPress={() => void confirmLogout(logout)}
       />
     </Screen>
   );

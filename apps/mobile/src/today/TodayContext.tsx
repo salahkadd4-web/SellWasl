@@ -5,11 +5,9 @@ import { ApiClientError, request } from '@/api/client';
 import { setPositionSharing } from '@/device/heartbeat';
 import { sendOperation } from '@/sync/operations';
 
-/** Date du téléphone (BR-JOU-11), au format AAAA-MM-JJ. */
-export function phoneDate(now: Date = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+import { phoneDate } from '@/offline/ids';
+
+export { phoneDate };
 
 interface TodayState {
   today: TodayResponse | null;

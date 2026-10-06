@@ -11,8 +11,9 @@ import {
   Text,
 } from 'react-native';
 import { request } from '@/api/client';
-import { setPositionSharing } from '@/device/heartbeat';
 import { useAuth } from '@/auth/AuthContext';
+import { setPositionSharing } from '@/device/heartbeat';
+import { SyncBar } from '@/offline/SyncBar';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
 import { newId, sendOperation } from '@/sync/operations';
 import { phoneDate } from '@/today/TodayContext';
@@ -79,6 +80,7 @@ export default function DriverDashboard() {
       >
         Bonjour {me?.user.firstName ?? profile?.firstName}
       </Title>
+      <SyncBar href="/driver/sync" />
       {error ? <Message>{error}</Message> : null}
 
       <Card title="Journée">
