@@ -357,6 +357,7 @@ function toDto(row: Prisma.UnloadGetPayload<{ include: typeof DETAIL }>): Unload
       theoretical: l.theoreticalQty,
       counted: l.countedQty,
       gap: l.gapQty,
+      conditions: [],
     }))
     .sort((a, b) => a.productName.localeCompare(b.productName));
   return {

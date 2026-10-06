@@ -12,3 +12,4 @@ export * from './stock';
 export * from './preparation';
 export * from './delivery';
 export * from './cashvan';
+export * from './reports';

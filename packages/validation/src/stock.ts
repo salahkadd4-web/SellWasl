@@ -11,8 +11,13 @@ export const STOCK_MOVEMENT_TYPES = [
   'RESERVATION',
   'RELEASE',
   'ADJUSTMENT',
+  'WRITE_OFF',
 ] as const;
 export type StockMovementTypeCode = (typeof STOCK_MOVEMENT_TYPES)[number];
+
+/** État constaté au déchargement (phase 21). */
+export const RETURN_CONDITIONS = ['RESTOCK', 'DEFECTIVE', 'EXPIRED', 'BROKEN'] as const;
+export type ReturnConditionCode = (typeof RETURN_CONDITIONS)[number];
 
 /** Une quantité saisie dans une unité du produit, convertie en unité de base par le serveur. */
 export const stockLineSchema = z.object({
@@ -36,7 +41,18 @@ export const createReceiptSchema = z.object({
   warehouseId: z.uuid(),
   reference: z.string().trim().max(60).optional(),
   supplier: z.string().trim().max(120).optional(),
-  lines: positiveLines,
+  supplierId: z.uuid().optional(),
+  lines: z
+    .array(
+      stockLineSchema.extend({
+        qty: qty.min(1),
+        lotNumber: z.string().trim().min(1).max(40).optional(),
+        expiresAt: date.optional(),
+      }),
+    )
+    .min(1)
+    .max(200)
+    .refine(uniqueVariants, ONCE),
 });
 
 export const createInventorySchema = z.object({ warehouseId: z.uuid() });
@@ -58,6 +74,19 @@ export const createUnloadSchema = z.object({
     .array(z.object({ variantId: z.uuid(), countedQty: qty, reasonId: z.uuid().optional() }))
     .max(500)
     .refine(uniqueVariants, ONCE),
+  /** Répartition du compté par état constaté (phase 21) ; absente : tout est remis en stock. */
+  conditions: z
+    .array(
+      z.object({
+        variantId: z.uuid(),
+        condition: z.enum(RETURN_CONDITIONS),
+        qty: qty.min(1),
+        lotId: z.uuid().optional(),
+        photoKey: z.string().min(1).max(300).optional(),
+      }),
+    )
+    .max(2000)
+    .optional(),
 });
 
 export const putThresholdsSchema = z.object({
@@ -128,7 +157,14 @@ export interface ReceiptDto {
   supplier: string | null;
   receivedAt: string;
   user: string | null;
-  lines: (ArticleRef & { unitName: string; enteredQty: number; qty: number })[];
+  supplierRef: { id: string; name: string } | null;
+  lines: (ArticleRef & {
+    unitName: string;
+    enteredQty: number;
+    qty: number;
+    lotNumber: string | null;
+    expiresAt: string | null;
+  })[];
 }
 
 export interface InventoryDto {
@@ -189,5 +225,14 @@ export interface UnloadDto {
   keepsStockInTruck: boolean;
   validatedAt: string | null;
   hasGap: boolean;
-  lines: (UnloadPreviewLine & { counted: number; gap: number })[];
+  lines: (UnloadPreviewLine & {
+    counted: number;
+    gap: number;
+    conditions: {
+      condition: ReturnConditionCode;
+      qty: number;
+      lot: string | null;
+      photoUrl: string | null;
+    }[];
+  })[];
 }

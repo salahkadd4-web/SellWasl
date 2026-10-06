@@ -51,6 +51,7 @@ enum ModuleCode {
   CASH_VAN
   WAREHOUSE
   ANALYTICS
+  RETURNS_ANALYSIS
 }
 
 enum ModuleStatus {
@@ -90,6 +91,7 @@ enum ReasonKind {
   ADJUSTMENT
   FORCED_CLOSE
   REOPEN
+  REFUSAL
 }
 
 enum ReasonSystemCode {
@@ -205,6 +207,31 @@ enum StockMovementType {
   RESERVATION
   RELEASE
   ADJUSTMENT
+  WRITE_OFF
+}
+
+/// État constaté au déchargement (phase 21).
+enum ReturnCondition {
+  RESTOCK
+  DEFECTIVE
+  EXPIRED
+  BROKEN
+}
+
+/// Fait de l'analyse des retours (phase 21).
+enum ReturnFactKind {
+  REFUSAL
+  RESALE
+  RETURN
+  GAP
+}
+
+/// Contestation d'un refus par le pré-vendeur (phase 21).
+enum ContestStatus {
+  NONE
+  CONTESTED
+  UPHELD
+  REJECTED
 }
 
 enum StockSourceType {
@@ -355,6 +382,10 @@ model Company {
   auditLogs               AuditLog[]
   storedFiles             StoredFile[]
   importJobs              ImportJob[]
+  suppliers               Supplier[]
+  lots                    Lot[]
+  unloadLineConditions    UnloadLineCondition[]
+  returnFacts             ReturnFact[]
 
   @@map("company")
 }
@@ -711,7 +742,8 @@ model Reason {
   workdays          Workday[]
   visits            Visit[]
   stockMovements    StockMovement[]
-  deliveries        Delivery[]
+  deliveries        Delivery[]        @relation("DeliveryReason")
+  refusedDeliveries Delivery[]        @relation("DeliveryRefusalReason")
 
   @@unique([companyId, kind, label])
   @@index([companyId, changeSeq])
@@ -837,6 +869,7 @@ model Product {
   createdAt               DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt               DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   company                 Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  supplierId              String?          @map("supplier_id") @db.Uuid
   range                   ProductRange     @relation(fields: [rangeId], references: [id])
   category                ProductCategory? @relation(fields: [categoryId], references: [id])
   productVariants         ProductVariant[]
@@ -846,6 +879,7 @@ model Product {
   bonusRulesAsBuyProduct  BonusRule[]      @relation("BonusBuyProduct")
   bonusRulesAsFreeProduct BonusRule[]      @relation("BonusFreeProduct")
   orderLines              OrderLine[]
+  supplier                Supplier?        @relation(fields: [supplierId], references: [id])
 
   @@unique([companyId, reference])
   @@index([companyId, changeSeq])
@@ -887,6 +921,7 @@ model ProductVariant {
   inventoryCountLines     InventoryCountLine[]
   loadLines               LoadLine[]
   unloadLines             UnloadLine[]
+  lots                    Lot[]
 
   @@unique([companyId, reference])
   @@unique([productId], map: "product_variant_one_default", where: raw("is_default"))
@@ -1424,6 +1459,8 @@ model OrderLine {
   reservedQty       Int            @default(0) @map("reserved_qty")
   preparedQty       Int?           @map("prepared_qty")
   deliveredQty      Int?           @map("delivered_qty")
+  /// Quantité ajoutée par le livreur en tournée, en unité de base (phase 21).
+  addedQty          Int            @default(0) @map("added_qty")
   unitPrice         BigInt         @map("unit_price")
   lineAmount        BigInt         @map("line_amount")
   isStockout        Boolean        @default(false) @map("is_stockout")
@@ -1517,6 +1554,7 @@ model StockReceipt {
   id                String             @id @db.Uuid
   reference         String?
   supplier          String?
+  supplierId        String?            @map("supplier_id") @db.Uuid
   receivedAt        DateTime           @map("received_at") @db.Timestamptz(3)
   companyId         String             @map("company_id") @db.Uuid
   warehouseId       String             @map("warehouse_id") @db.Uuid
@@ -1530,6 +1568,7 @@ model StockReceipt {
   updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
   company           Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   warehouse         Warehouse          @relation(fields: [warehouseId], references: [id])
+  supplierRef       Supplier?          @relation(fields: [supplierId], references: [id])
   stockReceiptLines StockReceiptLine[]
 
   @@index([companyId])
@@ -1542,6 +1581,9 @@ model StockReceiptLine {
   id                String         @id @db.Uuid
   enteredQty        Int            @map("entered_qty")
   qty               Int
+  lotNumber         String?        @map("lot_number")
+  expiresAt         DateTime?      @map("expires_at") @db.Date
+  lotId             String?        @map("lot_id") @db.Uuid
   companyId         String         @map("company_id") @db.Uuid
   receiptId         String         @map("receipt_id") @db.Uuid
   productVariantId  String         @map("product_variant_id") @db.Uuid
@@ -1558,6 +1600,7 @@ model StockReceiptLine {
   receipt           StockReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
   unit              ProductUnit    @relation(fields: [unitId], references: [id])
+  lot               Lot?           @relation(fields: [lotId], references: [id])
 
   @@index([companyId])
   @@index([companyId, changeSeq])
@@ -1708,27 +1751,28 @@ model Unload {
 
 /// Ligne de déchargement. [S] [T]
 model UnloadLine {
-  id                String         @id @db.Uuid
-  loadedQty         Int            @map("loaded_qty")
-  deliveredQty      Int            @map("delivered_qty")
-  freeQty           Int            @map("free_qty")
-  theoreticalQty    Int            @map("theoretical_qty")
-  countedQty        Int            @map("counted_qty")
-  gapQty            Int            @map("gap_qty")
-  companyId         String         @map("company_id") @db.Uuid
-  unloadId          String         @map("unload_id") @db.Uuid
-  productVariantId  String         @map("product_variant_id") @db.Uuid
-  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
-  version           Int            @default(1)
-  changeSeq         BigInt         @default(0) @map("change_seq")
-  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
-  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
-  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
-  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  unload            Unload         @relation(fields: [unloadId], references: [id], onDelete: Cascade)
-  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id])
+  id                String                @id @db.Uuid
+  loadedQty         Int                   @map("loaded_qty")
+  deliveredQty      Int                   @map("delivered_qty")
+  freeQty           Int                   @map("free_qty")
+  theoreticalQty    Int                   @map("theoretical_qty")
+  countedQty        Int                   @map("counted_qty")
+  gapQty            Int                   @map("gap_qty")
+  companyId         String                @map("company_id") @db.Uuid
+  unloadId          String                @map("unload_id") @db.Uuid
+  productVariantId  String                @map("product_variant_id") @db.Uuid
+  deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  version           Int                   @default(1)
+  changeSeq         BigInt                @default(0) @map("change_seq")
+  createdByUserId   String?               @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?               @map("created_by_device_id") @db.Uuid
+  occurredAt        DateTime?             @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  unload            Unload                @relation(fields: [unloadId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant        @relation(fields: [productVariantId], references: [id])
+  conditions        UnloadLineCondition[]
 
   @@index([companyId])
   @@index([companyId, changeSeq])
@@ -1767,34 +1811,41 @@ model DeliveryRoute {
 
 /// Tentative de livraison, ou bon de vente cash van. [S] [T]
 model Delivery {
-  id                String         @id @db.Uuid
-  number            String
-  attempt           Int            @default(1)
-  result            DeliveryResult
-  latitude          Float?
-  longitude         Float?
-  deliveredAmount   BigInt         @default(0) @map("delivered_amount")
-  companyId         String         @map("company_id") @db.Uuid
-  orderId           String         @map("order_id") @db.Uuid
-  routeId           String?        @map("route_id") @db.Uuid
-  workdayId         String         @map("workday_id") @db.Uuid
-  userId            String         @map("user_id") @db.Uuid
-  reasonId          String?        @map("reason_id") @db.Uuid
-  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
-  version           Int            @default(1)
-  changeSeq         BigInt         @default(0) @map("change_seq")
-  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
-  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
-  occurredAt        DateTime?      @map("occurred_at") @db.Timestamptz(3)
-  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  order             Order          @relation(fields: [orderId], references: [id])
-  route             DeliveryRoute? @relation(fields: [routeId], references: [id])
-  workday           Workday        @relation(fields: [workdayId], references: [id])
-  user              User           @relation(fields: [userId], references: [id])
-  reason            Reason?        @relation(fields: [reasonId], references: [id])
-  payments          Payment[]
+  id                     String         @id @db.Uuid
+  number                 String
+  attempt                Int            @default(1)
+  result                 DeliveryResult
+  latitude               Float?
+  longitude              Float?
+  deliveredAmount        BigInt         @default(0) @map("delivered_amount")
+  companyId              String         @map("company_id") @db.Uuid
+  orderId                String         @map("order_id") @db.Uuid
+  routeId                String?        @map("route_id") @db.Uuid
+  workdayId              String         @map("workday_id") @db.Uuid
+  userId                 String         @map("user_id") @db.Uuid
+  reasonId               String?        @map("reason_id") @db.Uuid
+  refusalReasonId        String?        @map("refusal_reason_id") @db.Uuid
+  contestStatus          ContestStatus  @default(NONE) @map("contest_status")
+  contestComment         String?        @map("contest_comment")
+  contestedAt            DateTime?      @map("contested_at") @db.Timestamptz(3)
+  contestDecidedByUserId String?        @map("contest_decided_by_user_id") @db.Uuid
+  contestDecidedAt       DateTime?      @map("contest_decided_at") @db.Timestamptz(3)
+  deletedAt              DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version                Int            @default(1)
+  changeSeq              BigInt         @default(0) @map("change_seq")
+  createdByUserId        String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId      String?        @map("created_by_device_id") @db.Uuid
+  occurredAt             DateTime?      @map("occurred_at") @db.Timestamptz(3)
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company                Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  order                  Order          @relation(fields: [orderId], references: [id])
+  route                  DeliveryRoute? @relation(fields: [routeId], references: [id])
+  workday                Workday        @relation(fields: [workdayId], references: [id])
+  user                   User           @relation(fields: [userId], references: [id])
+  reason                 Reason?        @relation("DeliveryReason", fields: [reasonId], references: [id])
+  refusalReason          Reason?        @relation("DeliveryRefusalReason", fields: [refusalReasonId], references: [id])
+  payments               Payment[]
 
   @@unique([companyId, number])
   @@unique([companyId, orderId, attempt])
@@ -2007,4 +2058,114 @@ model ImportJob {
 
   @@index([companyId])
   @@map("import_job")
+}
+
+/// Fournisseur (phase 21). [S]
+model Supplier {
+  id                String         @id @db.Uuid
+  name              String
+  phone             String?
+  isActive          Boolean        @default(true) @map("is_active")
+  companyId         String         @map("company_id") @db.Uuid
+  deletedAt         DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  version           Int            @default(1)
+  changeSeq         BigInt         @default(0) @map("change_seq")
+  createdByUserId   String?        @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?        @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  products          Product[]
+  stockReceipts     StockReceipt[]
+  lots              Lot[]
+
+  @@unique([companyId, name])
+  @@index([companyId, changeSeq])
+  @@map("supplier")
+}
+
+/// Lot d'un article, saisi à l'entrée en stock (phase 21). [S]
+model Lot {
+  id                String                @id @db.Uuid
+  number            String
+  expiresAt         DateTime?             @map("expires_at") @db.Date
+  receivedQty       Int                   @default(0) @map("received_qty")
+  companyId         String                @map("company_id") @db.Uuid
+  productVariantId  String                @map("product_variant_id") @db.Uuid
+  supplierId        String?               @map("supplier_id") @db.Uuid
+  deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  version           Int                   @default(1)
+  changeSeq         BigInt                @default(0) @map("change_seq")
+  createdByUserId   String?               @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?               @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  productVariant    ProductVariant        @relation(fields: [productVariantId], references: [id])
+  supplier          Supplier?             @relation(fields: [supplierId], references: [id])
+  receiptLines      StockReceiptLine[]
+  conditions        UnloadLineCondition[]
+
+  @@unique([companyId, productVariantId, number])
+  @@index([companyId, changeSeq])
+  @@map("lot")
+}
+
+/// Répartition d'une ligne de déchargement par état constaté (phase 21). [S]
+model UnloadLineCondition {
+  id                String          @id @db.Uuid
+  condition         ReturnCondition
+  qty               Int
+  /// Clé de la photo (stockage des images), obligatoire pour un produit défectueux.
+  photoKey          String?         @map("photo_key")
+  companyId         String          @map("company_id") @db.Uuid
+  unloadLineId      String          @map("unload_line_id") @db.Uuid
+  lotId             String?         @map("lot_id") @db.Uuid
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  version           Int             @default(1)
+  changeSeq         BigInt          @default(0) @map("change_seq")
+  createdByUserId   String?         @map("created_by_user_id") @db.Uuid
+  createdByDeviceId String?         @map("created_by_device_id") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  unloadLine        UnloadLine      @relation(fields: [unloadLineId], references: [id], onDelete: Cascade)
+  lot               Lot?            @relation(fields: [lotId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, changeSeq])
+  @@map("unload_line_condition")
+}
+
+/// Fait figé de l'analyse des retours, écrit par la livraison et le déchargement (phase 21).
+/// Les axes sont des identifiants sans clé étrangère : ils gardent la valeur du moment.
+model ReturnFact {
+  id               String           @id @db.Uuid
+  kind             ReturnFactKind
+  date             DateTime         @db.Date
+  /// Unité de base ; écart (GAP) signé.
+  qty              Int
+  value            BigInt           @default(0)
+  condition        ReturnCondition?
+  companyId        String           @map("company_id") @db.Uuid
+  productVariantId String           @map("product_variant_id") @db.Uuid
+  productId        String           @map("product_id") @db.Uuid
+  lotId            String?          @map("lot_id") @db.Uuid
+  supplierId       String?          @map("supplier_id") @db.Uuid
+  sellerUserId     String?          @map("seller_user_id") @db.Uuid
+  driverUserId     String?          @map("driver_user_id") @db.Uuid
+  customerId       String?          @map("customer_id") @db.Uuid
+  territoryId      String?          @map("territory_id") @db.Uuid
+  partId           String?          @map("part_id") @db.Uuid
+  routeId          String?          @map("route_id") @db.Uuid
+  orderId          String?          @map("order_id") @db.Uuid
+  deliveryId       String?          @map("delivery_id") @db.Uuid
+  unloadId         String?          @map("unload_id") @db.Uuid
+  reasonId         String?          @map("reason_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, kind, date])
+  @@index([companyId, deliveryId])
+  @@map("return_fact")
 }

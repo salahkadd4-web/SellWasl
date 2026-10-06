@@ -6,6 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
+import { dateOnly } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import {
@@ -125,6 +126,7 @@ export class ReceiptsService {
         warehouse: warehouseRef(r.warehouse),
         reference: r.reference,
         supplier: r.supplier,
+        supplierRef: null,
         receivedAt: r.receivedAt.toISOString(),
         user: user ? fullName(user) : null,
         lines: r.stockReceiptLines.map((l) => ({
@@ -133,6 +135,8 @@ export class ReceiptsService {
           unitName: l.unit.name,
           enteredQty: l.enteredQty,
           qty: l.qty,
+          lotNumber: l.lotNumber,
+          expiresAt: l.expiresAt ? dateOnly(l.expiresAt) : null,
         })),
       };
     });

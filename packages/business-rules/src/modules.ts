@@ -6,6 +6,8 @@ export const MODULE_CODES = [
   'CASH_VAN',
   'WAREHOUSE',
   'ANALYTICS',
+  /** Analyse des retours (phase 21) : activable par entreprise, hors des modes. */
+  'RETURNS_ANALYSIS',
 ] as const;
 export type ModuleCode = (typeof MODULE_CODES)[number];
 

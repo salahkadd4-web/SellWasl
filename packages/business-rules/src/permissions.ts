@@ -101,6 +101,9 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
 
   company('reports.read', 'Tableau du jour, carte du superviseur, fiches', 'ANALYTICS'),
   company('reports.export', 'Exports CSV', 'ANALYTICS'),
+  company('returns.read', 'Analyse des retours', 'RETURNS_ANALYSIS'),
+  company('returns.contest', 'Contester un refus déclaré par le livreur', 'RETURNS_ANALYSIS'),
+  company('returns.decide', 'Trancher une contestation de refus', 'RETURNS_ANALYSIS'),
 ];
 
 const ADMIN_AND_SUPERVISOR_SHARED = [
@@ -145,6 +148,8 @@ const ADMIN_AND_SUPERVISOR_SHARED = [
   'settlements.read',
   'reports.read',
   'reports.export',
+  'returns.read',
+  'returns.decide',
 ] as const;
 
 /** Matrice rôles × permissions par défaut (docs/rbac.md §5), avant les paramètres P-08 et P-10. */
@@ -197,6 +202,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'orders.own',
     'payments.read',
     'payments.collect_debt',
+    'returns.contest',
   ],
   VENDEUR_CASH_VAN: [
     'settings.read',

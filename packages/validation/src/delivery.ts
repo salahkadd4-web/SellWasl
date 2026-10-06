@@ -37,6 +37,8 @@ export const deliveryConfirmPayload = z.object({
   deliveryId: z.uuid(),
   number: z.string().min(3).max(30),
   ...deliveryContent,
+  /** Obligatoire dès qu'une quantité est refusée (BR-RET-01). */
+  refusalReasonId: z.uuid().nullish(),
   cashAmount: amount,
   latitude: latitude.nullish(),
   longitude: longitude.nullish(),
@@ -47,6 +49,8 @@ export const deliveryFailPayload = z.object({
   number: z.string().min(3).max(30),
   orderId: z.uuid(),
   reasonId: z.uuid(),
+  /** Obligatoire pour un échec « refus » (BR-RET-01). */
+  refusalReasonId: z.uuid().nullish(),
   latitude: latitude.nullish(),
   longitude: longitude.nullish(),
 });

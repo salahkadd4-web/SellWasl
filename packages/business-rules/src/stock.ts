@@ -4,7 +4,8 @@ export interface StockBalance {
   reserved: number;
 }
 
-export type StockMoveType = 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT' | 'RESERVATION' | 'RELEASE';
+export type StockMoveType =
+  'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT' | 'RESERVATION' | 'RELEASE' | 'WRITE_OFF';
 
 export interface StockMoveShape {
   type: StockMoveType;
@@ -36,6 +37,7 @@ export function moveDeltas(move: StockMoveShape): { warehouseId: string; delta: 
     case 'IN':
       return [at(move.toWarehouseId, move.qty, 0)];
     case 'OUT':
+    case 'WRITE_OFF':
       return [at(move.fromWarehouseId, -move.qty, 0)];
     case 'TRANSFER':
       return [at(move.fromWarehouseId, -move.qty, 0), at(move.toWarehouseId, move.qty, 0)];

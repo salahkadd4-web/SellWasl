@@ -34,6 +34,14 @@ export const DEFAULT_REASONS: { kind: ReasonKind; label: string; systemCode?: Re
     { kind: 'FORCED_CLOSE', label: 'Téléphone en panne' },
     { kind: 'REOPEN', label: 'Commande oubliée' },
     { kind: 'REOPEN', label: 'Erreur de saisie' },
+    // Motif d'un refus à la livraison (BR-RET-01, phase 21)
+    { kind: 'REFUSAL', label: 'Produit non commandé' },
+    { kind: 'REFUSAL', label: 'Prix' },
+    { kind: 'REFUSAL', label: "Pas d'argent" },
+    { kind: 'REFUSAL', label: 'Stock suffisant' },
+    { kind: 'REFUSAL', label: 'Produit abîmé' },
+    { kind: 'REFUSAL', label: 'Date proche' },
+    { kind: 'REFUSAL', label: 'Autre', systemCode: 'OTHER' },
   ];
 
 /** Type de client par défaut (BR-TEN-07). */

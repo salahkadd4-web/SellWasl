@@ -25,6 +25,8 @@ export const companySettingsSchema = z.object({
   outOfZoneDistanceM: z.number().int().min(10).max(5000).default(100),
   ticketWidthMm: z.union([z.literal(58), z.literal(80)]).default(58),
   positionIntervalMin: z.number().int().min(1).max(60).default(5),
+  /** Volume minimum sous lequel aucun taux de retour n'est conclu (phase 21). */
+  returnsMinVolume: z.number().int().min(1).max(10_000).default(20),
   /** Plafond des primes d'objectifs, décidé par la direction (BR-OBJ-01) ; null : pas de plafond. */
   objectiveCapPercent: z.number().int().min(100).max(500).nullable().default(120),
   /** Versement des primes : 0 = fin du mois de l'objectif, 1 = fin du mois suivant. */
