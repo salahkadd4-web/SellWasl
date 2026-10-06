@@ -82,6 +82,8 @@ export default function WorkdaysPage() {
                   <span className="flex flex-wrap items-center gap-2">
                     <Badge tone={status.tone}>{status.label}</Badge>
                     {w.isForceClosed && <Badge tone="danger">Clôturée d'office</Badge>}
+                    {w.isStartedOffline && <Badge tone="warning">Démarrée hors connexion</Badge>}
+                    {w.isClosedOffline && <Badge tone="warning">Clôturée hors connexion</Badge>}
                     {w.reopenCount > 0 && <Badge tone="warning">Rouverte ×{w.reopenCount}</Badge>}
                     {w.status === 'CLOSED' && can('workdays.reopen') && (
                       <Button

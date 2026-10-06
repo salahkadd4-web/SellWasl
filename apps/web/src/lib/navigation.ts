@@ -170,6 +170,13 @@ export const COMPANY_NAV: NavItem[] = [
     icon: 'phone',
   },
   {
+    href: '/app/synchronisation',
+    label: 'Synchronisation',
+    permission: 'devices.read',
+    group: 'Administration',
+    icon: 'sync',
+  },
+  {
     href: '/app/parametres',
     label: 'Paramètres',
     permission: 'settings.read',

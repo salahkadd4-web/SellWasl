@@ -6,7 +6,7 @@ import type { CustomerDto } from './customers';
 import type { DriverRouteDto, TruckStockDto } from './delivery';
 import type { OrderDto, VisitPricingCatalog } from './orders';
 import type { PlanningDay } from './planning';
-import type { MyObjective, TodayVisit, WorkdayStatusValue } from './sync';
+import type { MyObjective, SyncChange, TodayVisit, WorkdayStatusValue } from './sync';
 import type { TerritoryDto } from './territories';
 
 /** Sortes de données téléchargées par le téléphone, dans l'ordre de la réception. */
@@ -157,3 +157,48 @@ export interface OfflineKindData {
   truckCheck: OfflineTruckCheck;
   depotStock: OfflineDepotStock;
 }
+
+/** Opération reçue d'un téléphone, vue dans le journal de synchronisation (BR-SYN-07). */
+export interface SyncOperationRowDto {
+  id: string;
+  opId: string;
+  type: string;
+  typeLabel: string;
+  status: 'APPLIED' | 'APPLIED_WITH_CHANGES' | 'REJECTED';
+  errorCode: string | null;
+  errorMessage: string | null;
+  changes: SyncChange[];
+  occurredAt: string;
+  receivedAt: string;
+  user: { id: string; code: string; name: string };
+  deviceId: string;
+}
+
+export const syncOperationsQuerySchema = z.object({
+  status: z.enum(['APPLIED', 'APPLIED_WITH_CHANGES', 'REJECTED']).optional(),
+  userId: z.uuid().optional(),
+  cursor: z.string().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type SyncOperationsQuery = z.infer<typeof syncOperationsQuerySchema>;
+
+/** Libellés des opérations du téléphone (journal, écran Synchronisation). */
+export const OPERATION_LABELS: Record<string, string> = {
+  'workday.start': 'Démarrage de la journée',
+  'workday.close': 'Clôture de la journée',
+  'visit.start': 'Début de visite',
+  'visit.close_no_order': 'Visite sans commande',
+  'customer.create': 'Nouveau client',
+  'payment.debt': 'Encaissement de dette',
+  'order.confirm': 'Commande',
+  'order.update': 'Modification de commande',
+  'order.cancel': 'Annulation de commande',
+  'load.receive': 'Réception du chargement',
+  'delivery.confirm': 'Livraison',
+  'delivery.fail': 'Échec de livraison',
+  'truck.check': 'Pointage du camion',
+  'sale.confirm': 'Vente',
+  'lost_demand.create': 'Demande perdue',
+  'receipt.reprint': 'Réimpression',
+  'refusal.contest': 'Contestation de refus',
+};

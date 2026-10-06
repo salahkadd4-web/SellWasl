@@ -4,7 +4,9 @@ import type {
   OfflineKind,
   PlanningDay,
   ProductDto,
+  Page,
   PulledRow,
+  SyncOperationRowDto,
   SyncPullResponse,
   TodayResponse,
   TruckStockDto,
@@ -530,6 +532,42 @@ describe('synchronisation hors connexion (phase 23)', () => {
           status: 'CLOSED',
         });
       });
+    });
+  });
+
+  describe('journal de synchronisation (BR-SYN-07)', () => {
+    it('le superviseur voit les opérations transformées et refusées', async () => {
+      const changed = await call<Page<SyncOperationRowDto>>(
+        t.url,
+        'GET',
+        '/sync/operations?status=APPLIED_WITH_CHANGES',
+        { token: supA },
+      );
+      expect(changed.status, JSON.stringify(changed.body)).toBe(200);
+      const order = changed.body.data.find((o) => o.type === 'order.confirm')!;
+      expect(order).toMatchObject({
+        status: 'APPLIED_WITH_CHANGES',
+        typeLabel: 'Commande',
+        user: { code: 'V08' },
+      });
+      expect(order.changes.map((c) => c.kind)).toContain('QUOTA_PENDING');
+      expect(changed.body.data.every((o) => o.status === 'APPLIED_WITH_CHANGES')).toBe(true);
+
+      const refused = await call<Page<SyncOperationRowDto>>(
+        t.url,
+        'GET',
+        '/sync/operations?status=REJECTED',
+        { token: supB },
+      );
+      const sale = refused.body.data.find((o) => o.type === 'sale.confirm')!;
+      expect(sale.errorMessage).toMatch(/quota/i);
+      // Isolation : l'entreprise A ne voit pas les ventes de B
+      expect(changed.body.data.some((o) => o.type === 'sale.confirm')).toBe(false);
+    });
+
+    it('refuse sans le droit de voir les appareils', async () => {
+      const reply = await call(t.url, 'GET', '/sync/operations', { token: seller.token });
+      expect(reply.status).toBe(403);
     });
   });
 });

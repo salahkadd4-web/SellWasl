@@ -1,5 +1,9 @@
 import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import {
+  type Page,
+  type SyncOperationRowDto,
+  type SyncOperationsQuery,
+  syncOperationsQuerySchema,
   type SyncPullQuery,
   syncPullQuerySchema,
   type SyncPullResponse,
@@ -7,8 +11,14 @@ import {
   type SyncPushResponse,
   syncPushSchema,
 } from '@sellwasl/validation';
-import { AnyAuthenticated, type AuthUser, CurrentUser } from '../common/auth-context';
+import {
+  AnyAuthenticated,
+  type AuthUser,
+  CurrentUser,
+  RequirePermission,
+} from '../common/auth-context';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { SyncLogService } from './sync-log.service';
 import { SyncPullService } from './sync-pull.service';
 import { SyncService } from './sync.service';
 
@@ -18,6 +28,7 @@ export class SyncController {
   constructor(
     private readonly sync: SyncService,
     private readonly pulls: SyncPullService,
+    private readonly log: SyncLogService,
   ) {}
 
   @AnyAuthenticated()
@@ -38,5 +49,14 @@ export class SyncController {
     @Query(new ZodValidationPipe(syncPullQuerySchema)) query: SyncPullQuery,
   ): Promise<SyncPullResponse> {
     return this.pulls.pull(actor, query);
+  }
+
+  /** Journal de synchronisation (BR-SYN-07) : diagnostic du superviseur. */
+  @RequirePermission('devices.read')
+  @Get('operations')
+  operations(
+    @Query(new ZodValidationPipe(syncOperationsQuerySchema)) query: SyncOperationsQuery,
+  ): Promise<Page<SyncOperationRowDto>> {
+    return this.log.list(query);
   }
 }

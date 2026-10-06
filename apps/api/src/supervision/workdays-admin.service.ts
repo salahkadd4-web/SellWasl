@@ -84,6 +84,8 @@ export class WorkdaysAdminService {
           startedAt: w?.startedAt?.toISOString() ?? null,
           closedAt: w?.closedAt?.toISOString() ?? null,
           isForceClosed: w?.isForceClosed ?? false,
+          isStartedOffline: w?.isStartedOffline ?? false,
+          isClosedOffline: w?.isClosedOffline ?? false,
           reopenCount: w?.reopenCount ?? 0,
           visits: {
             done: done.size,

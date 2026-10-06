@@ -223,6 +223,9 @@ export interface WorkdayDto {
   closedAt: string | null;
   isForceClosed: boolean;
   reopenCount: number;
+  /** Démarrée ou clôturée sans réseau (BR-JOU-04, BR-JOU-06, phase 23). */
+  isStartedOffline: boolean;
+  isClosedOffline: boolean;
   visits: { done: number; planned: number; outOfZone: number; byPhone: number };
   ordersCount: number;
   ordersAmount: number;
