@@ -24,7 +24,9 @@ export function setRefreshHandler(handler: (() => Promise<boolean>) | null): voi
 /** Appel à l'API ; les erreurs gardent le code de docs/api.md §2. */
 export async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body) headers.set('Content-Type', 'application/json');
+  // Un envoi de fichier (FormData) garde le type multipart que fixe fetch
+  if (init.body && !(init.body instanceof FormData))
+    headers.set('Content-Type', 'application/json');
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
   let response: Response;
   try {

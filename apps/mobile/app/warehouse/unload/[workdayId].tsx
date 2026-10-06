@@ -1,5 +1,5 @@
 import { colors } from '@sellwasl/config';
-import type { UnloadDto, UnloadPreviewLine } from '@sellwasl/validation';
+import type { LotDto, UnloadDto, UnloadPreviewLine } from '@sellwasl/validation';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -14,6 +14,7 @@ import {
 import { request } from '@/api/client';
 import { errorMessage } from '@/seller/format';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
+import { PhotoCapture } from '@/warehouse/PhotoCapture';
 
 interface Reason {
   id: string;
@@ -26,6 +27,21 @@ const label = (a: { productName: string; variantName: string | null }) =>
   a.variantName ? `${a.productName} ${a.variantName}` : a.productName;
 const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
 
+/** États hors stock d'un article compté (phase 21) ; le reste est remis en stock. */
+const LOSSES = [
+  ['DEFECTIVE', 'Défectueux'],
+  ['EXPIRED', 'Périmé'],
+  ['BROKEN', 'Cassé'],
+] as const;
+type Loss = (typeof LOSSES)[number][0];
+interface Split {
+  qty: Partial<Record<Loss, string>>;
+  lotId: string | null;
+  photoKey: string | null;
+}
+const lossOf = (s: Split | undefined) =>
+  s ? LOSSES.reduce((sum, [c]) => sum + (Number(s.qty[c]) || 0), 0) : 0;
+
 /**
  * Déchargement d'un camion (UC-43, BR-STK-07) : le compté part du théorique ; un écart, positif
  * ou négatif, demande un motif.
@@ -37,6 +53,21 @@ export default function UnloadScreen() {
   const [reasons, setReasons] = useState<Reason[]>([]);
   const [counted, setCounted] = useState<Record<string, string>>({});
   const [reasonOf, setReasonOf] = useState<Record<string, string>>({});
+  const [split, setSplit] = useState<Record<string, Split>>({});
+  const [open, setOpen] = useState<string | null>(null);
+  const [lots, setLots] = useState<Record<string, LotDto[]>>({});
+  const splitOf = (variantId: string): Split =>
+    split[variantId] ?? { qty: {}, lotId: null, photoKey: null };
+  const setSplitOf = (variantId: string, patch: Partial<Split>) =>
+    setSplit((x) => ({ ...x, [variantId]: { ...splitOf(variantId), ...patch } }));
+
+  function toggle(variantId: string) {
+    setOpen(open === variantId ? null : variantId);
+    if (!lots[variantId])
+      void request<LotDto[]>(`/lots?variantId=${variantId}`)
+        .then((list) => setLots((x) => ({ ...x, [variantId]: list })))
+        .catch(() => undefined);
+  }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +95,30 @@ export default function UnloadScreen() {
       return setError('Comptez chaque article : quantités entières.');
     if (lines.some((l) => gapOf(l) !== 0 && !reasonOf[l.variantId]))
       return setError('Choisissez le motif de chaque écart.');
+    // Répartition par état : le reste du compté est remis en stock
+    const conditions: Record<string, unknown>[] = [];
+    for (const l of lines) {
+      const s = split[l.variantId];
+      const loss = lossOf(s);
+      if (!s || loss === 0) continue;
+      const total = Number(counted[l.variantId]);
+      if (loss > total) return setError(`${label(l)} : la répartition dépasse le compté.`);
+      if (Number(s.qty.DEFECTIVE) > 0 && !s.photoKey)
+        return setError(`${label(l)} : photographiez le produit défectueux.`);
+      if (total > loss)
+        conditions.push({ variantId: l.variantId, condition: 'RESTOCK', qty: total - loss });
+      for (const [c] of LOSSES) {
+        const qty = Number(s.qty[c]) || 0;
+        if (qty > 0)
+          conditions.push({
+            variantId: l.variantId,
+            condition: c,
+            qty,
+            ...(s.lotId && { lotId: s.lotId }),
+            ...(c === 'DEFECTIVE' && { photoKey: s.photoKey }),
+          });
+      }
+    }
     setError(null);
     setBusy(true);
     try {
@@ -76,6 +131,7 @@ export default function UnloadScreen() {
             countedQty: Number(counted[l.variantId]),
             reasonId: gapOf(l) ? reasonOf[l.variantId] : undefined,
           })),
+          conditions,
         }),
       });
       Alert.alert(
@@ -142,6 +198,64 @@ export default function UnloadScreen() {
                 ))}
               </View>
             ) : null}
+            <Pressable onPress={() => toggle(l.variantId)}>
+              <Text style={styles.link}>
+                {lossOf(split[l.variantId]) > 0
+                  ? `${lossOf(split[l.variantId])} hors stock (défectueux, périmé, cassé)`
+                  : 'Produits défectueux, périmés ou cassés ?'}
+              </Text>
+            </Pressable>
+            {open === l.variantId ? (
+              <View style={styles.split}>
+                {LOSSES.map(([c, name]) => (
+                  <View key={c} style={styles.count}>
+                    <Text style={styles.lossName}>{name}</Text>
+                    <TextInput
+                      accessibilityLabel={`${name} pour ${label(l)}`}
+                      keyboardType="number-pad"
+                      value={splitOf(l.variantId).qty[c] ?? ''}
+                      onChangeText={(v) =>
+                        setSplitOf(l.variantId, { qty: { ...splitOf(l.variantId).qty, [c]: v } })
+                      }
+                      style={styles.qty}
+                    />
+                  </View>
+                ))}
+                {(lots[l.variantId] ?? []).length > 0 ? (
+                  <View style={styles.chips}>
+                    {lots[l.variantId]!.map((lot) => (
+                      <Pressable
+                        key={lot.id}
+                        onPress={() =>
+                          setSplitOf(l.variantId, {
+                            lotId: splitOf(l.variantId).lotId === lot.id ? null : lot.id,
+                          })
+                        }
+                        style={[
+                          styles.chip,
+                          splitOf(l.variantId).lotId === lot.id && styles.chipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            splitOf(l.variantId).lotId === lot.id && styles.chipTextActive,
+                          ]}
+                        >
+                          Lot {lot.number}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+                {Number(splitOf(l.variantId).qty.DEFECTIVE) > 0 ? (
+                  <PhotoCapture
+                    photoKey={splitOf(l.variantId).photoKey}
+                    onTaken={(key) => setSplitOf(l.variantId, { photoKey: key })}
+                  />
+                ) : null}
+              </View>
+            ) : null}
           </Card>
         );
       })}
@@ -192,4 +306,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: colors.textDark, fontWeight: '600' },
   chipTextActive: { color: colors.background },
+  link: { fontSize: 15, fontWeight: '600', color: colors.primary },
+  split: { gap: 10 },
+  lossName: { flex: 1, fontSize: 15, color: colors.textDark },
 });

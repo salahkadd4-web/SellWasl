@@ -27,6 +27,7 @@ import { Card, Input, Message, PrimaryButton, Screen, Title } from '@/ui';
 interface Reason {
   id: string;
   kind: string;
+  systemCode: string | null;
   label: string;
   isActive: boolean;
 }
@@ -50,6 +51,10 @@ export default function DeliveryScreen() {
   const [route, setRoute] = useState<DriverRouteDto | null>(null);
   const [truck, setTruck] = useState<TruckStockDto[]>([]);
   const [reasons, setReasons] = useState<Reason[]>([]);
+  /** Motifs de refus (BR-RET-01) : obligatoires dès qu'une quantité est refusée. */
+  const [refusals, setRefusals] = useState<Reason[]>([]);
+  const [refusalId, setRefusalId] = useState<string | null>(null);
+  const [refusedFailure, setRefusedFailure] = useState<Reason | null>(null);
   const [qty, setQty] = useState<Record<string, string>>({});
   const [added, setAdded] = useState<Added[]>([]);
   const [adding, setAdding] = useState(false);
@@ -69,6 +74,7 @@ export default function DeliveryScreen() {
         setRoute(r);
         setTruck(stock);
         setReasons(all.filter((x) => x.kind === 'DELIVERY_FAILURE' && x.isActive));
+        setRefusals(all.filter((x) => x.kind === 'REFUSAL' && x.isActive));
         const d = r.deliveries.find((x) => x.orderId === orderId);
         setQty(
           Object.fromEntries(
@@ -100,6 +106,13 @@ export default function DeliveryScreen() {
     };
   }, [delivery, qty, added]);
   const bodyKey = JSON.stringify(body);
+  // Livré sous le préparé : le client refuse une partie de la commande
+  const refused =
+    !!body &&
+    !!delivery &&
+    body.lines.some(
+      (l) => l.qty < (delivery.lines.find((x) => x.lineId === l.lineId)?.preparedQty ?? 0),
+    );
   const upToDate = preview?.key === bodyKey;
 
   async function calculate() {
@@ -127,6 +140,7 @@ export default function DeliveryScreen() {
     if (amount < preview.value.minimumCash)
       return setError(`Encaissez au moins ${formatDA(preview.value.minimumCash)}.`);
     if (amount > preview.value.dueAmount) return setError('Le montant dépasse le dû.');
+    if (refused && !refusalId) return setError('Choisissez le motif du refus.');
     setError(null);
     setBusy(true);
     try {
@@ -140,6 +154,7 @@ export default function DeliveryScreen() {
           deliveryId: newId(),
           number,
           cashAmount: amount,
+          ...(refused && { refusalReasonId: refusalId }),
           latitude: position?.latitude ?? null,
           longitude: position?.longitude ?? null,
         },
@@ -155,7 +170,7 @@ export default function DeliveryScreen() {
     }
   }
 
-  async function fail(reason: Reason) {
+  async function fail(reason: Reason, refusalReasonId?: string) {
     if (!delivery || !route?.workday) return;
     setError(null);
     setBusy(true);
@@ -169,6 +184,7 @@ export default function DeliveryScreen() {
           number: await nextDeliveryNumber(userCode, profile!.series),
           orderId: delivery.orderId,
           reasonId: reason.id,
+          ...(refusalReasonId && { refusalReasonId }),
           latitude: position?.latitude ?? null,
           longitude: position?.longitude ?? null,
         },
@@ -346,6 +362,24 @@ export default function DeliveryScreen() {
               Crédit possible : encaissez au moins {formatDA(preview.value.minimumCash)}.
             </Text>
           ) : null}
+          {refused ? (
+            <View style={styles.refusal}>
+              <Text style={styles.name}>Motif du refus</Text>
+              <View style={styles.chips}>
+                {refusals.map((r) => (
+                  <Pressable
+                    key={r.id}
+                    onPress={() => setRefusalId(r.id)}
+                    style={[styles.chip, refusalId === r.id && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, refusalId === r.id && styles.chipTextActive]}>
+                      {r.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
           <Input
             label="Montant encaissé (DA)"
             keyboardType="number-pad"
@@ -363,7 +397,40 @@ export default function DeliveryScreen() {
       {error ? <Message>{error}</Message> : null}
 
       {open && working ? (
-        failing ? (
+        failing && refusedFailure ? (
+          <Card title="Pourquoi le client refuse-t-il ?">
+            <View style={styles.chips}>
+              {refusals.map((r) => (
+                <Pressable
+                  key={r.id}
+                  disabled={busy}
+                  onPress={() =>
+                    Alert.alert(
+                      `Refus : ${r.label} ?`,
+                      'Toute la commande est refusée ; la marchandise reste dans le camion.',
+                      [
+                        { text: 'Annuler', style: 'cancel' },
+                        {
+                          text: 'Confirmer',
+                          style: 'destructive',
+                          onPress: () => void fail(refusedFailure, r.id),
+                        },
+                      ],
+                    )
+                  }
+                  style={styles.chip}
+                >
+                  <Text style={styles.chipText}>{r.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <PrimaryButton
+              title="Retour"
+              variant="secondary"
+              onPress={() => setRefusedFailure(null)}
+            />
+          </Card>
+        ) : failing ? (
           <Card title="Motif de l'échec">
             <View style={styles.chips}>
               {reasons.map((r) => (
@@ -371,10 +438,20 @@ export default function DeliveryScreen() {
                   key={r.id}
                   disabled={busy}
                   onPress={() =>
-                    Alert.alert(`Échec : ${r.label} ?`, 'La marchandise reste dans le camion.', [
-                      { text: 'Annuler', style: 'cancel' },
-                      { text: 'Confirmer', style: 'destructive', onPress: () => void fail(r) },
-                    ])
+                    r.systemCode === 'REFUSED'
+                      ? setRefusedFailure(r)
+                      : Alert.alert(
+                          `Échec : ${r.label} ?`,
+                          'La marchandise reste dans le camion.',
+                          [
+                            { text: 'Annuler', style: 'cancel' },
+                            {
+                              text: 'Confirmer',
+                              style: 'destructive',
+                              onPress: () => void fail(r),
+                            },
+                          ],
+                        )
                   }
                   style={styles.chip}
                 >
@@ -398,6 +475,7 @@ export default function DeliveryScreen() {
 
 const styles = StyleSheet.create({
   loader: { flex: 1 },
+  refusal: { gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
   rowText: { flex: 1, gap: 4 },
   item: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },

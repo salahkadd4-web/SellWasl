@@ -120,6 +120,7 @@ export const REASON_KINDS = [
   'ADJUSTMENT',
   'FORCED_CLOSE',
   'REOPEN',
+  'REFUSAL',
 ] as const;
 export const reasonSchema = z.object({
   kind: z.enum(REASON_KINDS),

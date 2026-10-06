@@ -155,6 +155,13 @@ export default function SellerDashboard() {
         />
       </Card>
 
+      {me?.permissions.includes('returns.contest') && me.modules.includes('RETURNS_ANALYSIS') ? (
+        <PrimaryButton
+          title="Refus de mes commandes"
+          variant="secondary"
+          onPress={() => router.push('/seller/refusals')}
+        />
+      ) : null}
       <PrimaryButton
         title="Bons du jour"
         variant="secondary"
