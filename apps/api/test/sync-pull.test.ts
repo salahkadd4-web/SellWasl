@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { receptionChanges } from '../src/field/order.service';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { StockLedger } from '../src/stock/stock-ledger.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { type Phone, Phones } from './phone';
 
@@ -277,6 +278,11 @@ describe('synchronisation hors connexion (phase 23)', () => {
         where: { orderDate: new Date(`${WORK_DAY}T00:00:00Z`), status: 'CONFIRMED' },
         data: { status: 'CANCELLED' },
       });
+      // Visites laissées en cours par les ventes refusées : une autre suite reprend ces vendeurs
+      await raw.visit.updateMany({
+        where: { date: new Date(`${WORK_DAY}T00:00:00Z`), status: 'IN_PROGRESS' },
+        data: { status: 'COMPLETED', endedAt: new Date() },
+      });
       await raw.workday.updateMany({
         where: { date: new Date(`${WORK_DAY}T00:00:00Z`), status: 'IN_PROGRESS' },
         data: { status: 'CLOSED', closedAt: new Date() },
@@ -445,6 +451,18 @@ describe('synchronisation hors connexion (phase 23)', () => {
         products = (
           await call<ProductDto[]>(t.url, 'GET', '/products?status=ACTIVE', { token: supB })
         ).body;
+        // Stock connu dans le camion, quel que soit l'ordre des suites
+        const bimo = products.find((pr) => pr.variants.some((v) => v.reference === 'BIMO-CHOC'))!;
+        await raw.$transaction((tx) =>
+          t.app.get(StockLedger).apply(tx, { companyId: user.companyId, userId: user.id }, [
+            {
+              type: 'ADJUSTMENT',
+              variantId: bimo.variants.find((v) => v.reference === 'BIMO-CHOC')!.id,
+              qty: 50,
+              toWarehouseId: truckId,
+            },
+          ]),
+        );
         await phones.startDay(seller, WORK_DAY);
         customers = ((await phones.today(seller, WORK_DAY)).body as TodayResponse).day.customers;
         expect(customers.length).toBeGreaterThan(2);
