@@ -19,6 +19,7 @@ import { PlanningModule } from './planning/planning.module';
 import { SyncModule } from './sync/sync.module';
 import { FieldModule } from './field/field.module';
 import { AccountingModule } from './accounting/accounting.module';
+import { PayrollModule } from './payroll/payroll.module';
 import { ReportsModule } from './reports/reports.module';
 import { ReturnsModule } from './returns/returns.module';
 import { DeliveryModule } from './delivery/delivery.module';
@@ -77,6 +78,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AccountingModule,
     ReturnsModule,
     ReportsModule,
+    PayrollModule,
     HealthModule,
   ],
   providers: [

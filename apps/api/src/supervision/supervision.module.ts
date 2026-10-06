@@ -20,5 +20,6 @@ import { SupervisionController } from './supervision.controller';
     WorkdaysAdminService,
     DriverObjectivesService,
   ],
+  exports: [DriverObjectivesService],
 })
 export class SupervisionModule {}
