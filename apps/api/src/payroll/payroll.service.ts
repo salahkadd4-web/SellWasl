@@ -24,6 +24,7 @@ import { toCompensationDto } from './compensation.service';
 import { DeductionsService } from './deductions.service';
 import { IncentivesService } from './incentives.service';
 import {
+  type Actor,
   assertPayrollEnabled,
   audit,
   monthOf,
@@ -82,7 +83,7 @@ export class PayrollService {
     return out;
   }
 
-  async create(actor: AuthUser, month: string): Promise<PayrollPeriodDto> {
+  async create(actor: Actor, month: string): Promise<PayrollPeriodDto> {
     const id = uuidv7();
     await this.db.$transaction(async (tenantTx) => {
       const tx = tenantTx as unknown as Tx;
@@ -148,7 +149,7 @@ export class PayrollService {
   }
 
   /** Calcul (ou recalcul) : remplace les fiches tant que la paie n'est pas approuvée. */
-  async calculate(actor: AuthUser, id: string): Promise<PayrollPeriodDto> {
+  async calculate(actor: Actor, id: string): Promise<PayrollPeriodDto> {
     await this.db.$transaction(
       async (tenantTx) => {
         const tx = tenantTx as unknown as Tx;

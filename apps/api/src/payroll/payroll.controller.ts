@@ -28,6 +28,7 @@ import {
   type DeductionDto,
   deductionsQuerySchema,
   type IncentiveDto,
+  type IncentiveProgressDto,
   type IncentiveRuleDto,
   incentiveRuleSchema,
   incentivesQuerySchema,
@@ -37,6 +38,7 @@ import {
   type PayrollDashboardDto,
   type PayrollPeriodDto,
   type PayrollSettings,
+  progressQuerySchema,
   putPayrollSettingsSchema,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
@@ -343,6 +345,15 @@ export class PayrollController {
     @Query(pipe(monthQuerySchema)) q: Out<typeof monthQuerySchema>,
   ): Promise<PayrollDashboardDto> {
     return this.payroll.dashboard(q.month ?? (await this.today()).slice(0, 7));
+  }
+
+  @RequirePermission('pay.mine')
+  @Get('me/incentives/progress')
+  async progress(
+    @CurrentUser() actor: AuthUser,
+    @Query(pipe(progressQuerySchema)) q: Out<typeof progressQuerySchema>,
+  ): Promise<IncentiveProgressDto[]> {
+    return this.incentives.progress(actor, q.date ?? (await this.today()));
   }
 
   @RequirePermission('pay.mine')

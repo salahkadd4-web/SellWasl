@@ -6,6 +6,16 @@ import type { Prisma } from '../generated/prisma/client';
 
 export type Tx = Prisma.TransactionClient;
 
+/** Auteur d'une opération : un utilisateur, ou le système (userId null) pour les tâches planifiées. */
+export type Actor = Pick<AuthUser, 'companyId' | 'deviceId'> & { userId: string | null };
+
+/** Le système, auteur des calculs automatiques d'une entreprise. */
+export const systemActor = (companyId: string): Actor => ({
+  companyId,
+  userId: null,
+  deviceId: null,
+});
+
 /** Utilisateur avec son rôle, pour les DTO (`personOf`). */
 export const WITH_ROLE = { include: { role: true } } as const;
 
@@ -67,7 +77,7 @@ export async function salaryFor(
 export function audit(
   service: AuditService,
   tx: Tx,
-  actor: AuthUser,
+  actor: Actor,
   action: string,
   entity: string,
   entityId: string | null,

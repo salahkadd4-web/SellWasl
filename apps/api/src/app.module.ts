@@ -2,6 +2,7 @@ import { Module, RequestMethod } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ClsModule } from 'nestjs-cls';
 import { LoggerModule } from 'nestjs-pino';
 import { AuditModule } from './audit/audit.module';
@@ -58,6 +59,8 @@ import { PrismaModule } from './prisma/prisma.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     // Contexte de chaque requête : l'entreprise de l'utilisateur, lue par le client filtré (phase 5).
     ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+    // Tâches planifiées : paie automatique de la nuit (phase 21 bis)
+    ScheduleModule.forRoot(),
     PrismaModule,
     TenancyModule,
     ModulesModule,

@@ -5,6 +5,7 @@ import { AdvancesService } from './advances.service';
 import { CompensationService } from './compensation.service';
 import { DeductionsService } from './deductions.service';
 import { IncentivesService } from './incentives.service';
+import { PayrollAutomationService } from './payroll-automation.service';
 import { PayrollController } from './payroll.controller';
 import { PayrollService } from './payroll.service';
 
@@ -18,6 +19,8 @@ import { PayrollService } from './payroll.service';
     DeductionsService,
     IncentivesService,
     PayrollService,
+    PayrollAutomationService,
   ],
+  exports: [PayrollAutomationService],
 })
 export class PayrollModule {}

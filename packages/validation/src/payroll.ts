@@ -132,6 +132,8 @@ export const incentivesQuerySchema = z.object({
 });
 
 export const createPayrollPeriodSchema = z.object({ month });
+/** Date de la période en cours (défaut : aujourd'hui). */
+export const progressQuerySchema = z.object({ date: date.optional() });
 export const createAdjustmentSchema = z.object({
   userId: z.uuid(),
   month,
@@ -262,6 +264,29 @@ export interface IncentiveDto {
   details: { orderNumber: string; deliveryNumber: string; qty: number; amount: number }[];
   validatedBy: string | null;
   validatedAt: string | null;
+}
+
+/** Progression en direct d'une règle de prime pour l'employé connecté. */
+export interface IncentiveProgressDto {
+  rule: {
+    id: string;
+    name: string;
+    kind: (typeof INCENTIVE_KINDS)[number];
+    frequency: 'WEEKLY' | 'MONTHLY';
+    amount: number | null;
+    threshold: number | null;
+    percentBp: number | null;
+    tiers: { minQty: number; unitAmount: number }[] | null;
+  };
+  periodStart: string;
+  periodEnd: string;
+  quantity: number;
+  revenue: number;
+  unitAmount: number | null;
+  estimatedAmount: number;
+  unitName: string | null;
+  /** Prime déjà enregistrée pour la période (calculée, validée…), sinon null. */
+  status: IncentiveDto['status'] | null;
 }
 
 export type PayrollStatusCode = 'OPEN' | 'CALCULATED' | 'APPROVED' | 'PAID' | 'CLOSED';

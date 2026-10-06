@@ -7,6 +7,7 @@ import type {
   DiscrepancyDto,
   DriverRouteDto,
   IncentiveDto,
+  IncentiveProgressDto,
   IncentiveRuleDto,
   MyPayDto,
   PayrollAdjustmentDto,
@@ -23,6 +24,7 @@ import type {
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
+import { PayrollAutomationService } from '../src/payroll/payroll-automation.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { type Phone, Phones } from './phone';
@@ -682,6 +684,115 @@ describe('paie : scénario E2E du livreur', () => {
     });
   });
 
+  describe('automatisation et progression', () => {
+    it('progression en direct : la semaine en cours, sans rien enregistrer', async () => {
+      const progress = await call<IncentiveProgressDto[]>(
+        t.url,
+        'GET',
+        '/me/incentives/progress?date=2027-08-10',
+        { token: driver.token },
+      );
+      expect(progress.status).toBe(200);
+      expect(progress.body.find((p) => p.rule.name === 'Couscous livré')).toMatchObject({
+        periodStart: '2027-08-07',
+        periodEnd: '2027-08-13',
+        quantity: 80,
+        estimatedAmount: 1600,
+        unitName: 'carton',
+        status: 'APPLIED',
+      });
+    });
+
+    it('chaque nuit : primes de la semaine et du mois calculées, paie déjà approuvée intacte', async () => {
+      const monthly = await post<IncentiveRuleDto>(
+        '/incentive-rules',
+        {
+          name: 'Couscous du mois',
+          kind: 'PER_UNIT',
+          frequency: 'MONTHLY',
+          productId: couscous.id,
+          amount: 5,
+          userId: driverId,
+          validFrom: '2027-08-01',
+        },
+        admin,
+      );
+      expect(monthly.status).toBe(201);
+      const automation = t.app.get(PayrollAutomationService);
+      const reports = await automation.run(new Date('2027-09-01T10:00:00Z'));
+      const mine = reports.find((r) => r.companyId === companyId)!;
+      expect(mine).toMatchObject({ date: '2027-08-31', payrollMonths: [] });
+      expect(mine.error).toBeUndefined();
+      const august = (await get<IncentiveDto[]>('/incentives?periodStart=2027-08-01')).body.find(
+        (i) => i.rule.id === monthly.body.id,
+      );
+      expect(august).toMatchObject({
+        quantity: 80,
+        amount: 400,
+        status: 'CALCULATED',
+        validatedBy: null,
+      });
+      const saved = await raw.incentive.findUniqueOrThrow({ where: { id: august!.id } });
+      expect(saved.createdByUserId).toBeNull();
+      // La prime hebdomadaire déjà appliquée ne bouge pas, la paie clôturée non plus
+      expect(
+        (await get<IncentiveDto[]>('/incentives?periodStart=2027-08-07')).body.filter(
+          (i) => i.user.id === driverId,
+        ),
+      ).toHaveLength(1);
+      const period = await raw.payrollPeriod.findFirstOrThrow({
+        where: { companyId, month: at('2027-08-01') },
+      });
+      expect(period.status).toBe('CLOSED');
+      await call(t.url, 'PATCH', `/incentive-rules/${monthly.body.id}`, {
+        token: admin,
+        body: {
+          name: 'Couscous du mois',
+          kind: 'PER_UNIT',
+          frequency: 'MONTHLY',
+          productId: couscous.id,
+          amount: 5,
+          userId: driverId,
+          validFrom: '2027-08-01',
+          isActive: false,
+        },
+      });
+    });
+
+    it('le brouillon de paie du mois est créé et recalculé par le système, sans doublon', async () => {
+      const automation = t.app.get(PayrollAutomationService);
+      const first = (await automation.run(new Date('2027-10-02T10:00:00Z'))).find(
+        (r) => r.companyId === companyId,
+      )!;
+      expect(first).toMatchObject({ date: '2027-10-01', payrollMonths: ['2027-10'] });
+      await automation.run(new Date('2027-10-02T12:00:00Z'));
+      const periods = await raw.payrollPeriod.findMany({
+        where: { companyId, month: at('2027-10-01') },
+      });
+      expect(periods).toHaveLength(1);
+      expect(periods[0]).toMatchObject({ status: 'CALCULATED', calculatedByUserId: null });
+      const dto = (await get<PayrollPeriodDto>(`/payroll/periods/${periods[0]!.id}`)).body;
+      expect(dto.entries.find((e) => e.user.id === driverId)).toMatchObject({
+        baseSalary: 60_000,
+        net: 60_000,
+      });
+      // Validation et approbation restent humaines
+      const audit = await raw.auditLog.findFirst({
+        where: {
+          companyId,
+          action: 'payroll.calculate',
+          actorUserId: null,
+          entityId: periods[0]!.id,
+        },
+      });
+      expect(audit).not.toBeNull();
+      const monthly = await raw.incentive.findFirstOrThrow({
+        where: { companyId, periodStart: at('2027-08-01'), userId: driverId },
+      });
+      expect(monthly.status).toBe('CALCULATED');
+    });
+  });
+
   describe('accès', () => {
     it("l'employé ne voit que sa propre paie", async () => {
       const mine = await call<MyPayDto>(t.url, 'GET', `/me/pay?month=${MONTH}`, {
@@ -690,7 +801,7 @@ describe('paie : scénario E2E du livreur', () => {
       expect(mine.status).toBe(200);
       expect(mine.body.entry).toMatchObject({ net: 49_600, status: 'CLOSED' });
       expect(mine.body.compensation[0]).toMatchObject({ baseSalary: 60_000 });
-      expect(mine.body.incentives[0]).toMatchObject({ amount: 1600 });
+      expect(mine.body.incentives.map((i) => i.amount)).toContain(1600);
       expect((await get('/payroll/periods', driver.token)).status).toBe(403);
       expect((await get(`/compensations?userId=${driverId}`, driver.token)).status).toBe(403);
       const v07 = await phones.get('V07');
