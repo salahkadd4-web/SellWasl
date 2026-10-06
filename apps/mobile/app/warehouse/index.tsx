@@ -109,6 +109,11 @@ export default function WarehouseDashboard() {
       </Card>
 
       <PrimaryButton
+        title="Ma paie"
+        variant="secondary"
+        onPress={() => router.push('/warehouse/pay')}
+      />
+      <PrimaryButton
         title="Synchronisation"
         variant="secondary"
         onPress={() => router.push('/warehouse/sync')}

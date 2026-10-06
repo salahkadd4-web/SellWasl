@@ -168,6 +168,11 @@ export default function SellerDashboard() {
         onPress={() => router.push('/seller/receipts')}
       />
       <PrimaryButton
+        title="Ma paie"
+        variant="secondary"
+        onPress={() => router.push('/seller/pay')}
+      />
+      <PrimaryButton
         title="Objectifs"
         variant="secondary"
         onPress={() => router.push('/seller/objectives')}

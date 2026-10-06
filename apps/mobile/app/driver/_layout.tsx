@@ -18,6 +18,7 @@ export default function DriverLayout() {
       <Stack.Screen name="receipts" options={{ title: 'Bons du jour' }} />
       <Stack.Screen name="delivery/[orderId]" options={{ title: 'Livraison' }} />
       <Stack.Screen name="objectives" options={{ title: 'Objectifs' }} />
+      <Stack.Screen name="pay" options={{ title: 'Ma paie' }} />
       <Stack.Screen name="profile" options={{ title: 'Profil' }} />
     </Stack>
   );

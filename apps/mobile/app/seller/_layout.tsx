@@ -29,6 +29,7 @@ export default function SellerLayout() {
         <Stack.Screen name="truck" options={{ title: 'Stock du camion' }} />
         <Stack.Screen name="receipts" options={{ title: 'Bons du jour' }} />
         <Stack.Screen name="refusals" options={{ title: 'Refus de mes commandes' }} />
+        <Stack.Screen name="pay" options={{ title: 'Ma paie' }} />
         <Stack.Screen name="profile" options={{ title: 'Profil' }} />
       </Stack>
     </TodayProvider>

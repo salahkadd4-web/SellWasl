@@ -23,6 +23,7 @@ export default function WarehouseLayout() {
       <Stack.Screen name="inventory" options={{ title: 'Inventaire' }} />
       <Stack.Screen name="stock" options={{ title: 'Stock' }} />
       <Stack.Screen name="sync" options={{ title: 'Synchronisation' }} />
+      <Stack.Screen name="pay" options={{ title: 'Ma paie' }} />
       <Stack.Screen name="profile" options={{ title: 'Profil' }} />
     </Stack>
   );

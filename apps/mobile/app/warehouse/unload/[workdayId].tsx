@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { request } from '@/api/client';
-import { errorMessage } from '@/seller/format';
+import { errorMessage, formatDA } from '@/seller/format';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 import { PhotoCapture } from '@/warehouse/PhotoCapture';
 
@@ -176,6 +176,7 @@ export default function UnloadScreen() {
               />
               <Text style={!gap ? styles.muted : gap > 0 ? styles.plus : styles.minus}>
                 {gap === null ? '—' : signed(gap)}
+                {gap ? ` · ${formatDA(gap * l.unitValue)}` : ''}
               </Text>
             </View>
             {gap ? (

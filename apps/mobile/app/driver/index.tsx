@@ -98,14 +98,18 @@ export default function DriverDashboard() {
         ) : status === 'IN_PROGRESS' ? (
           <>
             <Text style={styles.ok}>Journée en cours</Text>
+            <Text style={styles.muted}>
+              De retour au dépôt : clôturez la journée, c'est votre déclaration de retour. Le
+              magasinier contrôle ensuite le camion.
+            </Text>
             <PrimaryButton
-              title="Clôturer la journée"
+              title="Je suis de retour : clôturer la journée"
               variant="secondary"
               disabled={busy}
               onPress={() =>
                 Alert.alert(
                   'Clôturer la journée ?',
-                  'Les livraisons non faites passeront en échec « non livrée ».',
+                  'Retour au dépôt déclaré. Les livraisons non faites passeront en échec « non livrée » ; la marchandise du camion sera comptée par le magasinier.',
                   [
                     { text: 'Annuler', style: 'cancel' },
                     {
@@ -170,6 +174,11 @@ export default function DriverDashboard() {
         title="Bons du jour"
         variant="secondary"
         onPress={() => router.push('/driver/receipts')}
+      />
+      <PrimaryButton
+        title="Ma paie"
+        variant="secondary"
+        onPress={() => router.push('/driver/pay')}
       />
       <PrimaryButton
         title="Objectifs"
