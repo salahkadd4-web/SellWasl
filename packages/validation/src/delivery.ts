@@ -122,6 +122,8 @@ export interface DeliveryLineDto {
   unitPrice: number;
   /** Livré, dans l'unité de la ligne, une fois la livraison faite. */
   deliveredQty: number | null;
+  /** Règle du bonus d'une ligne offerte (recalcul hors connexion, phase 23). */
+  bonusRuleId: string | null;
 }
 
 export interface DriverDeliveryDto {
@@ -129,6 +131,9 @@ export interface DriverDeliveryDto {
   number: string;
   status: string;
   totalAmount: number;
+  /** Grille de prix et date de la commande : recalcul P-04 hors connexion (phase 23). */
+  customerTypeId: string;
+  orderDate: string;
   customer: {
     id: string;
     name: string;

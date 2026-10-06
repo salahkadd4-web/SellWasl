@@ -8,3 +8,5 @@ export * from './effects';
 export * from './views/seller';
 export * from './effects-truck';
 export * from './views/truck';
+export * from './effects-driver';
+export * from './views/driver';

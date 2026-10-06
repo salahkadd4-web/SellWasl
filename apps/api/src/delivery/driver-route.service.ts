@@ -116,6 +116,8 @@ export class DriverRouteService {
       number: o.number,
       status: o.status,
       totalAmount: Number(o.totalAmount),
+      customerTypeId: o.customerTypeId,
+      orderDate: o.orderDate.toISOString().slice(0, 10),
       customer: {
         id: o.customer.id,
         name: o.customer.name,
@@ -138,6 +140,7 @@ export class DriverRouteService {
         preparedQty: Math.floor((l.preparedQty ?? l.orderedQty) / l.unit.baseQty),
         unitPrice: Number(l.unitPrice),
         deliveredQty: l.deliveredQty === null ? null : l.deliveredQty / l.unit.baseQty,
+        bonusRuleId: l.bonusRuleId,
       })),
       delivery: o.deliveries[0]
         ? { number: o.deliveries[0].number, result: o.deliveries[0].result }

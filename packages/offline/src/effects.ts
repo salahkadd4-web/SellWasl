@@ -5,11 +5,13 @@ import { buildOrder } from './order-build';
 import type { OutboxOp } from './types';
 
 import { type Effect, num, str } from './effect-kit';
+import { DRIVER_EFFECTS } from './effects-driver';
 import { TRUCK_EFFECTS } from './effects-truck';
 
 /** Effet local de chaque opération du terrain (spec phase 23 §4.4). */
 export const EFFECTS: Partial<Record<OutboxOp['type'], Effect>> = {
   ...TRUCK_EFFECTS,
+  ...DRIVER_EFFECTS,
   'workday.start': (s, p, op) => {
     const id = str(p.workdayId)!;
     if (s.workdays.some((w) => w.id === id)) return;
