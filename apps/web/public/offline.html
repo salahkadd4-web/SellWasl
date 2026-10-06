@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#001850" />
+    <title>Hors ligne · SellWasl</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f4f7fb;
+        color: #00043c;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      main {
+        max-width: 360px;
+      }
+      img {
+        width: 96px;
+        height: 96px;
+        border-radius: 24px;
+      }
+      h1 {
+        font-size: 22px;
+        color: #001850;
+      }
+      p {
+        color: #5b6b82;
+        line-height: 1.5;
+      }
+      button {
+        min-height: 44px;
+        padding: 0 20px;
+        border: 0;
+        border-radius: 10px;
+        background: #001850;
+        color: #fff;
+        font-weight: 600;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icon-192.png" alt="SellWasl" />
+      <h1>Vous êtes hors ligne</h1>
+      <p>
+        L'espace Web a besoin du réseau : les chiffres affichés sont toujours ceux du serveur. Sur
+        le terrain, utilisez l'application mobile, qui fonctionne sans connexion.
+      </p>
+      <button onclick="location.reload()">Réessayer</button>
+    </main>
+  </body>
+</html>
