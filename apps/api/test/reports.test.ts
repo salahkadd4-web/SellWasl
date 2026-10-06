@@ -169,4 +169,50 @@ describe('rapports (phase 21)', () => {
     const filtered = await get<CommercialReportDto>(`/reports/commercial?${q}&userId=${v08.id}`);
     expect(filtered.body.byDay).toEqual([]);
   });
+
+  describe('exports CSV (BR-IO-03)', () => {
+    const csv = async (type: string, token = sup) => {
+      const reply = await fetch(`${t.url}/exports/${type}?${q}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const bytes = new Uint8Array(await reply.arrayBuffer());
+      return {
+        status: reply.status,
+        type: reply.headers.get('content-type'),
+        bom: bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf,
+        text: new TextDecoder().decode(bytes),
+      };
+    };
+
+    it('ventes, visites, objectifs, dettes et versements : en-tête, BOM, séparateur', async () => {
+      for (const type of ['sales', 'visits', 'objectives', 'debts', 'settlements']) {
+        const file = await csv(type);
+        expect(file.status, type).toBe(200);
+        expect(file.type).toContain('text/csv');
+        expect(file.bom).toBe(true);
+        expect(file.text.split('\n')[0]).toContain(';');
+      }
+      const sales = await csv('sales');
+      expect(sales.text).toContain(`RP-${v07.series}2101`);
+      expect(sales.text.split('\n').filter(Boolean)).toHaveLength(2);
+      const visits = await csv('visits');
+      expect(visits.text.split('\n').filter(Boolean).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('type inconnu : 400 ; exports des retours sans le module : 403', async () => {
+      expect((await csv('inconnu')).status).toBe(400);
+      expect((await csv('refusals')).status).toBe(403);
+    });
+
+    it('neutralise une formule dans un nom de client', async () => {
+      const customer = await raw.customer.findUniqueOrThrow({ where: { id: dayCustomers[0]! } });
+      await raw.customer.update({ where: { id: customer.id }, data: { name: '=HYPERLINK("x")' } });
+      try {
+        const sales = await csv('sales');
+        expect(sales.text).toContain('"\'=HYPERLINK(""x"")"');
+      } finally {
+        await raw.customer.update({ where: { id: customer.id }, data: { name: customer.name } });
+      }
+    });
+  });
 });

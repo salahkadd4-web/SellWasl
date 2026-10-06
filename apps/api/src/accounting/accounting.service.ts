@@ -9,6 +9,7 @@ import type {
 import { AuditService } from '../audit/audit.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
+import { cell } from '../common/csv';
 import { uuidv7 } from '../common/uuid';
 import { ReceiptsService } from '../delivery/receipts.service';
 import { dateOnly, rule, toDate } from '../field/field-errors';
@@ -17,16 +18,6 @@ import { fullName } from '../stock/stock-helpers';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 
 type Tx = Prisma.TransactionClient;
-
-/**
- * Une cellule de CSV : un texte qui commence comme une formule (=, +, -, @, tabulation) est
- * précédé d'une apostrophe pour qu'Excel l'affiche sans l'exécuter ; guillemets doublés.
- */
-const cell = (value: string | number) => {
-  let text = String(value);
-  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[";\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
 
 /**
  * Comptabilité (UC-70, UC-71, BR-PAY-07, BR-PAY-08) : récapitulatif des journées, versements au

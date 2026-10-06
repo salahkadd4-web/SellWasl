@@ -405,10 +405,10 @@ export class ReturnsService {
   }
 
   /** Faits derrière un chiffre : 200 au plus, les plus récents d'abord. */
-  async list(q: z.output<typeof returnFactsQuerySchema>): Promise<ReturnFactDto[]> {
+  async list(q: z.output<typeof returnFactsQuerySchema>, limit = 200): Promise<ReturnFactDto[]> {
     let facts = await this.facts(q, q.kind);
     if (q.axis && q.value) facts = facts.filter((f) => (keyOf(f, q.axis!) ?? NONE) === q.value);
-    facts = facts.reverse().slice(0, 200);
+    facts = facts.reverse().slice(0, limit);
     const pick = (field: keyof Fact) => [
       ...new Set(facts.map((f) => f[field] as string | null).filter((x): x is string => !!x)),
     ];

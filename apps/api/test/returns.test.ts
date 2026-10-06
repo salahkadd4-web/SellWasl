@@ -736,6 +736,23 @@ describe('analyse des retours (phase 21)', () => {
         expect(r.refusalRate.volume).toBe(4);
       });
 
+      it('exports des refus, retours, reventes et écarts', async () => {
+        const csv = async (type: string) => {
+          const reply = await fetch(`${t.url}/exports/${type}?${period}`, {
+            headers: { Authorization: `Bearer ${sup}` },
+          });
+          return { status: reply.status, lines: (await reply.text()).trim().split('\n') };
+        };
+        const refusals = await csv('refusals');
+        expect(refusals.status).toBe(200);
+        expect(refusals.lines).toHaveLength(3);
+        expect(refusals.lines.join('\n')).toContain('Stock suffisant');
+        const returns = await csv('returns');
+        expect(returns.lines.join('\n')).toContain('Défectueux');
+        expect((await csv('resales')).lines).toHaveLength(2);
+        expect((await csv('gaps')).lines.length).toBeGreaterThanOrEqual(2);
+      });
+
       it('le pré-vendeur conteste un refus ; le superviseur tranche une seule fois', async () => {
         const v07 = await phones.get('V07');
         const mine = await call<RefusalDto[]>(
