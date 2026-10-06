@@ -6,7 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
-import { dateOnly } from '../field/field-errors';
+import { dateOnly, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import {
@@ -21,6 +21,7 @@ import { StockLedger } from './stock-ledger.service';
 
 const DETAIL = {
   warehouse: true,
+  supplierRef: true,
   stockReceiptLines: { include: { productVariant: { include: { product: true } }, unit: true } },
 } as const;
 
@@ -39,6 +40,12 @@ export class ReceiptsService {
       const tx = tenantTx as unknown as Prisma.TransactionClient;
       const depot = await activeWarehouse(tx, input.warehouseId, 'DEPOT');
       const lines = await toBaseLines(tx, input.lines);
+      if (
+        input.supplierId &&
+        !(await tx.supplier.findFirst({ where: { id: input.supplierId, deletedAt: null } }))
+      )
+        throw rule('Fournisseur inconnu.');
+      const lotIds = await this.lots(tx, actor, input, lines);
       const now = new Date();
       await tx.stockReceipt.create({
         data: {
@@ -47,18 +54,22 @@ export class ReceiptsService {
           warehouseId: depot.id,
           reference: input.reference || null,
           supplier: input.supplier || null,
+          supplierId: input.supplierId ?? null,
           receivedAt: now,
           occurredAt: now,
           createdByUserId: actor.userId,
           createdByDeviceId: actor.deviceId,
           stockReceiptLines: {
-            create: lines.map((l) => ({
+            create: lines.map((l, i) => ({
               id: uuidv7(),
               companyId: actor.companyId,
               productVariantId: l.variantId,
               unitId: l.unitId,
               enteredQty: l.enteredQty,
               qty: l.qty,
+              lotNumber: input.lines[i]!.lotNumber ?? null,
+              expiresAt: input.lines[i]!.expiresAt ? toDate(input.lines[i]!.expiresAt!) : null,
+              lotId: lotIds[i] ?? null,
             })),
           },
         },
@@ -89,6 +100,57 @@ export class ReceiptsService {
       );
     });
     return this.get(id);
+  }
+
+  /**
+   * Lots des lignes (phase 21) : créé au premier passage, quantité reçue cumulée ensuite ; son
+   * fournisseur est celui de l'entrée.
+   */
+  private async lots(
+    tx: Prisma.TransactionClient,
+    actor: AuthUser,
+    input: z.output<typeof createReceiptSchema>,
+    lines: { variantId: string; qty: number }[],
+  ): Promise<(string | null)[]> {
+    const ids: (string | null)[] = [];
+    for (const [i, line] of lines.entries()) {
+      const entry = input.lines[i]!;
+      if (!entry.lotNumber) {
+        ids.push(null);
+        continue;
+      }
+      const existing = await tx.lot.findFirst({
+        where: { productVariantId: line.variantId, number: entry.lotNumber, deletedAt: null },
+      });
+      if (existing) {
+        await tx.lot.update({
+          where: { id: existing.id },
+          data: {
+            receivedQty: { increment: line.qty },
+            ...(entry.expiresAt && !existing.expiresAt && { expiresAt: toDate(entry.expiresAt) }),
+            ...(input.supplierId && !existing.supplierId && { supplierId: input.supplierId }),
+            version: { increment: 1 },
+          },
+        });
+        ids.push(existing.id);
+      } else {
+        const id = uuidv7();
+        await tx.lot.create({
+          data: {
+            id,
+            companyId: actor.companyId,
+            productVariantId: line.variantId,
+            number: entry.lotNumber,
+            expiresAt: entry.expiresAt ? toDate(entry.expiresAt) : null,
+            supplierId: input.supplierId ?? null,
+            receivedQty: line.qty,
+            createdByUserId: actor.userId,
+          },
+        });
+        ids.push(id);
+      }
+    }
+    return ids;
   }
 
   /** Entrées d'une période (par défaut les 30 derniers jours), les plus récentes d'abord. */
@@ -126,7 +188,7 @@ export class ReceiptsService {
         warehouse: warehouseRef(r.warehouse),
         reference: r.reference,
         supplier: r.supplier,
-        supplierRef: null,
+        supplierRef: r.supplierRef ? { id: r.supplierRef.id, name: r.supplierRef.name } : null,
         receivedAt: r.receivedAt.toISOString(),
         user: user ? fullName(user) : null,
         lines: r.stockReceiptLines.map((l) => ({

@@ -54,6 +54,8 @@ export const updateProductSchema = z
     rangeId: z.uuid(),
     categoryId: z.uuid().nullable(),
     isActive: z.boolean(),
+    /** Fournisseur habituel (phase 21). */
+    supplierId: z.uuid().nullable(),
   })
   .partial();
 
@@ -122,6 +124,8 @@ export interface ProductDto {
   variants: ProductVariantDto[];
   hasFlavors: boolean;
   photo: PhotoDto | null;
+  /** Fournisseur habituel (phase 21). */
+  supplierId: string | null;
 }
 
 /** Grille de prix d'un produit : types de clients × unités × (produit ou parfum). */

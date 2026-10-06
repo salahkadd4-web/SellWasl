@@ -72,6 +72,7 @@ export function toProductDto(
     })),
     hasFlavors: p.productVariants.some((v) => !v.isDefault),
     photo: photo(p.photoKey),
+    supplierId: p.supplierId,
   };
 }
 
@@ -326,6 +327,11 @@ export class CatalogService {
   ): Promise<ProductDto> {
     const product = await this.find(id);
     await this.assertRangeAndCategory(input.rangeId, input.categoryId);
+    if (
+      input.supplierId &&
+      !(await this.db.supplier.findFirst({ where: { id: input.supplierId, deletedAt: null } }))
+    )
+      throw rule('Fournisseur inconnu.');
     if (input.reference && input.reference !== product.reference)
       await this.assertReferencesFree([input.reference], { productId: id });
 
