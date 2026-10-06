@@ -83,5 +83,10 @@ export default function SupervisorMap({ data }: { data: SupervisorMapDto }) {
     }
   }, [data]);
 
-  return <div ref={container} className="h-[420px] w-full rounded-xl border border-border" />;
+  return (
+    <div
+      ref={container}
+      className="h-[calc(100dvh-14rem)] min-h-80 w-full rounded-xl border border-border sm:h-[420px]"
+    />
+  );
 }

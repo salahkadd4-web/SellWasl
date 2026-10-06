@@ -1,9 +1,10 @@
 'use client';
 
-import type { DashboardDto, TerritoryDto } from '@sellwasl/validation';
+import type { CommercialReportDto, DashboardDto, TerritoryDto } from '@sellwasl/validation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { monthToDate, type Period, PeriodFields, Rate, Stat } from '@/components/analytics';
+import { BarChart, LineChart } from '@/components/charts';
 import { Alert, Card, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { formatDA } from '@/lib/labels';
@@ -14,6 +15,7 @@ export function Dashboard() {
   const [territoryId, setTerritoryId] = useState('');
   const [territories, setTerritories] = useState<TerritoryDto[]>([]);
   const [data, setData] = useState<DashboardDto | null>(null);
+  const [daily, setDaily] = useState<CommercialReportDto['byDay']>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,6 +30,10 @@ export function Dashboard() {
     api<DashboardDto>('company', `/reports/dashboard?${query}`)
       .then(setData)
       .catch((err) => setError(errorMessage(err, 'Chargement impossible.')));
+    // Séries par jour des graphiques : le rapport commercial, déjà calculé par le serveur
+    api<CommercialReportDto>('company', `/reports/commercial?${query}`)
+      .then((r) => setDaily(r.byDay))
+      .catch(() => setDaily([]));
   }, [period, territoryId]);
 
   return (
@@ -83,6 +89,34 @@ export function Dashboard() {
               />
             </div>
           </Card>
+          {daily.length > 1 && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="flex flex-col gap-2">
+                <h2 className="text-lg font-semibold text-text-dark">
+                  Chiffre d'affaires par jour
+                </h2>
+                <LineChart
+                  label="Chiffre d'affaires par jour"
+                  data={daily.map((d) => ({
+                    label: d.date.slice(8, 10) + '/' + d.date.slice(5, 7),
+                    value: d.revenue,
+                  }))}
+                  format={formatDA}
+                />
+              </Card>
+              <Card className="flex flex-col gap-2">
+                <h2 className="text-lg font-semibold text-text-dark">Commandes par jour</h2>
+                <LineChart
+                  label="Commandes par jour"
+                  data={daily.map((d) => ({
+                    label: d.date.slice(8, 10) + '/' + d.date.slice(5, 7),
+                    value: d.orders,
+                  }))}
+                  format={(n) => String(n)}
+                />
+              </Card>
+            </div>
+          )}
           {data.returns && (
             <Card className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
@@ -119,6 +153,27 @@ export function Dashboard() {
                   hint={`Écarts au déchargement : ${data.returns.gapQty} unités (${formatDA(data.returns.gapValue)})`}
                 />
               </div>
+              <BarChart
+                format={formatDA}
+                data={[
+                  {
+                    label: 'Refusé à la livraison',
+                    value: data.returns.refusedValue,
+                    tone: 'danger',
+                  },
+                  {
+                    label: 'Retourné au dépôt',
+                    value: data.returns.returnedValue,
+                    tone: 'warning',
+                  },
+                  { label: 'Revendu en tournée', value: data.returns.resoldValue, tone: 'success' },
+                  {
+                    label: 'Écarts au déchargement',
+                    value: data.returns.gapValue,
+                    tone: 'primary',
+                  },
+                ]}
+              />
             </Card>
           )}
         </>

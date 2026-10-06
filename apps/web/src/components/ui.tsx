@@ -187,7 +187,8 @@ export function PageTitle({
         <h1 className="text-2xl font-bold text-primary">{title}</h1>
         {subtitle && <p className="text-muted">{subtitle}</p>}
       </div>
-      {action}
+      {/* Smartphone : actions en pleine largeur, plus faciles à toucher (phase 22) */}
+      {action && <div className="flex flex-wrap gap-2 *:w-full sm:*:w-auto">{action}</div>}
     </div>
   );
 }
