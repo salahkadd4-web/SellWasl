@@ -106,8 +106,9 @@ Sortes (BR-SYN-04, adapté au terrain) :
 | `settings` (calculée) | tous | Règles utiles au téléphone (P-01 à P-05, distance hors zone), version des paramètres, réglages du ticket |
 | `reason` | tous | Motifs actifs |
 | `product` | tous | Produit avec gamme, catégorie, unités et parfums actifs |
-| `price`, `priceTier`, `bonusRule` | pré-vendeur, cash van | Grille de prix, paliers, bonus |
-| `territory` | pré-vendeur, cash van | Son secteur, ses parties, polygones et jours de passage ; jours fériés |
+| `pricing` | tous | Grille de prix, paliers et bonus de chaque type de client (livreur : recalcul P-04) |
+| `territory` | pré-vendeur, cash van | Son secteur, ses parties et polygones |
+| `planningDay` | pré-vendeur, cash van | Clients prévus le jour et le lendemain (date du téléphone) |
 | `customer` | tous | Pré-vendeur, cash van : clients du secteur ; livreur : clients de ses tournées. Avec la dette |
 | `quota` | pré-vendeur, cash van | Ses quotas d'hier à J+7 |
 | `objective` (calculée) | pré-vendeur, cash van | Objectifs du mois (`MyObjective`) |
@@ -115,10 +116,12 @@ Sortes (BR-SYN-04, adapté au terrain) :
 | `visit` | pré-vendeur, cash van | Ses visites des 7 derniers jours |
 | `order` | tous | Pré-vendeur, cash van : ses commandes et ventes des 7 derniers jours, avec lignes ; livreur : commandes de ses tournées ouvertes |
 | `payment` | tous | Ses encaissements des 7 derniers jours |
-| `route`, `delivery` | livreur, cash van | Ses tournées ouvertes et leurs livraisons |
-| `load` | livreur, cash van | Chargements à recevoir |
+| `driverDay` | livreur | Sa tournée du jour (`DriverRouteDto`) : livraisons, chargement à recevoir |
+| `truckCheck` | livreur, cash van | Lignes à pointer : stock du camion et chargements à recevoir |
 | `truckStock` | livreur, cash van | Stock de son camion |
 | `depotStock` | pré-vendeur | Disponible au dépôt (physique − réservé) par article |
+
+Les données de chaque sorte sont construites par les services existants (mêmes types que l'API). La première synchronisation de chaque jour (date du téléphone) est complète (`cursor=0`) : toutes les sortes sont remplacées.
 
 Une modification d'une ligne enfant (ligne de commande, unité, parfum) renvoie la ligne parente
 entière.
