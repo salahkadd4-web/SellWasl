@@ -1,4 +1,5 @@
 // BR-TEN-06, BR-TEN-07, BR-TEN-08 ; docs/database.md §5
+import { scheduleError } from '@sellwasl/business-rules';
 import { z } from 'zod';
 
 export const WEEKDAYS = ['SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI'] as const;
@@ -19,6 +20,29 @@ export const companyRulesSchema = z.object({
   P10_supervisorEditsPrices: z.boolean().default(false),
 });
 export type CompanyRules = z.infer<typeof companyRulesSchema>;
+
+/** Paramètres de paie : calendrier des échéances (somme 100 %), acomptes et leur plafond. */
+export const payrollSettingsSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    advancesEnabled: z.boolean().default(false),
+    advanceMaxPercent: z.number().int().min(1).max(100).default(50),
+    weekStartsOn: weekdaySchema.default('SAT'),
+    schedule: z
+      .array(
+        z.object({
+          day: z.number().int().min(1).max(31),
+          percent: z.number().int().min(1).max(100),
+        }),
+      )
+      .max(4)
+      .default([{ day: 30, percent: 100 }]),
+  })
+  .superRefine((s, ctx) => {
+    const error = scheduleError(s.schedule);
+    if (error) ctx.addIssue({ code: 'custom', path: ['schedule'], message: error });
+  });
+export type PayrollSettings = z.infer<typeof payrollSettingsSchema>;
 
 export const companySettingsSchema = z.object({
   workingDays: z.array(weekdaySchema).min(1).default(['SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU']),
@@ -55,6 +79,8 @@ export const companySettingsSchema = z.object({
     })
     .prefault({}),
   rules: companyRulesSchema.prefault({}),
+  /** Paie interne (phase 21 bis) : désactivée par défaut. */
+  payroll: payrollSettingsSchema.prefault({}),
 });
 export type CompanySettings = z.infer<typeof companySettingsSchema>;
 

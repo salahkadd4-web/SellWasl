@@ -13,3 +13,4 @@ export * from './preparation';
 export * from './delivery';
 export * from './cashier';
 export * from './returns';
+export * from './payroll';

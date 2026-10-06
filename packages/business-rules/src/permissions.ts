@@ -104,6 +104,20 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   company('returns.read', 'Analyse des retours', 'RETURNS_ANALYSIS'),
   company('returns.contest', 'Contester un refus déclaré par le livreur', 'RETURNS_ANALYSIS'),
   company('returns.decide', 'Trancher une contestation de refus', 'RETURNS_ANALYSIS'),
+
+  // Paie interne (phase 21 bis)
+  company('compensation.read', 'Consulter les rémunérations et leur historique'),
+  company('compensation.update', 'Fixer la rémunération des employés'),
+  company('payroll.read', 'Consulter les paies'),
+  company('payroll.manage', 'Calculer, approuver, payer et clôturer les paies'),
+  company('advances.manage', 'Gérer les acomptes'),
+  company('deductions.manage', 'Créer, approuver ou refuser les retenues'),
+  company('incentives.read', 'Consulter les règles de prime et les primes'),
+  company('incentives.manage', 'Configurer les règles de prime'),
+  company('incentives.validate', 'Calculer et valider les primes'),
+  company('discrepancies.read', 'Consulter les écarts de stock et de caisse'),
+  company('discrepancies.decide', 'Analyser les écarts et décider de la responsabilité'),
+  company('pay.mine', 'Consulter sa propre rémunération, ses primes, acomptes, retenues et paies'),
 ];
 
 const ADMIN_AND_SUPERVISOR_SHARED = [
@@ -150,6 +164,9 @@ const ADMIN_AND_SUPERVISOR_SHARED = [
   'reports.export',
   'returns.read',
   'returns.decide',
+  'discrepancies.read',
+  'incentives.read',
+  'pay.mine',
 ] as const;
 
 /** Matrice rôles × permissions par défaut (docs/rbac.md §5), avant les paramètres P-08 et P-10. */
@@ -166,6 +183,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'price_tiers.update',
     'bonuses.update',
     'settlements.create',
+    'compensation.read',
+    'compensation.update',
+    'payroll.read',
+    'incentives.manage',
   ],
   SUPERVISEUR: [...ADMIN_AND_SUPERVISOR_SHARED],
   COMPTABLE: [
@@ -185,6 +206,16 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'settlements.create',
     'reports.read',
     'reports.export',
+    'compensation.read',
+    'payroll.read',
+    'payroll.manage',
+    'advances.manage',
+    'deductions.manage',
+    'incentives.read',
+    'incentives.validate',
+    'discrepancies.read',
+    'discrepancies.decide',
+    'pay.mine',
   ],
   PRE_VENDEUR: [
     'settings.read',
@@ -203,6 +234,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'payments.read',
     'payments.collect_debt',
     'returns.contest',
+    'pay.mine',
   ],
   VENDEUR_CASH_VAN: [
     'settings.read',
@@ -225,6 +257,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'payments.read',
     'payments.collect_delivery',
     'payments.collect_debt',
+    'pay.mine',
   ],
   LIVREUR: [
     'settings.read',
@@ -241,6 +274,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'deliveries.own',
     'payments.read',
     'payments.collect_delivery',
+    'pay.mine',
   ],
   MAGASINIER: [
     'settings.read',
@@ -254,6 +288,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'loads.load',
     'unloads.validate',
     'preparation.do',
+    'pay.mine',
   ],
 };
 
