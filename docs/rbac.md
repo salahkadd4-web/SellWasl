@@ -147,6 +147,12 @@ Format `ressource.action`. Le suffixe `.own` signifie « sur ses propres donnée
 | | `settlements.create` | Enregistrer un versement (UC-70) | Socle |
 | Analyse | `reports.read` | Tableau du jour, carte du superviseur, fiches en consultation | `ANALYTICS` |
 | | `reports.export` | Exports CSV (UC-63) | `ANALYTICS` |
+| Paie (phase 21 bis) | `compensation.read`, `compensation.update` | Rémunérations et historique ; fixer un salaire (administrateur) | Socle |
+| | `payroll.read`, `payroll.manage` | Consulter ; calculer, approuver, payer, clôturer (comptable) | Socle |
+| | `advances.manage`, `deductions.manage` | Acomptes ; retenues (comptable) | Socle |
+| | `incentives.read`, `incentives.manage`, `incentives.validate` | Primes ; règles (administrateur) ; calcul et validation (comptable) | Socle |
+| | `discrepancies.read`, `discrepancies.decide` | Écarts de stock et de caisse ; décision (comptable) | Socle |
+| | `pay.mine` | Sa propre paie (tous les rôles ; pas `.own`, interdit aux rôles Web, §8) | Socle |
 
 \* **Terrain** : actif dès que `PRE_SALES` ou `CASH_VAN` est actif (BR-TEN-05).
 

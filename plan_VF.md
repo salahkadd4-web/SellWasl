@@ -1153,6 +1153,47 @@ Youcef    🔴 Hors ligne   Dernière sync : 14:32
 
 ---
 
+# PHASE 21 bis — Paie, primes, acomptes, retenues et écarts
+
+Ajoutée le 2026-10-06 (mission de finalisation). Net **interne** : sans CNAS ni IRG. Documents : `docs/payroll.md`, `docs/incentives.md`, `docs/stock-discrepancies.md`, `docs/settlements.md`.
+
+## Retour du véhicule et écarts
+
+- [x] Clôture de journée du livreur = déclaration de retour ; contrôle du camion par le magasinier (Web et mobile)
+- [x] Théorique, compté, écart, valeur unitaire, valeur de l'écart, cause, contrôleur, date
+- [x] Écart enregistré à la validation du contrôle ; analyse et décision du comptable (sans responsabilité, non fondé, responsabilité confirmée)
+- [x] Jamais de retenue automatique : retenue créée en attente, approuvée explicitement
+
+## Rapprochement financier
+
+- [x] Versement avec justification ; écart de caisse enregistré et analysé comme un écart de stock
+- [x] Détail d'un versement : ventes, paiements, impayés, retours, écarts de marchandise, justification
+
+## Rémunération, acomptes, retenues
+
+- [x] Rémunération avec historique (date d'effet, jamais effacée)
+- [x] Paramètres : paie activée, acomptes activés, plafond, calendrier des échéances (somme 100 %)
+- [x] Acomptes : demande, approbation dans le plafond, paiement, déduction à la paie
+- [x] Retenues : nées d'un écart (référence gardée) ou libres, approuvées, appliquées une seule fois
+
+## Primes
+
+- [x] Règles par unité, pourcentage du CA, seuil, paliers, objectif de CA ; hebdomadaires ou mensuelles ; par employé ou par rôle
+- [x] Calcul à la demande sur les ventes livrées, une prime par règle, employé et période, ventes sources tracées
+- [x] Validation par le comptable avant la paie
+- [ ] Objectifs d'équipe *(architecture prête, non implémentés)*
+
+## Paie
+
+- [x] Périodes mensuelles : brouillon, calculée, approuvée, payée, clôturée
+- [x] Calcul centralisé : salaire + primes + objectifs mensuels + ajustements − acomptes − retenues, chaque ligne avec sa source
+- [x] Échéances selon le calendrier, payées une seule fois ; clôture sans retour ; correction par ajustement du mois suivant
+- [x] Tableau de bord de la paie ; « Ma paie » (Web et mobile) limitée à l'employé
+- [x] Audit de chaque opération financière ; isolation entre entreprises testée ; scénario E2E (net 49 600 DA)
+- [ ] Cotisations légales (CNAS, IRG) *(hors périmètre, choix de l'entreprise)*
+
+---
+
 # PHASE 22 — Application Web responsive / PWA
 
 Fonctionne sur desktop, tablette et smartphone.

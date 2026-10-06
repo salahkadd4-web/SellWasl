@@ -342,6 +342,36 @@ Analyse des retours (module `RETURNS_ANALYSIS`, désactivé par défaut ; sinon 
 
 Les faits (`ReturnFact`) sont écrits dans la transaction qui les produit : `delivery.confirm` (un refus par ligne livrée sous le préparé, au prix de la commande ; une revente par quantité ajoutée), `delivery.fail` avec le motif système `REFUSED` (toute la commande), validation du déchargement (un retour par état constaté, un écart par ligne, valorisés au prix moyen des ventes du jour). Ils gardent les axes du moment.
 
+### 5.9 Paie, primes, acomptes, retenues et écarts (phase 21 bis)
+
+Règles : `docs/payroll.md`, `docs/incentives.md`, `docs/stock-discrepancies.md`, `docs/settlements.md`. Statut incompatible → `409` ; règle métier → `422` ; paie ou acomptes désactivés → `422`.
+
+| Méthode | Chemin | Permission |
+|---|---|---|
+| `GET`, `POST` | `/compensations?userId`, `/compensations` | `compensation.read`, `compensation.update` — `{ userId, baseSalary, effectiveFrom, note? }` ; ferme la précédente |
+| `GET` | `/compensations/current` | `compensation.read` — salaire en vigueur de chaque utilisateur |
+| `GET`, `PUT` | `/payroll/settings` | `payroll.read`, `settings.update` — calendrier (somme 100 %, sinon `400`), acomptes, plafond, début de semaine |
+| `GET` | `/discrepancies?status&kind&userId&from&to` | `discrepancies.read` |
+| `POST` | `/discrepancies/{id}/review`, `/discrepancies/{id}/decide` | `discrepancies.decide` — `{ decision, amount?, note }`, décision `NO_LIABILITY`, `REJECT` ou `LIABILITY` |
+| `GET` | `/settlements/{workdayId}/detail` | `settlements.read` — origine d'un écart de caisse ; `POST /settlements` accepte `note` |
+| `GET`, `POST` | `/deductions`, `/deductions` | `deductions.manage` — retenue `OTHER` |
+| `POST` | `/deductions/{id}/approve`, `/reject` | `deductions.manage` — une fois |
+| `GET`, `POST` | `/advances?month&userId&status`, `/advances` | `advances.manage` |
+| `POST` | `/advances/{id}/approve`, `/reject`, `/pay` | `advances.manage` |
+| `GET`, `POST`, `PATCH` | `/incentive-rules`, `/incentive-rules/{id}` | `incentives.read`, `incentives.manage` |
+| `POST` | `/incentives/calculate` | `incentives.validate` — `{ date, frequency }` : la semaine ou le mois qui contient la date |
+| `GET` | `/incentives?periodStart&status&userId` | `incentives.read` |
+| `POST` | `/incentives/{id}/validate`, `/reject` | `incentives.validate` |
+| `GET`, `POST` | `/payroll/periods`, `/payroll/periods` | `payroll.read`, `payroll.manage` — `{ month }`, un par mois |
+| `GET` | `/payroll/periods/{id}` | `payroll.read` — fiches, lignes avec source, échéances, totaux |
+| `POST` | `/payroll/periods/{id}/calculate`, `/approve`, `/close` | `payroll.manage` |
+| `POST` | `/payroll/payments/{id}/pay` | `payroll.manage` — une fois |
+| `GET`, `POST` | `/payroll/adjustments?month`, `/payroll/adjustments` | `payroll.manage` — paie du mois non approuvée |
+| `GET` | `/payroll/dashboard?month` | `payroll.read` |
+| `GET` | `/me/pay?month` | `pay.mine` — ses seules données |
+
+Au déchargement, `UnloadPreviewLine.unitValue`, `UnloadDto.validatedBy` et `lines[].gapValue` donnent la valeur des écarts ; chaque écart crée un `Discrepancy`.
+
 ---
 
 ## 6. Synchronisation du mobile
