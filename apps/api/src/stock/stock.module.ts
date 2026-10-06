@@ -21,6 +21,6 @@ import { UnloadsService } from './unloads.service';
     LoadsService,
     UnloadsService,
   ],
-  exports: [StockLedger, LoadsService],
+  exports: [StockLedger, LoadsService, StockQueryService],
 })
 export class StockModule {}

@@ -1,5 +1,6 @@
 import type {
   CustomerDto,
+  DashboardDto,
   DeliveryPreviewDto,
   DriverRouteDto,
   LotDto,
@@ -721,6 +722,18 @@ describe('analyse des retours (phase 21)', () => {
           order: { id: orders.A!.id },
           delivery: { number: expect.any(String) },
         });
+      });
+
+      it('dashboard : bloc retours quand le module est actif', async () => {
+        const dashboard = await call<DashboardDto>(t.url, 'GET', `/reports/dashboard?${period}`, {
+          token: sup,
+        });
+        expect(dashboard.status).toBe(200);
+        const r = dashboard.body.returns!;
+        expect(r).toMatchObject({ refusals: 2, gapQty: -1 });
+        expect(r.netCost).toBe(r.returnedValue - r.resoldValue);
+        expect(r.resoldValue).toBeGreaterThan(0);
+        expect(r.refusalRate.volume).toBe(4);
       });
 
       it('le pré-vendeur conteste un refus ; le superviseur tranche une seule fois', async () => {
