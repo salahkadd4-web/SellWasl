@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { CompanyAuth } from '@/lib/auth';
 import {
   DISCREPANCY_STATUS,
@@ -60,12 +61,14 @@ export default function SettlementsPage() {
     try {
       await api('company', '/settlements', {
         method: 'POST',
+        headers: idempotencyKey(`settlement:${row.workdayId}`),
         body: JSON.stringify({
           workdayId: row.workdayId,
           remittedAmount: value,
           note: notes[row.workdayId]?.trim() || undefined,
         }),
       });
+      idempotencyDone(`settlement:${row.workdayId}`);
       await load();
     } catch (err) {
       setError(errorMessage(err));

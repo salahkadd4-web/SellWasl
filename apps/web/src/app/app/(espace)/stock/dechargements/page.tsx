@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle } from '@/components/ui';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { CompanyAuth } from '@/lib/auth';
 import {
   articleLabel,
@@ -310,9 +311,11 @@ function UnloadCount({
       onDone(
         await api<UnloadDto>('company', '/unloads', {
           method: 'POST',
+          headers: idempotencyKey(`unload:${pendingUnload.workdayId}`),
           body: JSON.stringify({ workdayId: pendingUnload.workdayId, lines: body, conditions }),
         }),
       );
+      idempotencyDone(`unload:${pendingUnload.workdayId}`);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

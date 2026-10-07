@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { request } from '@/api/client';
+import { idempotencyDone, idempotencyKey } from '@/api/idempotency';
 import { errorMessage } from '@/seller/format';
 import { Card, Input, Message, PrimaryButton, Screen, Title } from '@/ui';
 import { type LineValue, LinesEditor, toLines } from '@/warehouse/LinesEditor';
@@ -36,6 +37,7 @@ export default function ReceiptScreen() {
     try {
       const created = await request<ReceiptDto>('/stock/receipts', {
         method: 'POST',
+        headers: idempotencyKey('stock-receipt'),
         body: JSON.stringify({
           warehouseId: depot.id,
           supplier: supplier.trim() || undefined,
@@ -43,6 +45,7 @@ export default function ReceiptScreen() {
           lines,
         }),
       });
+      idempotencyDone('stock-receipt');
       Alert.alert('Entrée enregistrée', `${created.lines.length} article(s) entrés au dépôt.`);
       router.back();
     } catch (e) {

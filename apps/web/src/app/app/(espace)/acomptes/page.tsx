@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { ADVANCE_STATUS, formatDA, formatDateTime, formatMonth } from '@/lib/labels';
 import { currentMonth, useEmployees } from '@/lib/payroll';
 
@@ -46,7 +47,12 @@ export default function AdvancesPage() {
     setError(null);
     setBusy(a.id);
     try {
-      await api('company', `/advances/${a.id}/${action}`, { method: 'POST', body: '{}' });
+      await api('company', `/advances/${a.id}/${action}`, {
+        method: 'POST',
+        headers: idempotencyKey(`advance:${a.id}:${action}`),
+        body: '{}',
+      });
+      idempotencyDone(`advance:${a.id}:${action}`);
       await load();
     } catch (err) {
       setError(errorMessage(err));

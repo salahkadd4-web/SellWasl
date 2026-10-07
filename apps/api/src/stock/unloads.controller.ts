@@ -10,6 +10,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Idempotent } from '../common/idempotency';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import {
   ImageStorageService,
@@ -63,6 +64,7 @@ export class UnloadsController {
   }
 
   @RequirePermission('unloads.validate')
+  @Idempotent()
   @Post()
   create(
     @CurrentUser() actor: AuthUser,

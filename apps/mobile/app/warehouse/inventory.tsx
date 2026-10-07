@@ -3,6 +3,7 @@ import type { InventoryDto, InventoryResult, ProductDto, StockRowDto } from '@se
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { request } from '@/api/client';
+import { idempotencyDone, idempotencyKey } from '@/api/idempotency';
 import { errorMessage } from '@/seller/format';
 import { Card, Input, Message, PrimaryButton, Screen, Title } from '@/ui';
 import { useWarehouses } from '@/warehouse/warehouses';
@@ -89,7 +90,9 @@ export default function InventoryScreen() {
         if (action === 'validate') {
           const result = await request<InventoryResult>(`/inventories/${draft!.id}/validate`, {
             method: 'POST',
+            headers: idempotencyKey(`inventory:${draft!.id}`),
           });
+          idempotencyDone(`inventory:${draft!.id}`);
           setInfo(
             `Inventaire validé : ${result.adjustments} ajustement(s)${
               result.releasedLines.length

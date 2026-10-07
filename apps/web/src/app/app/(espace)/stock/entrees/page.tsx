@@ -6,6 +6,7 @@ import { Alert, Button, Card, Field, Modal, PageTitle, Select } from '@/componen
 import { emptyLine, type StockLine, StockLinesEditor, toPayload } from '@/components/stock-lines';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { CompanyAuth } from '@/lib/auth';
 import { articleLabel, formatDate, formatDateTime } from '@/lib/labels';
 import { useWarehouses, warehouseLabel } from '@/lib/stock';
@@ -176,6 +177,7 @@ function NewReceipt({
     try {
       await api('company', '/stock/receipts', {
         method: 'POST',
+        headers: idempotencyKey('stock-receipt'),
         body: JSON.stringify({
           warehouseId,
           supplierId: supplierId || undefined,
@@ -183,6 +185,7 @@ function NewReceipt({
           lines: payload,
         }),
       });
+      idempotencyDone('stock-receipt');
       onDone();
     } catch (err) {
       setError(errorMessage(err));

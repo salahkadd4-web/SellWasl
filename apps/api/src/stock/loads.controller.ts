@@ -9,6 +9,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Idempotent } from '../common/idempotency';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { LoadsService } from './loads.service';
 
@@ -58,6 +59,7 @@ export class LoadsController {
   }
 
   @RequirePermission('loads.plan')
+  @Idempotent()
   @Post('plan')
   plan(
     @CurrentUser() actor: AuthUser,
@@ -67,6 +69,7 @@ export class LoadsController {
   }
 
   @RequirePermission('loads.load')
+  @Idempotent()
   @Post(':id/validate')
   @HttpCode(200)
   validate(

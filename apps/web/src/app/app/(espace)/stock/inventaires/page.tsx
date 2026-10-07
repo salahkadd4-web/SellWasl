@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Modal, PageTitle, Select } from '@/components/ui';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { CompanyAuth } from '@/lib/auth';
 import { articleLabel, formatDateTime } from '@/lib/labels';
 import { useWarehouses, warehouseLabel } from '@/lib/stock';
@@ -240,8 +241,10 @@ function DraftCount({
       onValidated(
         await api<InventoryResult>('company', `/inventories/${inventory.id}/validate`, {
           method: 'POST',
+          headers: idempotencyKey(`inventory:${inventory.id}`),
         }),
       );
+      idempotencyDone(`inventory:${inventory.id}`);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

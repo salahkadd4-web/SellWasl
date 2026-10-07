@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { request } from '@/api/client';
+import { idempotencyDone, idempotencyKey } from '@/api/idempotency';
 import { errorMessage, formatDA } from '@/seller/format';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 import { PhotoCapture } from '@/warehouse/PhotoCapture';
@@ -124,6 +125,7 @@ export default function UnloadScreen() {
     try {
       const done = await request<UnloadDto>('/unloads', {
         method: 'POST',
+        headers: idempotencyKey(`unload:${workdayId}`),
         body: JSON.stringify({
           workdayId,
           lines: lines.map((l) => ({
@@ -134,6 +136,7 @@ export default function UnloadScreen() {
           conditions,
         }),
       });
+      idempotencyDone(`unload:${workdayId}`);
       Alert.alert(
         'Camion déchargé',
         `${done.hasGap ? 'Avec écart, signalé au superviseur.' : 'Sans écart.'} ${

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { request } from '@/api/client';
+import { idempotencyDone, idempotencyKey } from '@/api/idempotency';
 import { errorMessage } from '@/seller/format';
 import { Card, Message, PrimaryButton, Screen, Title } from '@/ui';
 
@@ -37,6 +38,7 @@ export default function ValidateLoadScreen() {
     try {
       await request(`/loads/${load.id}/validate`, {
         method: 'POST',
+        headers: idempotencyKey(`load:${load.id}`),
         body: JSON.stringify({
           lines: load.lines.map((l) => ({
             variantId: l.variantId,
@@ -44,6 +46,7 @@ export default function ValidateLoadScreen() {
           })),
         }),
       });
+      idempotencyDone(`load:${load.id}`);
       Alert.alert(
         'Chargement validé',
         `${load.truck.code} : le vendeur doit maintenant le pointer.`,

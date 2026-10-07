@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, PageTitle, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { CompanyAuth } from '@/lib/auth';
 import { formatDA, formatDate, nextDate, ROUTE_STATUS, todayDate } from '@/lib/labels';
 import { warehouseLabel } from '@/lib/stock';
@@ -63,7 +64,11 @@ export default function RoutesPage() {
     run(() =>
       api('company', '/routes/launch', {
         method: 'POST',
+        headers: idempotencyKey(`launch:${date}:${r.driver!.id}`),
         body: JSON.stringify({ date, driverId: r.driver!.id }),
+      }).then((result) => {
+        idempotencyDone(`launch:${date}:${r.driver!.id}`);
+        return result;
       }),
     );
 

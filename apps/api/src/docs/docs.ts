@@ -14,6 +14,7 @@ import {
   MODULE,
   PERMISSION,
 } from '../common/auth-context';
+import { IDEMPOTENT } from '../common/idempotency';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 /** Documentation servie hors production, ou sur demande (`API_DOCS=on`, staging) — api.md §1. */
@@ -30,7 +31,13 @@ interface Operation {
   'x-permission'?: string;
   'x-access'?: string;
   'x-module'?: string;
-  parameters: { name: string; in: 'path' | 'query'; required: boolean; schema: JsonSchema }[];
+  parameters: {
+    name: string;
+    in: 'path' | 'query' | 'header';
+    required: boolean;
+    schema: JsonSchema;
+    description?: string;
+  }[];
   requestBody?: { required: boolean; content: { 'application/json': { schema: JsonSchema } } };
   responses: Record<string, unknown>;
 }
@@ -141,6 +148,14 @@ export function buildOpenApi(app: INestApplication) {
           });
         }
 
+        if (meta(IDEMPOTENT))
+          parameters.push({
+            name: 'Idempotency-Key',
+            in: 'header',
+            required: false,
+            schema: { type: 'string', minLength: 8, maxLength: 100 },
+            description: 'Rejouable sans effet pendant 24 h (api.md §1).',
+          });
         const operation: Operation = {
           operationId: `${controller.name}.${name}`,
           tags: [path.split('/')[3] ?? 'api'],

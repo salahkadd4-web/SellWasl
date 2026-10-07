@@ -379,6 +379,7 @@ model Company {
   printLogs               PrintLog[]
   syncOperations          SyncOperation[]
   notifications           Notification[]
+  idempotencyKeys         IdempotencyKey[]
   auditLogs               AuditLog[]
   storedFiles             StoredFile[]
   importJobs              ImportJob[]
@@ -2101,6 +2102,27 @@ model Notification {
   @@index([companyId, changeSeq])
   @@index([companyId, changeXid])
   @@map("notification")
+}
+
+/// Clé d'idempotence d'une création d'argent ou de stock faite depuis le Web (api.md §1, phase 25).
+model IdempotencyKey {
+  id             String   @id @db.Uuid
+  key            String
+  method         String
+  path           String
+  requestHash    String   @map("request_hash")
+  /// IN_PROGRESS pendant l'exécution, DONE avec la réponse gardée 24 h.
+  status         String
+  responseStatus Int?     @map("response_status")
+  responseBody   Json?    @map("response_body")
+  companyId      String   @map("company_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@index([createdAt])
+  @@map("idempotency_key")
 }
 
 /// Audit de l’entreprise, en ajout seul (BR-AUD-01).

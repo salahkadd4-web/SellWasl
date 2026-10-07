@@ -12,6 +12,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Idempotent } from '../common/idempotency';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { ReceiptsService } from './receipts.service';
 import { StockQueryService } from './stock-query.service';
@@ -72,6 +73,7 @@ export class StockController {
   }
 
   @RequirePermission('stock.receive')
+  @Idempotent()
   @Post('receipts')
   createReceipt(
     @CurrentUser() actor: AuthUser,

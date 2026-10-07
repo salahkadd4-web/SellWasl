@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Select } from '@/components/ui';
 import { emptyLine, type StockLine, StockLinesEditor, toPayload } from '@/components/stock-lines';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { CompanyAuth } from '@/lib/auth';
 import { articleLabel, formatDate, LOAD_KIND, todayDate } from '@/lib/labels';
 import { type StockWarehouse, warehouseLabel } from '@/lib/stock';
@@ -154,8 +155,10 @@ function PlanLoad({
     try {
       await api('company', '/loads/plan', {
         method: 'POST',
+        headers: idempotencyKey(`load-plan:${truckId}:${date}`),
         body: JSON.stringify({ truckId, date, lines: payload }),
       });
+      idempotencyDone(`load-plan:${truckId}:${date}`);
       onDone();
     } catch (err) {
       setError(errorMessage(err));
@@ -229,8 +232,10 @@ function ValidateLoad({
     try {
       await api('company', `/loads/${load.id}/validate`, {
         method: 'POST',
+        headers: idempotencyKey(`load:${load.id}`),
         body: JSON.stringify({ lines }),
       });
+      idempotencyDone(`load:${load.id}`);
       onDone();
     } catch (err) {
       setError(errorMessage(err));

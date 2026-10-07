@@ -6,6 +6,7 @@ import { Stat } from '@/components/analytics';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { CompanyAuth } from '@/lib/auth';
 import {
   formatDA,
@@ -54,8 +55,10 @@ export default function PayrollPage() {
     try {
       const period = await api<PayrollPeriodDto>('company', path, {
         method: 'POST',
+        headers: idempotencyKey(`payroll:${path}`),
         body: JSON.stringify(body ?? {}),
       });
+      idempotencyDone(`payroll:${path}`);
       await load(period.id);
     } catch (err) {
       setError(errorMessage(err));

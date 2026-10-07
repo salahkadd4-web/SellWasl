@@ -10,6 +10,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Idempotent } from '../common/idempotency';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { AccountingService } from './accounting.service';
 
@@ -35,6 +36,7 @@ export class AccountingController {
   }
 
   @RequirePermission('settlements.create')
+  @Idempotent()
   @Post('settlements')
   settle(
     @CurrentUser() actor: AuthUser,

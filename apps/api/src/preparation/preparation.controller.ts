@@ -11,6 +11,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Idempotent } from '../common/idempotency';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PreparationService } from './preparation.service';
 import { RouteLoadService } from './route-load.service';
@@ -36,6 +37,7 @@ export class PreparationController {
   }
 
   @RequirePermission('preparation.launch')
+  @Idempotent()
   @Post('launch')
   launch(
     @CurrentUser() actor: AuthUser,

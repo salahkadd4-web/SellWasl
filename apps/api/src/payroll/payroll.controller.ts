@@ -43,6 +43,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Idempotent } from '../common/idempotency';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { AdvancesService } from './advances.service';
@@ -154,6 +155,7 @@ export class PayrollController {
   }
 
   @RequirePermission('advances.manage')
+  @Idempotent()
   @Post('advances/:id/pay')
   @HttpCode(200)
   payAdvance(@CurrentUser() actor: AuthUser, @Param('id', uuid) id: string): Promise<AdvanceDto> {
@@ -316,6 +318,7 @@ export class PayrollController {
   }
 
   @RequirePermission('payroll.manage')
+  @Idempotent()
   @Post('payroll/payments/:id/pay')
   @HttpCode(200)
   pay(@CurrentUser() actor: AuthUser, @Param('id', uuid) id: string): Promise<PayrollPeriodDto> {
