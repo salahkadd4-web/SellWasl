@@ -170,6 +170,11 @@ describe('notifications (phase 24)', () => {
       await dispatcher.dispatch();
       provider.sent.length = 0;
       deviceId = uuidv7();
+      // Un seul appareil actif par utilisateur : celui d'une autre suite est révoqué
+      await raw.device.updateMany({
+        where: { userId: ids['V07']!.id, status: 'ACTIVE' },
+        data: { status: 'REVOKED', revokedAt: new Date() },
+      });
       await raw.device.create({
         data: {
           id: deviceId,
