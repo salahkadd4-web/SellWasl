@@ -184,6 +184,13 @@ export const COMPANY_NAV: NavItem[] = [
     icon: 'settings',
   },
   {
+    href: '/app/notifications',
+    label: 'Notifications',
+    permission: null,
+    group: 'Moi',
+    icon: 'bell',
+  },
+  {
     href: '/app/ma-paie',
     label: 'Ma paie',
     permission: 'pay.mine',

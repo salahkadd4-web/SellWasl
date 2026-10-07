@@ -20,6 +20,8 @@ interface Props {
   roleCode?: string;
   tone?: 'company' | 'platform';
   onLogout: () => void;
+  /** Éléments de l'en-tête avant l'utilisateur (cloche des notifications). */
+  headerExtra?: ReactNode;
   children: ReactNode;
 }
 
@@ -35,6 +37,7 @@ export function AppShell({
   roleCode,
   tone = 'company',
   onLogout,
+  headerExtra,
   children,
 }: Props) {
   const pathname = usePathname();
@@ -165,6 +168,7 @@ export function AppShell({
           </button>
           <div className="lg:hidden">{brand(true)}</div>
           <p className="min-w-0 flex-1 truncate text-base font-semibold">{current?.label ?? ''}</p>
+          {headerExtra}
           <span className="hidden text-right text-sm lg:block">
             <span className="block font-medium">{user.name}</span>
             <span className="block text-xs text-muted">{user.detail}</span>

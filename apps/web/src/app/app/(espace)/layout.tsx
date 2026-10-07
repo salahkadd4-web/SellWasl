@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { ChangePasswordForm } from '@/components/change-password';
+import { NotificationBell } from '@/components/notification-bell';
 import { FullPageMessage } from '@/components/ui';
 import { CompanyAuth } from '@/lib/auth';
 import { COMPANY_NAV, visibleItems } from '@/lib/navigation';
@@ -27,6 +28,7 @@ export default function CompanySpaceLayout({ children }: { children: React.React
       user={{ name: `${me.user.firstName} ${me.user.lastName}`, detail: me.role.name }}
       roleCode={me.role.code}
       onLogout={() => void logout()}
+      headerExtra={<NotificationBell />}
     >
       {/* Mot de passe provisoire : à changer avant toute autre action (UC-80). */}
       {me.mustChangePassword ? <ChangePasswordForm /> : children}
