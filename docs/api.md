@@ -149,7 +149,10 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `POST` | `/users/{id}/disable`, `/users/{id}/enable` | `users.disable` |
 | `POST` | `/users/{id}/reset-password` | `users.update` |
 | `GET` | `/audit` | `audit.read` |
-| `GET`, `PATCH` | `/notifications`, `/notifications/{id}/read` | Propres notifications |
+| `GET` | `/notifications?unread=true&cursor=&limit=` | Propres notifications, récentes d'abord (`Page<NotificationDto>`) |
+| `GET` | `/notifications/unread-count` | Nombre de non lues |
+| `PATCH` | `/notifications/{id}/read` | Marque lue (404 pour celle d'un autre) |
+| `POST` | `/notifications/read-all` | Toutes lues |
 
 ### 5.2 Catalogue
 

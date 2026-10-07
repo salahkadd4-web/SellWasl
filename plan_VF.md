@@ -1276,35 +1276,35 @@ PENDING   SYNCING   SYNCED   FAILED   CONFLICT
 
 Commencer par :
 
-- [ ] Notifications internes (in-app)
-- [ ] Push notifications
+- [x] Notifications internes (in-app)
+- [x] Push notifications
 
 Puis, *après le MVP* :
 
 - [ ] Email
-- [ ] SMS
-- [ ] WhatsApp
+- [ ] SMS — écarté (décision du 2026-10-07 : push seulement)
+- [ ] WhatsApp — écarté (décision du 2026-10-07 : push seulement)
 
 ## Événements du MVP (BR-NOT)
 
 Superviseur :
 
-- [ ] Lignes en attente à traiter
-- [ ] Nouveau client
-- [ ] Visite hors zone
-- [ ] Écart de réception, de déchargement ou de versement
-- [ ] Journée démarrée ou clôturée hors connexion
+- [x] Lignes en attente à traiter
+- [x] Nouveau client
+- [x] Visite hors zone
+- [x] Écart de réception, de déchargement ou de versement
+- [x] Journée démarrée ou clôturée hors connexion
 
 Terrain :
 
-- [ ] Journée rouverte
-- [ ] Quota modifié
-- [ ] Lignes en attente acceptées ou refusées
-- [ ] Appareil révoqué
+- [x] Journée rouverte
+- [x] Quota modifié
+- [x] Lignes en attente acceptées ou refusées
+- [x] Appareil révoqué
 
 *Après le MVP* : nouvelle commande, commande prête, livraison terminée, stock faible, synchronisation échouée.
 
-Fournisseurs remplaçables (interface d'abstraction).
+Fournisseurs remplaçables (interface d'abstraction) : `PushProvider` ([notifications.md](docs/notifications.md)).
 
 ---
 

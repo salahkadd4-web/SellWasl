@@ -461,7 +461,8 @@ Le détail des tables sera dans `database.md`.
 
 - **Internes** : table `Notification`, lue par le Web (cloche) et par le téléphone (à la synchronisation).
 - **Push sur le mobile** : Expo Push, qui s'appuie sur Firebase Cloud Messaging. Une interface `PushProvider` permet de passer à FCM direct si besoin.
-- Email, SMS et WhatsApp viennent après le MVP, derrière la même interface (plan, phase 24).
+- Email après le MVP, derrière la même interface ; SMS et WhatsApp écartés (décision du 2026-10-07).
+- Réalisation (phase 24) : [notifications.md](notifications.md).
 
 ---
 
