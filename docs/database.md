@@ -60,7 +60,8 @@
 |---|---|
 | `deleted_at` | Suppression logique, transmise au téléphone comme un changement |
 | `version` | Incrémentée à chaque modification ; sert à détecter une écriture concurrente sur le Web |
-| `change_seq` | `BIGINT`, alimenté par la séquence globale `sync_change_seq` à chaque création ou modification, par un trigger PostgreSQL. C'est le curseur de synchronisation (architecture §10.3). Index `(company_id, change_seq)` |
+| `change_seq` | `BIGINT`, alimenté par la séquence globale `sync_change_seq` à chaque création ou modification, par un trigger PostgreSQL. Ordre des changements. Index `(company_id, change_seq)` |
+| `change_xid` | `BIGINT`, transaction de la dernière écriture (`pg_current_xact_id()`), posée par le même trigger (phase 23). C'est le curseur de synchronisation du téléphone (architecture §10.3, [offline-sync.md](offline-sync.md)). Index `(company_id, change_xid)` |
 | `created_by_user_id`, `created_by_device_id` | Auteur de l'opération (BR-USR-09). L'appareil est vide pour une action faite sur le Web |
 
 Les données **créées par le téléphone** (marquées **T**) gardent en plus `occurred_at`, l'heure de l'action sur le téléphone, distincte de `created_at`, l'heure de réception par le serveur (BR-JOU-11).

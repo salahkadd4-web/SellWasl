@@ -326,11 +326,14 @@ Le serveur enregistre chaque `opId` reçu, avec son résultat, dans une table `S
 
 ### 10.3 Réception des changements (pull)
 
-- Chaque table synchronisée a une colonne `change_seq`, alimentée par une séquence PostgreSQL à chaque création ou modification. Le curseur du téléphone est le dernier `change_seq` reçu.
+- Chaque table synchronisée a une colonne `change_seq` (séquence PostgreSQL) et une colonne `change_xid` (transaction de l'écriture), posées par un trigger à chaque création ou modification.
+- Le curseur du téléphone est la plus ancienne transaction encore en cours au début de sa dernière lecture (`pg_snapshot_xmin`) : une écriture validée après la lecture a une transaction au moins égale au curseur et arrive à la lecture suivante. Un numéro de séquence seul ne suffit pas : une transaction lente peut valider une ligne avec un numéro inférieur à un curseur déjà rendu (phase 23).
 - On n'utilise pas les dates : les horloges des téléphones et du serveur ne sont pas fiables pour ordonner des changements.
 - Les suppressions sont des suppressions logiques (`deleted_at`), envoyées comme les autres changements.
 - Le serveur filtre selon le rôle et le périmètre de l'utilisateur (BR-SYN-04) : les clients de son secteur, sa tournée, le stock de son camion…
 - La première synchronisation télécharge tout le périmètre, page par page.
+
+Réalisation (phase 23) : [offline-sync.md](offline-sync.md).
 
 ### 10.4 Déclenchement
 

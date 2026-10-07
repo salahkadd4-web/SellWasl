@@ -1239,20 +1239,20 @@ Mobile → SQLite → Outbox / Sync Queue → Sync Engine → API /api/v1/sync �
 
 ## Tâches
 
-- [ ] SQLite local
-- [ ] Données téléchargées selon le rôle (BR-SYN-04) : clients du secteur avec dettes, catalogue, prix, paliers, bonus, quotas, objectifs, planning, polygones, tournée, stock du camion
-- [ ] Outbox locale
-- [ ] Enregistrement offline des journées, visites, commandes, ventes, livraisons, paiements et clients créés
-- [ ] Endpoint `/api/v1/sync`
-- [ ] Synchronisation automatique au retour du réseau, et bouton « Synchroniser »
-- [ ] Synchronisation différentielle
-- [ ] Idempotency keys (BR-SYN-02)
-- [ ] Retry
-- [ ] Règle de propriété des données : téléphone ou serveur (BR-SYN-03)
-- [ ] Transformations à la réception : excédent de quota → « en attente », excédent de stock → « rupture », avec information du vendeur (BR-SYN-05)
-- [ ] Journal de synchronisation et des erreurs (`SyncLog`)
-- [ ] Indicateur de synchronisation dans l'application (BR-SYN-06)
-- [ ] Démarrage et clôture de journée hors connexion (BR-JOU-04, BR-JOU-06)
+- [x] SQLite local
+- [x] Données téléchargées selon le rôle (BR-SYN-04) : clients du secteur avec dettes, catalogue, prix, paliers, bonus, quotas, objectifs, planning, polygones, tournée, stock du camion
+- [x] Outbox locale
+- [x] Enregistrement offline des journées, visites, commandes, ventes, livraisons, paiements et clients créés
+- [x] Endpoint `/api/v1/sync`
+- [x] Synchronisation automatique au retour du réseau, et bouton « Synchroniser »
+- [x] Synchronisation différentielle
+- [x] Idempotency keys (BR-SYN-02)
+- [x] Retry
+- [x] Règle de propriété des données : téléphone ou serveur (BR-SYN-03)
+- [x] Transformations à la réception : excédent de quota → « en attente », excédent de stock → « rupture », avec information du vendeur (BR-SYN-05)
+- [x] Journal de synchronisation et des erreurs (`SyncLog`)
+- [x] Indicateur de synchronisation dans l'application (BR-SYN-06)
+- [x] Démarrage et clôture de journée hors connexion (BR-JOU-04, BR-JOU-06)
 
 ## États
 
@@ -1262,13 +1262,13 @@ PENDING   SYNCING   SYNCED   FAILED   CONFLICT
 
 ## Livrable
 
-- [ ] `docs/offline-sync.md`
+- [x] `docs/offline-sync.md`
 
 ## Critère de validation
 
-- [ ] Une commande créée sans réseau est synchronisée une seule fois au retour du réseau
-- [ ] Un quota baissé pendant que le téléphone était hors connexion transforme l'excédent en « en attente », sans perte ni écrasement silencieux
-- [ ] Une journée complète de cash van se déroule sans réseau, puis se synchronise
+- [x] Une commande créée sans réseau est synchronisée une seule fois au retour du réseau
+- [x] Un quota baissé pendant que le téléphone était hors connexion transforme l'excédent en « en attente », sans perte ni écrasement silencieux
+- [x] Une journée complète de cash van se déroule sans réseau, puis se synchronise
 
 ---
 

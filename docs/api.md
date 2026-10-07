@@ -428,10 +428,38 @@ Réponse : un résultat par opération, dans le même ordre.
 - **Ordre** : si `deviceSeq` saute un numéro, le serveur traite les opérations jusqu'au trou et répond `GAP` pour la suite. Le téléphone renvoie alors les opérations manquantes.
 - **Transaction** : chaque opération est appliquée dans sa propre transaction. Une opération refusée n'empêche pas les suivantes, sauf si elles en dépendent (par exemple, le paiement d'une commande refusée est refusé aussi, avec le code `DEPENDS_ON_REJECTED`).
 - **Recalage** : avec `GAP`, ou `REJECTED` + `DUPLICATE` sur le numéro d'ordre, `result.expectedDeviceSeq` donne le numéro attendu ; le téléphone renvoie l'opération avec ce numéro.
-- **En ligne d'abord (phase 15)** : le téléphone envoie chaque opération tout de suite, une par requête ; la file hors connexion arrive avec la phase 23.
+- **File hors connexion (phase 23)** : le téléphone met chaque opération en file et l'envoie dès que possible, par lots ([offline-sync.md](offline-sync.md)).
+- **Changements** (`APPLIED_WITH_CHANGES`) : `order.confirm` et `order.update` acceptent `expected` (découpage calculé par le téléphone, en unité de base : `{ variantId, pendingQty, stockoutQty }[]`) ; ce qui diffère au serveur produit `QUOTA_PENDING` ou `STOCKOUT`. `sale.confirm` avec `offline: true` (vente postérieure à la dernière réception complète de l'appareil et reçue au moins 30 s après) n'est pas refusée au-delà du quota ou du stock du camion : `QUOTA_EXCEEDED`, `TRUCK_STOCK_SHORT` (écart de stock « à examiner »).
+- **Journée** : `workday.start` et `workday.close` acceptent `offline: true` (« démarrée / clôturée hors connexion »).
 - **Appareil révoqué** : les opérations dont `occurredAt` est antérieur à la révocation sont acceptées ; les autres sont refusées avec `DEVICE_REVOKED` (BR-USR-11).
 
 ### 6.2 Réception : `GET /sync/pull`
+
+```text
+GET /sync/pull?cursor=0&date=2026-10-03&scope=<clé>&page=<jeton>
+```
+
+Réponse réelle (phase 23) :
+
+```json
+{
+  "rows": [{ "kind": "customer", "id": "…", "data": { "…": "…" }, "deleted": false }],
+  "replace": ["pricing"],
+  "cursor": "1844674",
+  "hasMore": false,
+  "page": null,
+  "scope": "PRE_VENDEUR:t=…:w=",
+  "reset": false,
+  "serverTime": "2026-10-03T09:43:01Z"
+}
+```
+
+- Canal mobile et rôles du terrain seulement (sinon 403, `OFFLINE_NOT_AVAILABLE` pour le magasinier).
+- `cursor` : transaction (`change_xid`) rendue par la lecture précédente ; `0` = réception complète. `date` : date du téléphone. Pages de 500 lignes ; le curseur final n'arrive qu'avec `hasMore: false`.
+- `replace` : sortes que le téléphone vide avant d'écrire les lignes (sortes « ensemble », ou toutes en réception complète). Sortes, modes et périmètres : [offline-sync.md §3](offline-sync.md).
+- `scope` différent de la clé actuelle (secteur, camion) : `reset: true` (RESYNC_REQUIRED).
+
+Forme prévue en phase 1, gardée pour mémoire :
 
 ```text
 GET /sync/pull?cursor=184467&limit=500
@@ -466,6 +494,10 @@ GET /sync/pull?cursor=184467&limit=500
 ```
 
 Au démarrage de la journée, le téléphone fait une synchronisation complète, puis enregistre la version des paramètres qu'il utilisera jusqu'à la clôture (ARC-12).
+
+### 6.4 Journal : `GET /sync/operations`
+
+Permission `devices.read`. Filtres `status` (`APPLIED`, `APPLIED_WITH_CHANGES`, `REJECTED`), `userId`, `cursor`, `limit` (50). Renvoie `Page<SyncOperationRowDto>` : action, statut, motif du refus, changements, heure sur le téléphone et de réception, utilisateur, appareil (BR-SYN-07). Page Web « Synchronisation ».
 
 ---
 

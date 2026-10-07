@@ -103,6 +103,9 @@ importers:
       '@sellwasl/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@sellwasl/offline':
+        specifier: workspace:*
+        version: link:../../packages/offline
       '@swc/core':
         specifier: ^1.16.13
         version: 1.16.13(@swc/helpers@0.5.23)
