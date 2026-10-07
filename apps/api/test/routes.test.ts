@@ -70,6 +70,8 @@ describe('couverture des routes', () => {
       'companies/provisioning.service.ts',
       'health/health.controller.ts',
       'modules/modules.service.ts',
+      // Envoi push : parcourt les notifications de toutes les entreprises
+      'notifications/push-dispatcher.service.ts',
       // Paie automatique de la nuit : parcourt les entreprises, chaque requête filtrée par entreprise
       'payroll/payroll-automation.service.ts',
       'platform/platform-companies.controller.ts',

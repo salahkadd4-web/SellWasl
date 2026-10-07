@@ -1,6 +1,9 @@
 import type { NotificationDto, Page } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NotificationsService } from '../src/notifications/notifications.service';
+import { PushDispatcher } from '../src/notifications/push-dispatcher.service';
+import { MemoryPushProvider, PUSH_PROVIDER } from '../src/notifications/push.provider';
+import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 
@@ -130,6 +133,96 @@ describe('notifications (phase 24)', () => {
         token: admA,
       });
       expect(adm.body.count).toBe(0);
+    });
+  });
+
+  describe('envoi push (PushDispatcher)', () => {
+    let dispatcher: PushDispatcher;
+    let provider: MemoryPushProvider;
+    let deviceId: string;
+
+    const notifyV07 = (
+      type: 'QUOTA_CHANGED' | 'DEVICE_REVOKED',
+      data: Record<string, unknown> = {},
+    ) =>
+      raw.$transaction((tx) =>
+        notifications.notify(tx, {
+          companyId: ids['V07']!.companyId,
+          type,
+          title: 'Titre push',
+          body: 'Corps push',
+          data,
+          to: { userIds: [ids['V07']!.id] },
+        }),
+      );
+
+    beforeAll(async () => {
+      dispatcher = t.app.get(PushDispatcher);
+      provider = t.app.get<MemoryPushProvider>(PUSH_PROVIDER);
+      // Notifications déjà présentes : envoyées une fois pour toutes
+      await dispatcher.dispatch();
+      provider.sent.length = 0;
+      deviceId = uuidv7();
+      await raw.device.create({
+        data: {
+          id: deviceId,
+          companyId: ids['V07']!.companyId,
+          userId: ids['V07']!.id,
+          series: 'Z',
+          status: 'ACTIVE',
+          activatedAt: new Date(),
+          pushToken: 'ExponentPushToken[v07-ok]',
+        },
+      });
+    });
+
+    it('envoie une fois au téléphone actif, puis plus rien', async () => {
+      await notifyV07('QUOTA_CHANGED', { href: null });
+      expect(await dispatcher.dispatch()).toBe(1);
+      expect(provider.sent).toEqual([
+        expect.objectContaining({
+          to: 'ExponentPushToken[v07-ok]',
+          title: 'Titre push',
+          body: 'Corps push',
+        }),
+      ]);
+      expect(await dispatcher.dispatch()).toBe(0);
+      expect(provider.sent).toHaveLength(1);
+    });
+
+    it('appareil révoqué : plus de push, sauf celui qui annonce la révocation', async () => {
+      await raw.device.update({ where: { id: deviceId }, data: { status: 'REVOKED' } });
+      provider.sent.length = 0;
+      await notifyV07('QUOTA_CHANGED');
+      expect(await dispatcher.dispatch()).toBe(0);
+      await notifyV07('DEVICE_REVOKED', { deviceId });
+      expect(await dispatcher.dispatch()).toBe(1);
+      expect(provider.sent[0]!.to).toBe('ExponentPushToken[v07-ok]');
+      await raw.device.update({ where: { id: deviceId }, data: { status: 'ACTIVE' } });
+    });
+
+    it('jeton refusé par Expo : effacé', async () => {
+      await raw.device.update({
+        where: { id: deviceId },
+        data: { pushToken: 'ExponentPushToken[dead]' },
+      });
+      provider.dead.add('ExponentPushToken[dead]');
+      await notifyV07('QUOTA_CHANGED');
+      await dispatcher.dispatch();
+      const device = await raw.device.findUniqueOrThrow({ where: { id: deviceId } });
+      expect(device.pushToken).toBeNull();
+    });
+
+    it('deux envoyeurs en même temps : un seul envoi', async () => {
+      await raw.device.update({
+        where: { id: deviceId },
+        data: { pushToken: 'ExponentPushToken[v07-ok]' },
+      });
+      provider.sent.length = 0;
+      await notifyV07('QUOTA_CHANGED');
+      const [a, b] = await Promise.all([dispatcher.dispatch(), dispatcher.dispatch()]);
+      expect(a + b).toBe(1);
+      expect(provider.sent).toHaveLength(1);
     });
   });
 });
