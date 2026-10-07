@@ -26,6 +26,7 @@ import type {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { StockLedger } from '../src/stock/stock-ledger.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { type Phone, Phones } from './phone';
 
@@ -301,6 +302,21 @@ describe('hors connexion de bout en bout (phase 23)', () => {
         token: await webLogin(t.url, 'CASHVAN-EST', 'B-SUP'),
       })
     ).body;
+    // Stock connu dans le camion, quel que soit l'ordre des suites
+    const truckRow = await raw.warehouse.findFirstOrThrow({
+      where: { type: 'TRUCK', assignedUserId: user.id },
+    });
+    const seeded = cvProducts.find((x) => x.variants.some((v) => v.reference === 'BIMO-CHOC'))!;
+    await raw.$transaction((tx) =>
+      t.app.get(StockLedger).apply(tx, { companyId: user.companyId, userId: user.id }, [
+        {
+          type: 'ADJUSTMENT',
+          variantId: seeded.variants.find((v) => v.reference === 'BIMO-CHOC')!.id,
+          qty: 50,
+          toWarehouseId: truckRow.id,
+        },
+      ]),
+    );
     expect((await d.engine.sync()).ok).toBe(true);
 
     let local = await d.local();

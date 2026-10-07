@@ -39,8 +39,9 @@ describe('notifications (phase 24)', () => {
   });
   afterAll(() => t.close());
 
-  const count = (userId: string, type: string) =>
-    raw.notification.count({ where: { userId, type } });
+  // Par texte : d'autres suites ont pu créer des notifications du même type avant celle-ci
+  const count = (userId: string, body: string) =>
+    raw.notification.count({ where: { userId, body } });
 
   describe('enregistrement (NotificationsService.notify)', () => {
     it('par droit : ceux qui ont le droit, pas l’auteur, pas une autre entreprise', async () => {
@@ -56,10 +57,10 @@ describe('notifications (phase 24)', () => {
         }),
       );
       expect(created).toBeGreaterThan(0);
-      expect(await count(ids['A-SUP']!.id, 'PENDING_LINES')).toBe(1);
-      expect(await count(ids['A-ADM']!.id, 'PENDING_LINES')).toBe(0);
-      expect(await count(ids['V07']!.id, 'PENDING_LINES')).toBe(0);
-      expect(await count(ids['B-SUP']!.id, 'PENDING_LINES')).toBe(0);
+      expect(await count(ids['A-SUP']!.id, 'Test par droit')).toBe(1);
+      expect(await count(ids['A-ADM']!.id, 'Test par droit')).toBe(0);
+      expect(await count(ids['V07']!.id, 'Test par droit')).toBe(0);
+      expect(await count(ids['B-SUP']!.id, 'Test par droit')).toBe(0);
     });
 
     it('à des utilisateurs précis', async () => {
@@ -72,7 +73,7 @@ describe('notifications (phase 24)', () => {
           to: { userIds: [ids['V07']!.id] },
         }),
       );
-      expect(await count(ids['V07']!.id, 'QUOTA_CHANGED')).toBe(1);
+      expect(await count(ids['V07']!.id, 'Test direct')).toBe(1);
     });
 
     it('action annulée : aucune notification', async () => {
@@ -88,7 +89,7 @@ describe('notifications (phase 24)', () => {
           throw new Error('échec de l’action');
         }),
       ).rejects.toThrow('échec');
-      expect(await count(ids['V07']!.id, 'WORKDAY_REOPENED')).toBe(0);
+      expect(await count(ids['V07']!.id, 'Annulée')).toBe(0);
     });
   });
 
@@ -98,9 +99,8 @@ describe('notifications (phase 24)', () => {
         token: supA,
       });
       expect(mine.status).toBe(200);
-      expect(mine.body.data.some((n) => n.type === 'PENDING_LINES')).toBe(true);
-      expect(mine.body.data.every((n) => n.type !== 'QUOTA_CHANGED')).toBe(true);
-      const first = mine.body.data[0]!;
+      expect(mine.body.data.every((n) => n.body !== 'Test direct')).toBe(true);
+      const first = mine.body.data.find((n) => n.body === 'Test par droit')!;
       expect(first).toMatchObject({
         title: 'Lignes en attente',
         href: '/app/attente',
@@ -136,10 +136,10 @@ describe('notifications (phase 24)', () => {
       });
       expect(after.body.count).toBe(0);
       // L'admin n'a rien reçu : il était l'auteur
-      const adm = await call<{ count: number }>(t.url, 'GET', '/notifications/unread-count', {
+      const adm = await call<Page<NotificationDto>>(t.url, 'GET', '/notifications?limit=100', {
         token: admA,
       });
-      expect(adm.body.count).toBe(0);
+      expect(adm.body.data.some((n) => n.body === 'Test par droit')).toBe(false);
     });
   });
 
@@ -261,6 +261,11 @@ describe('notifications (phase 24)', () => {
       ).body;
     });
     afterAll(async () => {
+      // Client de test retiré : les autres suites comptent les clients à revoir
+      await raw.customer.updateMany({
+        where: { name: 'Kiosque Notif' },
+        data: { deletedAt: new Date() },
+      });
       await raw.order.updateMany({
         where: { orderDate: new Date(`${EV}T00:00:00Z`), status: { in: ['CONFIRMED', 'LOCKED'] } },
         data: { status: 'CANCELLED' },
@@ -323,7 +328,7 @@ describe('notifications (phase 24)', () => {
           data: { href: '/app/attente' },
         });
         expect(notice!.body).toContain(`V08-${p.series}8801`);
-        expect(await last('V08', 'PENDING_LINES')).toBeNull();
+        expect(await last('V08', 'Test par droit')).toBeNull();
 
         const line = await raw.orderLine.findFirstOrThrow({
           where: { kind: 'PENDING', order: { number: `V08-${p.series}8801` } },
