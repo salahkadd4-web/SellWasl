@@ -4,7 +4,8 @@ import { ApiError } from './api-error';
 
 /** Valide le corps d'une requête avec un schéma Zod partagé (packages/validation). */
 export class ZodValidationPipe<T extends ZodType> implements PipeTransform<unknown, z.infer<T>> {
-  constructor(private readonly schema: T) {}
+  /** Lu aussi par la documentation OpenAPI (phase 25). */
+  constructor(readonly schema: T) {}
 
   transform(value: unknown): z.infer<T> {
     const result = this.schema.safeParse(value);
