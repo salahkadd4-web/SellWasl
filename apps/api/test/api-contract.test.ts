@@ -1,6 +1,7 @@
 import { PERMISSIONS } from '@sellwasl/business-rules';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
+import { docsEnabled } from '../src/docs/docs';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
 import { Phones } from './phone';
@@ -20,12 +21,10 @@ describe('contrat de l’API (phase 25)', () => {
   });
   afterAll(async () => {
     // Client de test retiré : d'autres suites comptent les clients à revoir
-    await t.app
-      .get(PrismaService)
-      .customer.updateMany({
-        where: { name: 'Client en double' },
-        data: { deletedAt: new Date() },
-      });
+    await t.app.get(PrismaService).customer.updateMany({
+      where: { name: 'Client en double' },
+      data: { deletedAt: new Date() },
+    });
     await t.close();
   });
 
@@ -112,6 +111,65 @@ describe('contrat de l’API (phase 25)', () => {
       }
       expect(last).toBe(429);
       shaped(body, 'RATE_LIMITED');
+    });
+  });
+
+  describe('documentation OpenAPI (api.md §1)', () => {
+    interface Op {
+      operationId: string;
+      security?: unknown[];
+      requestBody?: {
+        content: { 'application/json': { schema: { properties?: Record<string, unknown> } } };
+      };
+      parameters?: { name: string; in: string }[];
+      'x-permission'?: string;
+    }
+    let doc: { openapi: string; paths: Record<string, Record<string, Op>> };
+
+    beforeAll(async () => {
+      const reply = await fetch(t.url.replace('/api/v1', '/api/docs/openapi.json'));
+      expect(reply.status).toBe(200);
+      doc = (await reply.json()) as typeof doc;
+    });
+
+    it('décrit chaque route de l’API', () => {
+      expect(doc.openapi).toMatch(/^3\.1/);
+      const operations = Object.values(doc.paths).flatMap((p) => Object.values(p));
+      expect(operations.length).toBeGreaterThan(150);
+      expect(new Set(operations.map((o) => o.operationId)).size).toBe(operations.length);
+    });
+
+    it('corps, droit et paramètres viennent des schémas Zod et des décorateurs', () => {
+      const create = doc.paths['/api/v1/customers']!.post!;
+      expect(create['x-permission']).toBe('customers.create');
+      expect(create.requestBody!.content['application/json'].schema.properties).toHaveProperty(
+        'name',
+      );
+      const list = doc.paths['/api/v1/customers']!.get!;
+      expect(list.parameters!.map((x) => x.name)).toEqual(
+        expect.arrayContaining(['q', 'limit', 'cursor']),
+      );
+      const one = doc.paths['/api/v1/customers/{id}']!.get!;
+      expect(one.parameters).toContainEqual(expect.objectContaining({ name: 'id', in: 'path' }));
+      expect(doc.paths['/api/v1/health']!.get!.security).toEqual([]);
+      expect(create.security).toEqual([{ bearer: [] }]);
+    });
+
+    it('Swagger UI servi par l’API', async () => {
+      const page = await fetch(t.url.replace('/api/v1', '/api/docs'));
+      expect(page.status).toBe(200);
+      expect(await page.text()).toContain('swagger-ui');
+      const bundle = await fetch(t.url.replace('/api/v1', '/api/docs/ui/swagger-ui-bundle.js'));
+      expect(bundle.status).toBe(200);
+      const init = await fetch(t.url.replace('/api/v1', '/api/docs/init.js'));
+      expect(await init.text()).toContain('/api/docs/openapi.json');
+    });
+
+    it('jamais en production, sauf API_DOCS=on', () => {
+      expect(docsEnabled({ NODE_ENV: 'production' })).toBe(false);
+      expect(docsEnabled({ NODE_ENV: 'production', API_DOCS: 'on' })).toBe(true);
+      expect(docsEnabled({ NODE_ENV: 'development' })).toBe(true);
+      expect(docsEnabled({ NODE_ENV: 'test' })).toBe(true);
     });
   });
 

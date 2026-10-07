@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import type { Express } from 'express';
 import helmet from 'helmet';
+import { mountDocs } from './docs/docs';
 
 /**
  * Les montants (dinars) et curseurs de synchronisation sont des BigInt en base : ils partent en
@@ -17,5 +18,7 @@ export function configureApp(app: INestApplication): void {
   app.use(helmet());
   app.use(cookieParser());
   app.setGlobalPrefix('api/v1');
+  // Documentation OpenAPI : /api/docs, jamais en production (docs/api.md §1, phase 25)
+  mountDocs(app);
   app.enableShutdownHooks();
 }
