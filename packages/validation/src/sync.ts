@@ -27,6 +27,7 @@ export const OPERATION_TYPES = [
   'lost_demand.create',
   'receipt.reprint',
   'refusal.contest',
+  'notification.read',
 ] as const;
 export type OperationType = (typeof OPERATION_TYPES)[number];
 

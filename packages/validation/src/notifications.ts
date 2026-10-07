@@ -33,3 +33,8 @@ export const notificationListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type NotificationListQuery = z.infer<typeof notificationListQuerySchema>;
+
+/** Notifications lues sur le téléphone, envoyées par la file (phase 24). */
+export const notificationReadPayload = z.object({
+  notificationIds: z.array(z.uuid()).min(1).max(200),
+});

@@ -5,6 +5,7 @@ import { AppState, Platform } from 'react-native';
 import { ApiClientError, request, setAccessToken, setRefreshHandler } from '@/api/client';
 import { clearCatalogPhotos, useCatalogPhotoSync } from '@/catalog/photos';
 import { useHeartbeat } from '@/device/heartbeat';
+import { usePushRegistration } from '@/notifications/push';
 import { wipeOffline } from '@/offline/engine';
 import { type DeviceProfile, secureStorage } from './storage';
 
@@ -117,6 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Photos du catalogue gardées sur le téléphone, mises à jour à chaque session en ligne
   useCatalogPhotoSync(status === 'loggedIn' && !offline);
+  // Notifications push : jeton envoyé au serveur une fois connecté (phase 24)
+  usePushRegistration(status === 'loggedIn' && !offline);
 
   // Hors connexion : nouvel essai toutes les 30 secondes, et au retour dans l'application
   const reconnect = useCallback(async () => {

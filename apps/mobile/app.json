@@ -50,7 +50,13 @@
           "locationWhenInUsePermission": "SellWasl utilise votre position pendant la journée pour trier les clients par distance et vérifier les visites sur place."
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "color": "#001850"
+        }
+      ]
     ],
     "platforms": ["android"]
   }

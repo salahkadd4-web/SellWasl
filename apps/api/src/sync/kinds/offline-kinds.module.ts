@@ -6,6 +6,7 @@ import { PlanningModule } from '../../planning/planning.module';
 import { TerritoriesModule } from '../../territories/territories.module';
 import { SyncModule } from '../sync.module';
 import { FieldKinds } from './field.kinds';
+import { NotificationKinds } from './notification.kinds';
 import { ReferenceKinds } from './reference.kinds';
 import { TruckKinds } from './truck.kinds';
 
@@ -19,6 +20,6 @@ import { TruckKinds } from './truck.kinds';
     PlanningModule,
     TerritoriesModule,
   ],
-  providers: [ReferenceKinds, FieldKinds, TruckKinds],
+  providers: [ReferenceKinds, FieldKinds, TruckKinds, NotificationKinds],
 })
 export class OfflineKindsModule {}

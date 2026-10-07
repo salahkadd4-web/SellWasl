@@ -7,6 +7,7 @@ import type { DriverRouteDto, TruckStockDto } from './delivery';
 import type { OrderDto, VisitPricingCatalog } from './orders';
 import type { PlanningDay } from './planning';
 import type { MyObjective, SyncChange, TodayVisit, WorkdayStatusValue } from './sync';
+import type { NotificationDto } from './notifications';
 import type { TerritoryDto } from './territories';
 
 /** Sortes de données téléchargées par le téléphone, dans l'ordre de la réception. */
@@ -28,6 +29,7 @@ export const OFFLINE_KINDS = [
   'truckStock',
   'truckCheck',
   'depotStock',
+  'notification',
 ] as const;
 export type OfflineKind = (typeof OFFLINE_KINDS)[number];
 
@@ -158,6 +160,7 @@ export interface OfflineKindData {
   truckStock: TruckStockDto;
   truckCheck: OfflineTruckCheck;
   depotStock: OfflineDepotStock;
+  notification: NotificationDto;
 }
 
 /** Opération reçue d'un téléphone, vue dans le journal de synchronisation (BR-SYN-07). */
@@ -203,4 +206,5 @@ export const OPERATION_LABELS: Record<string, string> = {
   'lost_demand.create': 'Demande perdue',
   'receipt.reprint': 'Réimpression',
   'refusal.contest': 'Contestation de refus',
+  'notification.read': 'Notification lue',
 };

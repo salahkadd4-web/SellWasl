@@ -10,3 +10,4 @@ export * from './effects-truck';
 export * from './views/truck';
 export * from './effects-driver';
 export * from './views/driver';
+export * from './views/notifications';

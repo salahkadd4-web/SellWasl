@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { setPositionSharing } from '@/device/heartbeat';
+import { NotificationsCard } from '@/notifications/NotificationsScreen';
 import { phoneDate } from '@/offline/ids';
 import { SyncBar } from '@/offline/SyncBar';
 import { useLocal, useSync } from '@/offline/SyncProvider';
@@ -71,6 +72,7 @@ export default function DriverDashboard() {
         Bonjour {me?.user.firstName ?? profile?.firstName}
       </Title>
       <SyncBar href="/driver/sync" />
+      <NotificationsCard onOpen={() => router.push('/driver/notifications')} />
       {error ? <Message>{error}</Message> : null}
 
       <Card title="Journée">

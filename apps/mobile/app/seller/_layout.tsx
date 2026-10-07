@@ -1,10 +1,13 @@
 import { colors } from '@sellwasl/config';
 import { Stack } from 'expo-router';
+import { useNotificationTaps } from '@/notifications/push';
 import { SyncProvider } from '@/offline/SyncProvider';
 import { TodayProvider } from '@/today/TodayContext';
 
 /** Écrans du pré-vendeur et du vendeur cash van (phase 15), autour de leur journée, hors connexion (phase 23). */
 export default function SellerLayout() {
+  // Toucher une notification ouvre l'écran des notifications (phase 24)
+  useNotificationTaps('/seller/notifications');
   return (
     <SyncProvider>
       <TodayProvider>
@@ -34,6 +37,7 @@ export default function SellerLayout() {
           <Stack.Screen name="pay" options={{ title: 'Ma paie' }} />
           <Stack.Screen name="profile" options={{ title: 'Profil' }} />
           <Stack.Screen name="sync" options={{ title: 'Synchronisation' }} />
+          <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         </Stack>
       </TodayProvider>
     </SyncProvider>

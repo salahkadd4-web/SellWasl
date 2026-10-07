@@ -184,6 +184,12 @@ export const EFFECTS: Partial<Record<OutboxOp['type'], Effect>> = {
     if (order && order.status === 'CONFIRMED') order.status = 'CANCELLED';
   },
 
+  // Notification lue sur le téléphone, même hors connexion (phase 24)
+  'notification.read': (s, p, op) => {
+    const ids = new Set((p.notificationIds as string[] | undefined) ?? []);
+    for (const n of s.notifications) if (ids.has(n.id) && !n.readAt) n.readAt = op.occurredAt;
+  },
+
   // Encaissement de dette : la dette du client baisse (BR-PAY-04)
   'payment.debt': (s, p, op) => {
     const id = str(p.paymentId)!;

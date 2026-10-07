@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
+import { NotificationsCard } from '@/notifications/NotificationsScreen';
 import { SyncBar } from '@/offline/SyncBar';
 import { useSync } from '@/offline/SyncProvider';
 import { errorMessage, formatDA, formatDate } from '@/seller/format';
@@ -57,6 +58,7 @@ export default function SellerDashboard() {
         Bonjour {me?.user.firstName ?? profile?.firstName}
       </Title>
       <SyncBar href="/seller/sync" />
+      <NotificationsCard onOpen={() => router.push('/seller/notifications')} />
       {indicator.unseenChanges > 0 ? (
         <Card title="Changements à la réception">
           <Message tone="info">

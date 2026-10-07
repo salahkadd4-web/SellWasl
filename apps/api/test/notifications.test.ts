@@ -2,6 +2,7 @@ import type {
   NotificationDto,
   Page,
   ProductDto,
+  SyncPullResponse,
   TruckCheckLine,
   UnloadPreviewLine,
 } from '@sellwasl/validation';
@@ -479,6 +480,58 @@ describe('notifications (phase 24)', () => {
       expect(revoked.status, JSON.stringify(revoked.body)).toBeLessThan(300);
       const notice = await last('V07', 'DEVICE_REVOKED');
       expect(notice).toMatchObject({ title: 'Appareil révoqué', data: { deviceId: p.deviceId } });
+    });
+  });
+
+  describe('téléphone (synchronisation)', () => {
+    it('les notifications arrivent par la synchronisation ; « lu » par la file', async () => {
+      const phones = new Phones(t, { 'DISTRI-ORAN': supA });
+      const p = await phones.get('V08');
+      await raw.$transaction((tx) =>
+        notifications.notify(tx, {
+          companyId: ids['V08']!.companyId,
+          type: 'QUOTA_CHANGED',
+          title: 'Quota modifié',
+          body: 'Test synchronisation',
+          to: { userIds: [ids['V08']!.id] },
+        }),
+      );
+      // Réception complète, page par page
+      const rows: SyncPullResponse['rows'] = [];
+      const replace = new Set<string>();
+      let page: string | null = null;
+      do {
+        const reply: { status: number; body: SyncPullResponse } = await call<SyncPullResponse>(
+          t.url,
+          'GET',
+          `/sync/pull?cursor=0&date=2027-06-26${page ? `&page=${page}` : ''}`,
+          { token: p.token },
+        );
+        expect(reply.status).toBe(200);
+        rows.push(...reply.body.rows);
+        reply.body.replace.forEach((k) => replace.add(k));
+        page = reply.body.page;
+      } while (page);
+      const mine = rows.filter((r) => r.kind === 'notification');
+      expect(mine.some((r) => (r.data as { body: string }).body === 'Test synchronisation')).toBe(
+        true,
+      );
+      expect(replace.has('notification')).toBe(true);
+      const own = mine.find(
+        (r) => (r.data as { body: string }).body === 'Test synchronisation',
+      )!.id;
+      const other = await raw.notification.findFirstOrThrow({
+        where: { userId: ids['A-SUP']!.id },
+      });
+      const read = await phones.send(p, 'notification.read', { notificationIds: [own, other.id] });
+      expect(read).toMatchObject({ status: 'APPLIED', result: { read: 1 } });
+      expect(
+        (await raw.notification.findUniqueOrThrow({ where: { id: own } })).readAt,
+      ).not.toBeNull();
+      // Celle d'un autre n'est pas touchée
+      expect(
+        (await raw.notification.findUniqueOrThrow({ where: { id: other.id } })).readAt,
+      ).toEqual(other.readAt);
     });
   });
 });

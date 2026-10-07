@@ -30,6 +30,7 @@ export type SourceModel =
   | 'holiday'
   | 'load'
   | 'loadLine'
+  | 'notification'
   | 'objective'
   | 'order'
   | 'orderLine'

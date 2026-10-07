@@ -2,6 +2,7 @@ import type {
   CustomerDto,
   DriverRouteDto,
   MyObjective,
+  NotificationDto,
   OfflineKind,
   OfflineKindData,
   OfflineOrder,
@@ -47,6 +48,8 @@ export interface LocalState {
   truckCheck: TruckCheckLine[];
   /** Disponible au dépôt par article (prévente), une indication. */
   depotStock: Map<string, number>;
+  /** Notifications de l'utilisateur (30 jours, phase 24). */
+  notifications: NotificationDto[];
 }
 
 export type RowsByKind = Partial<Record<OfflineKind, StoredRow[]>>;
@@ -74,6 +77,7 @@ export function loadState(rows: RowsByKind): LocalState {
     truckStock: new Map(data(rows, 'truckStock').map((s) => [s.variantId, s])),
     truckCheck: data(rows, 'truckCheck')[0]?.lines ?? [],
     depotStock: new Map(data(rows, 'depotStock').map((s) => [s.variantId, s.available])),
+    notifications: data(rows, 'notification'),
   };
 }
 
