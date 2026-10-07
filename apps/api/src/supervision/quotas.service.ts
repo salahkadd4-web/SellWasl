@@ -3,6 +3,7 @@ import { localDate } from '@sellwasl/business-rules';
 import { companySettingsSchema, type putQuotasSchema, type QuotaDto } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
 import { dateOnly, rule, toDate } from '../field/field-errors';
@@ -20,6 +21,7 @@ export class QuotasService {
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly orders: OrderService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(date: string, userId?: string): Promise<QuotaDto[]> {
@@ -127,7 +129,17 @@ export class QuotasService {
         },
         tx,
       );
+      // Chaque vendeur concerné est prévenu (BR-NOT-03)
+      await this.notifications.notify(tx, {
+        companyId: actor.companyId,
+        type: 'QUOTA_CHANGED',
+        title: 'Quota modifié',
+        body: `Vos quotas du ${input.date.split('-').reverse().join('/')} ont changé.`,
+        to: { userIds: [...new Set(input.entries.map((e) => e.userId))] },
+        actorUserId: actor.userId,
+      });
     });
+    this.notifications.kick();
     return this.list(input.date);
   }
 }

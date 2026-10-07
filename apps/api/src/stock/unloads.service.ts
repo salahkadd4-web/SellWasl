@@ -9,6 +9,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
@@ -52,6 +53,7 @@ export class UnloadsService {
     private readonly ledger: StockLedger,
     private readonly audit: AuditService,
     private readonly images: ImageStorageService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Journées clôturées d'un conducteur de camion, pas encore déchargées. */
@@ -269,7 +271,20 @@ export class UnloadsService {
         },
         tx,
       );
+      // Écart au déchargement (BR-NOT-02)
+      const gaps = rows.filter((r) => r.gapQty !== 0).length;
+      if (gaps > 0)
+        await this.notifications.notify(tx, {
+          companyId: actor.companyId,
+          type: 'UNLOAD_GAP',
+          title: 'Écart au déchargement',
+          body: `${await this.notifications.userLabel(tx, workday.userId)} : ${gaps} article(s) avec un écart.`,
+          data: { href: '/app/ecarts' },
+          to: { permission: 'discrepancies.read' },
+          actorUserId: actor.userId,
+        });
     });
+    this.notifications.kick();
     return this.get(id);
   }
 

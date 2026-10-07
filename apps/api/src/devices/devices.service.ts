@@ -14,6 +14,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { hashActivationCode } from '../auth/auth.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
@@ -60,6 +61,7 @@ export class DevicesService {
   constructor(
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Utilisateurs terrain de l'entreprise et leur appareil en service (UC-59). */
@@ -224,7 +226,19 @@ export class DevicesService {
         },
         tx,
       );
+      // Le téléphone révoqué reçoit un dernier push (BR-NOT-03)
+      if (status === 'REVOKED')
+        await this.notifications.notify(tx as unknown as Prisma.TransactionClient, {
+          companyId: actor.companyId,
+          type: 'DEVICE_REVOKED',
+          title: 'Appareil révoqué',
+          body: 'Ce téléphone a été déconnecté par votre superviseur. Contactez-le pour en associer un autre.',
+          data: { deviceId: device.id },
+          to: { userIds: [device.userId] },
+          actorUserId: actor.userId,
+        });
     });
+    if (status === 'REVOKED') this.notifications.kick();
   }
 
   /** Fermeture d'une session : l'utilisateur doit se reconnecter avec son mot de passe. */

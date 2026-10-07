@@ -17,6 +17,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
@@ -119,6 +120,7 @@ export class OrderService implements OnModuleInit {
     private readonly audit: AuditService,
     private readonly handlers: SyncHandlers,
     private readonly ledger: StockLedger,
+    private readonly notifications: NotificationsService,
   ) {}
 
   onModuleInit(): void {
@@ -510,6 +512,7 @@ export class OrderService implements OnModuleInit {
       },
       tx,
     );
+    await this.notifyPending(tx, actor, lines, payload.number, customer.name);
     const changes = receptionChanges(payload.expected, lines, summary.stockouts);
     return {
       orderId: payload.orderId,
@@ -570,6 +573,8 @@ export class OrderService implements OnModuleInit {
       },
       tx,
     );
+    const customer = await tx.customer.findFirst({ where: { id: order.customerId } });
+    await this.notifyPending(tx, actor, lines, order.number, customer?.name ?? '');
     const changes = receptionChanges(payload.expected, lines, summary.stockouts);
     return {
       orderId: order.id,
@@ -599,6 +604,27 @@ export class OrderService implements OnModuleInit {
       tx,
     );
     return { orderId: order.id };
+  }
+
+  /** Lignes en attente à traiter par le superviseur (BR-QUO-05, BR-NOT-02). */
+  private async notifyPending(
+    tx: Tx,
+    actor: AuthUser,
+    lines: BuiltLine[],
+    number: string,
+    customerName: string,
+  ) {
+    const pending = lines.filter((l) => l.kind === 'PENDING').length;
+    if (pending === 0) return;
+    await this.notifications.notify(tx, {
+      companyId: actor.companyId,
+      type: 'PENDING_LINES',
+      title: 'Lignes en attente',
+      body: `${await this.notifications.userLabel(tx, actor.userId)} : ${pending} ligne(s) en attente, commande ${number} (${customerName}).`,
+      data: { href: '/app/attente' },
+      to: { permission: 'pending_lines.process' },
+      actorUserId: actor.userId,
+    });
   }
 
   /** Commandes au format des écrans (téléphone et Web). */

@@ -1,4 +1,10 @@
-import type { NotificationDto, Page } from '@sellwasl/validation';
+import type {
+  NotificationDto,
+  Page,
+  ProductDto,
+  TruckCheckLine,
+  UnloadPreviewLine,
+} from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NotificationsService } from '../src/notifications/notifications.service';
 import { PushDispatcher } from '../src/notifications/push-dispatcher.service';
@@ -6,6 +12,7 @@ import { MemoryPushProvider, PUSH_PROVIDER } from '../src/notifications/push.pro
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, startApp, type TestApp, webLogin } from './helpers';
+import { type Phone, Phones } from './phone';
 
 /** Notifications internes et push (phase 24, BR-NOT). */
 describe('notifications (phase 24)', () => {
@@ -27,7 +34,7 @@ describe('notifications (phase 24)', () => {
     notifications = t.app.get(NotificationsService);
     supA = await webLogin(t.url, 'DISTRI-ORAN', 'A-SUP');
     admA = await webLogin(t.url, 'DISTRI-ORAN', 'A-ADM');
-    for (const code of ['A-SUP', 'A-ADM', 'A-CPT', 'V07']) ids[code] = await user(code);
+    for (const code of ['A-SUP', 'A-ADM', 'A-CPT', 'V07', 'V08']) ids[code] = await user(code);
     ids['B-SUP'] = await user('B-SUP', 'CASHVAN-EST');
   });
   afterAll(() => t.close());
@@ -223,6 +230,245 @@ describe('notifications (phase 24)', () => {
       const [a, b] = await Promise.all([dispatcher.dispatch(), dispatcher.dispatch()]);
       expect(a + b).toBe(1);
       expect(provider.sent).toHaveLength(1);
+    });
+  });
+
+  describe('événements BR-NOT (spec §2.4)', () => {
+    const EV = '2027-06-26';
+    let phones: Phones;
+    let supB: string;
+    let cptB: string;
+    let products: ProductDto[];
+
+    /** Dernière notification d'un type pour un utilisateur. */
+    const last = (code: string, type: string, company = 'DISTRI-ORAN') =>
+      raw.notification.findFirst({
+        where: { type, user: { code, company: { code: company } } },
+        orderBy: { createdAt: 'desc' },
+      });
+    const item = (reference: string, unitName: string) => {
+      const product = products.find((p) => p.variants.some((v) => v.reference === reference))!;
+      const unit = product.units.find((u) => u.name === unitName)!;
+      return { variantId: product.variants.find((v) => v.reference === reference)!.id, unit };
+    };
+
+    beforeAll(async () => {
+      supB = await webLogin(t.url, 'CASHVAN-EST', 'B-SUP');
+      cptB = await webLogin(t.url, 'CASHVAN-EST', 'B-CPT');
+      phones = new Phones(t, { 'DISTRI-ORAN': supA, 'CASHVAN-EST': supB });
+      products = (
+        await call<ProductDto[]>(t.url, 'GET', '/products?status=ACTIVE', { token: supA })
+      ).body;
+    });
+    afterAll(async () => {
+      await raw.order.updateMany({
+        where: { orderDate: new Date(`${EV}T00:00:00Z`), status: { in: ['CONFIRMED', 'LOCKED'] } },
+        data: { status: 'CANCELLED' },
+      });
+      await raw.visit.updateMany({
+        where: { date: new Date(`${EV}T00:00:00Z`), status: 'IN_PROGRESS' },
+        data: { status: 'COMPLETED', endedAt: new Date() },
+      });
+      await raw.workday.updateMany({
+        where: { date: new Date(`${EV}T00:00:00Z`), status: 'IN_PROGRESS' },
+        data: { status: 'CLOSED', closedAt: new Date() },
+      });
+    });
+
+    describe('pré-vendeur V08', () => {
+      let p: Phone;
+      let workdayId: string;
+      let customers: { id: string; latitude: number | null; longitude: number | null }[];
+
+      beforeAll(async () => {
+        p = await phones.get('V08');
+        workdayId = await phones.startDay(p, EV);
+        customers = (await phones.today(p, EV)).body.day.customers;
+      });
+
+      it('quota modifié : le vendeur est prévenu, pas l’auteur', async () => {
+        const thon = item('THON-TOM', 'carton');
+        const reply = await call(t.url, 'PUT', '/quotas', {
+          token: supA,
+          body: {
+            date: EV,
+            entries: [
+              {
+                userId: ids['V08']!.id,
+                productVariantId: thon.variantId,
+                unitId: thon.unit.id,
+                qty: 1,
+              },
+            ],
+          },
+        });
+        expect(reply.status, JSON.stringify(reply.body)).toBe(200);
+        expect(await last('V08', 'QUOTA_CHANGED')).toMatchObject({ title: 'Quota modifié' });
+        expect(await last('A-SUP', 'QUOTA_CHANGED')).toBeNull();
+      });
+
+      it('lignes en attente : le superviseur est prévenu ; décision : le vendeur aussi', async () => {
+        const thon = item('THON-TOM', 'carton');
+        const visitId = await phones.startVisit(p, customers[0]!.id, 'PHONE');
+        const result = await phones.send(p, 'order.confirm', {
+          orderId: uuidv7(),
+          number: `V08-${p.series}8801`,
+          visitId,
+          lines: [{ variantId: thon.variantId, unitId: thon.unit.id, qty: 3 }],
+        });
+        expect(result.status, JSON.stringify(result)).toMatch(/^APPLIED/);
+        const notice = await last('A-SUP', 'PENDING_LINES');
+        expect(notice).toMatchObject({
+          title: 'Lignes en attente',
+          data: { href: '/app/attente' },
+        });
+        expect(notice!.body).toContain(`V08-${p.series}8801`);
+        expect(await last('V08', 'PENDING_LINES')).toBeNull();
+
+        const line = await raw.orderLine.findFirstOrThrow({
+          where: { kind: 'PENDING', order: { number: `V08-${p.series}8801` } },
+        });
+        const decided = await call(t.url, 'POST', '/pending-lines/decide', {
+          token: supA,
+          body: { lineIds: [line.id], decision: 'REFUSE' },
+        });
+        expect(decided.status, JSON.stringify(decided.body)).toBeLessThan(300);
+        expect(await last('V08', 'PENDING_DECIDED')).toMatchObject({
+          title: 'Lignes en attente refusées',
+        });
+      });
+
+      it('nouveau client créé sur le terrain', async () => {
+        const type = await raw.customerType.findFirstOrThrow({
+          where: { company: { code: 'DISTRI-ORAN' } },
+        });
+        const created = await phones.send(p, 'customer.create', {
+          customerId: uuidv7(),
+          name: 'Kiosque Notif',
+          customerTypeId: type.id,
+          latitude: 35.7,
+          longitude: -0.63,
+          frequency: 'WEEKLY',
+        });
+        expect(created.status, JSON.stringify(created)).toBe('APPLIED');
+        const notice = await last('A-SUP', 'NEW_CUSTOMER');
+        expect(notice).toMatchObject({ title: 'Nouveau client', data: { href: '/app/clients' } });
+        expect(notice!.body).toContain('Kiosque Notif');
+      });
+
+      it('visite hors zone', async () => {
+        const target = customers.find((c) => c.latitude !== null)!;
+        const visitId = uuidv7();
+        const started = await phones.send(p, 'visit.start', {
+          visitId,
+          customerId: target.id,
+          mode: 'ON_SITE',
+          latitude: 36.75,
+          longitude: 3.05,
+        });
+        expect(started.status, JSON.stringify(started)).toBe('APPLIED');
+        expect(await last('A-SUP', 'OUT_OF_ZONE_VISIT')).toMatchObject({
+          title: 'Visite hors zone',
+          data: { href: '/app/suivi' },
+        });
+        const reason = await raw.reason.findFirstOrThrow({
+          where: { kind: 'NO_ORDER', company: { code: 'DISTRI-ORAN' } },
+        });
+        await phones.send(p, 'visit.close_no_order', { visitId, reasonId: reason.id });
+      });
+
+      it('clôture hors connexion, puis réouverture', async () => {
+        const closed = await phones.send(p, 'workday.close', { workdayId, offline: true });
+        expect(closed.status, JSON.stringify(closed)).toBe('APPLIED');
+        expect(await last('A-SUP', 'WORKDAY_OFFLINE')).toMatchObject({
+          title: 'Journée clôturée hors connexion',
+          data: { href: '/app/journees' },
+        });
+        const reopened = await call(t.url, 'POST', `/workdays/${workdayId}/reopen`, {
+          token: supA,
+          body: { reason: 'Commande oubliée' },
+        });
+        expect(reopened.status, JSON.stringify(reopened.body)).toBeLessThan(300);
+        const notice = await last('V08', 'WORKDAY_REOPENED');
+        expect(notice).toMatchObject({ title: 'Journée rouverte' });
+        expect(notice!.body).toContain('Commande oubliée');
+      });
+    });
+
+    it('cash van : écarts de pointage, de déchargement et de versement', async () => {
+      const c = await phones.get('C02', 'CASHVAN-EST');
+      const user = await raw.user.findFirstOrThrow({
+        where: { code: 'C02', company: { code: 'CASHVAN-EST' } },
+      });
+      await raw.load.updateMany({
+        where: { userId: user.id, status: 'LOADED' },
+        data: { status: 'RECEIVED' },
+      });
+      const workdayId = await phones.startDay(c, EV);
+      const lines = (
+        await call<TruckCheckLine[]>(t.url, 'GET', '/me/truck-check', { token: c.token })
+      ).body;
+      const short = lines.find((l) => l.inTruck > 0)!;
+      expect(short, 'stock dans le camion').toBeTruthy();
+      const checked = await phones.send(c, 'truck.check', {
+        lines: lines.map((l) => ({
+          variantId: l.variantId,
+          countedQty: l.variantId === short.variantId ? l.inTruck - 1 : l.inTruck,
+        })),
+      });
+      expect(checked.status, JSON.stringify(checked)).toBe('APPLIED');
+      expect(await last('B-SUP', 'LOAD_GAP', 'CASHVAN-EST')).toMatchObject({
+        title: 'Écart au chargement',
+        data: { href: '/app/stock' },
+      });
+
+      await phones.closeDay(c, workdayId);
+      const preview = (
+        await call<UnloadPreviewLine[]>(t.url, 'GET', `/unloads/preview?workdayId=${workdayId}`, {
+          token: supB,
+        })
+      ).body;
+      const gapLine = preview.find((l) => l.theoretical > 0)!;
+      const adjustment = await raw.reason.findFirstOrThrow({
+        where: { kind: 'ADJUSTMENT', isActive: true, company: { code: 'CASHVAN-EST' } },
+      });
+      const unloaded = await call(t.url, 'POST', '/unloads', {
+        token: supB,
+        body: {
+          workdayId,
+          lines: preview.map((l) => ({
+            variantId: l.variantId,
+            countedQty: l.variantId === gapLine.variantId ? l.theoretical - 1 : l.theoretical,
+            ...(l.variantId === gapLine.variantId ? { reasonId: adjustment.id } : {}),
+          })),
+        },
+      });
+      expect(unloaded.status, JSON.stringify(unloaded.body)).toBe(201);
+      expect(await last('B-ADM', 'UNLOAD_GAP', 'CASHVAN-EST')).toMatchObject({
+        title: 'Écart au déchargement',
+        data: { href: '/app/ecarts' },
+      });
+      expect(await last('B-SUP', 'UNLOAD_GAP', 'CASHVAN-EST')).toBeNull();
+
+      const settled = await call(t.url, 'POST', '/settlements', {
+        token: cptB,
+        body: { workdayId, remittedAmount: 100, note: 'Test notification' },
+      });
+      expect(settled.status, JSON.stringify(settled.body)).toBeLessThan(300);
+      const notice = await last('B-SUP', 'SETTLEMENT_GAP', 'CASHVAN-EST');
+      expect(notice).toMatchObject({
+        title: 'Écart de versement',
+        data: { href: '/app/versements' },
+      });
+      expect(await last('B-CPT', 'SETTLEMENT_GAP', 'CASHVAN-EST')).toBeNull();
+    });
+
+    it('appareil révoqué : une notification pour ce téléphone', async () => {
+      const p = await phones.get('V07');
+      const revoked = await call(t.url, 'POST', `/devices/${p.deviceId}/revoke`, { token: supA });
+      expect(revoked.status, JSON.stringify(revoked.body)).toBeLessThan(300);
+      const notice = await last('V07', 'DEVICE_REVOKED');
+      expect(notice).toMatchObject({ title: 'Appareil révoqué', data: { deviceId: p.deviceId } });
     });
   });
 });

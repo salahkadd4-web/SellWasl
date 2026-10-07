@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PendingLineDto } from '@sellwasl/validation';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
 import { dateOnly, invalidState, toDate } from '../field/field-errors';
@@ -24,6 +25,7 @@ export class PendingLinesService {
     private readonly orders: OrderService,
     private readonly audit: AuditService,
     private readonly ledger: StockLedger,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(date?: string): Promise<PendingLineDto[]> {
@@ -124,7 +126,28 @@ export class PendingLinesService {
         },
         tx,
       );
+      // Chaque vendeur apprend la décision sur ses commandes (BR-NOT-03)
+      const bySeller = new Map<string, Set<string>>();
+      for (const line of lines)
+        bySeller.set(
+          line.order.sellerUserId,
+          (bySeller.get(line.order.sellerUserId) ?? new Set()).add(line.order.number),
+        );
+      const verdict = decision === 'ACCEPT' ? 'acceptée(s)' : 'refusée(s)';
+      for (const [sellerId, numbers] of bySeller) {
+        const count = lines.filter((l) => l.order.sellerUserId === sellerId).length;
+        await this.notifications.notify(tx, {
+          companyId: actor.companyId,
+          type: 'PENDING_DECIDED',
+          title:
+            decision === 'ACCEPT' ? 'Lignes en attente acceptées' : 'Lignes en attente refusées',
+          body: `${count} ligne(s) en attente ${verdict} : commande(s) ${[...numbers].join(', ')}.`,
+          to: { userIds: [sellerId] },
+          actorUserId: actor.userId,
+        });
+      }
     });
+    this.notifications.kick();
     return { processed: lineIds.length };
   }
 

@@ -3,6 +3,7 @@ import { distanceMeters } from '@sellwasl/business-rules';
 import { visitCloseNoOrderPayload, visitStartPayload } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import type { Prisma } from '../generated/prisma/client';
@@ -24,6 +25,7 @@ export class VisitService implements OnModuleInit {
     private readonly planning: PlanningService,
     private readonly audit: AuditService,
     private readonly handlers: SyncHandlers,
+    private readonly notifications: NotificationsService,
   ) {}
 
   onModuleInit(): void {
@@ -119,6 +121,17 @@ export class VisitService implements OnModuleInit {
       },
       tx,
     );
+    // Visite sur place loin du client (BR-VIS-02, BR-NOT-02)
+    if (isOutOfZone)
+      await this.notifications.notify(tx, {
+        companyId: actor.companyId,
+        type: 'OUT_OF_ZONE_VISIT',
+        title: 'Visite hors zone',
+        body: `${await this.notifications.userLabel(tx, actor.userId)} chez ${customer.name}${distanceM === null ? ' (position du téléphone inconnue)' : ` à ${distanceM} m`}.`,
+        data: { href: '/app/suivi' },
+        to: { permission: 'visits.read' },
+        actorUserId: actor.userId,
+      });
     return { visitId: payload.visitId, distanceM, isOutOfZone, isScheduled };
   }
 

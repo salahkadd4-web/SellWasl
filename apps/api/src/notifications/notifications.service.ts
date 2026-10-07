@@ -76,6 +76,12 @@ export class NotificationsService {
     for (const listener of this.listeners) listener();
   }
 
+  /** « Prénom Nom (CODE) » d'un utilisateur, pour le texte des notifications. */
+  async userLabel(tx: Pick<Prisma.TransactionClient, 'user'>, userId: string): Promise<string> {
+    const u = await tx.user.findFirst({ where: { id: userId } });
+    return u ? `${u.firstName} ${u.lastName} (${u.code})` : 'Un utilisateur';
+  }
+
   /** Enregistre la notification pour chaque destinataire ; renvoie leur nombre. */
   async notify(tx: Prisma.TransactionClient, input: NotifyInput): Promise<number> {
     const recipients = new Set(input.to.userIds ?? []);

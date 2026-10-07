@@ -2,6 +2,7 @@ import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import { loadReceivePayload, type TruckCheckLine, truckCheckPayload } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { invalidState, rule } from '../field/field-errors';
@@ -44,6 +45,7 @@ export class LoadReceiveService implements OnModuleInit {
     private readonly workdays: WorkdayService,
     private readonly ledger: StockLedger,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
     private readonly handlers: SyncHandlers,
   ) {}
 
@@ -169,6 +171,7 @@ export class LoadReceiveService implements OnModuleInit {
       },
       tx,
     );
+    if (moves.length > 0) await this.notifyGap(tx, actor);
     return { hasGap: moves.length > 0, loads: loads.length };
   }
 
@@ -237,6 +240,20 @@ export class LoadReceiveService implements OnModuleInit {
       },
       tx,
     );
+    if (moves.length > 0) await this.notifyGap(tx, actor);
     return { loadId: load.id, hasGap: moves.length > 0 };
+  }
+
+  /** Écart au pointage ou à la réception du camion (BR-NOT-02). */
+  private async notifyGap(tx: Tx, actor: AuthUser) {
+    await this.notifications.notify(tx, {
+      companyId: actor.companyId,
+      type: 'LOAD_GAP',
+      title: 'Écart au chargement',
+      body: `${await this.notifications.userLabel(tx, actor.userId)} a pointé son camion avec un écart.`,
+      data: { href: '/app/stock' },
+      to: { permission: 'loads.read' },
+      actorUserId: actor.userId,
+    });
   }
 }

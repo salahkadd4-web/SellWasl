@@ -8,6 +8,7 @@ import type {
   SettlementRowDto,
 } from '@sellwasl/validation';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { cell } from '../common/csv';
@@ -32,6 +33,7 @@ export class AccountingService {
     private readonly receipts: ReceiptsService,
     private readonly audit: AuditService,
     private readonly discrepancies: DiscrepanciesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -178,7 +180,19 @@ export class AccountingService {
         },
         tx,
       );
+      // Écart de versement (BR-NOT-02)
+      if (gap !== 0)
+        await this.notifications.notify(tx, {
+          companyId: actor.companyId,
+          type: 'SETTLEMENT_GAP',
+          title: 'Écart de versement',
+          body: `${await this.notifications.userLabel(tx, workday.userId)} : ${gap > 0 ? 'excédent' : 'manque'} de ${Math.abs(gap)} DA.`,
+          data: { href: '/app/versements' },
+          to: { permission: 'settlements.read' },
+          actorUserId: actor.userId,
+        });
     });
+    this.notifications.kick();
     const workday = await this.db.workday.findFirstOrThrow({
       where: { id: workdayId },
       include: { user: { include: { role: true } }, settlement: true },

@@ -8,6 +8,7 @@ import {
   workdayStartPayload,
 } from '@sellwasl/validation';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
@@ -55,6 +56,7 @@ export class WorkdayService implements OnModuleInit {
     private readonly planning: PlanningService,
     private readonly audit: AuditService,
     private readonly handlers: SyncHandlers,
+    private readonly notifications: NotificationsService,
   ) {}
 
   onModuleInit(): void {
@@ -160,6 +162,7 @@ export class WorkdayService implements OnModuleInit {
         },
         tx,
       );
+    if (payload.offline) await this.notifyOffline(tx, actor, 'démarrée', date);
     return { workdayId };
   }
 
@@ -200,7 +203,26 @@ export class WorkdayService implements OnModuleInit {
       },
       tx,
     );
+    if (offline) await this.notifyOffline(tx, actor, 'clôturée', dateOnly(workday.date));
     return { workdayId, missed };
+  }
+
+  /** Journée démarrée ou clôturée sans réseau (BR-JOU-04, BR-JOU-06, BR-NOT-02). */
+  private async notifyOffline(
+    tx: Prisma.TransactionClient,
+    actor: AuthUser,
+    what: 'démarrée' | 'clôturée',
+    date: string,
+  ) {
+    await this.notifications.notify(tx, {
+      companyId: actor.companyId,
+      type: 'WORKDAY_OFFLINE',
+      title: `Journée ${what} hors connexion`,
+      body: `${await this.notifications.userLabel(tx, actor.userId)} : journée du ${date.split('-').reverse().join('/')} ${what} sans réseau.`,
+      data: { href: '/app/journees' },
+      to: { permission: 'workdays.read' },
+      actorUserId: actor.userId,
+    });
   }
 
   /**

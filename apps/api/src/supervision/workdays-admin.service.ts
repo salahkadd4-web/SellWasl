@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { WorkdayDto } from '@sellwasl/validation';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
 import { dateOnly, invalidState, toDate } from '../field/field-errors';
@@ -29,6 +30,7 @@ export class WorkdaysAdminService {
     private readonly workdays: WorkdayService,
     private readonly planning: PlanningService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Une ligne par utilisateur terrain actif, qu'il ait démarré sa journée ou non. */
@@ -156,7 +158,17 @@ export class WorkdaysAdminService {
         },
         tx,
       );
+      // L'utilisateur est prévenu (BR-JOU-08, BR-NOT-03)
+      await this.notifications.notify(tx, {
+        companyId: actor.companyId,
+        type: 'WORKDAY_REOPENED',
+        title: 'Journée rouverte',
+        body: `Votre journée du ${workday.date.toISOString().slice(0, 10).split('-').reverse().join('/')} est rouverte : ${reason}`,
+        to: { userIds: [workday.userId] },
+        actorUserId: actor.userId,
+      });
     });
+    this.notifications.kick();
     return { workdayId: id };
   }
 

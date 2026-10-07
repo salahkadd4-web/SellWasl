@@ -12,6 +12,7 @@ import type { AuthUser } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
 import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
+import { NotificationsService } from '../notifications/notifications.service';
 import { SyncHandlers } from './sync.handlers';
 
 /** Résultat enregistré dans SyncOperation.result, renvoyé tel quel si l'opération revient. */
@@ -51,6 +52,7 @@ export class SyncService {
   constructor(
     @Inject(TENANT_PRISMA) private readonly db: TenantPrisma,
     private readonly handlers: SyncHandlers,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async push(actor: AuthUser, input: SyncPushInput): Promise<SyncPushResponse> {
@@ -95,6 +97,8 @@ export class SyncService {
       results.push(await this.apply(actor, deviceId, op));
       expected += 1;
     }
+    // Notifications des opérations appliquées : envoi push sans attendre le minuteur
+    this.notifications.kick();
     return { results, serverTime: new Date().toISOString() };
   }
 
