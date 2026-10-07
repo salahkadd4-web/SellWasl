@@ -17,6 +17,7 @@ import { FilesModule } from './files/files.module';
 import { CustomersModule } from './customers/customers.module';
 import { TerritoriesModule } from './territories/territories.module';
 import { PlanningModule } from './planning/planning.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { OfflineKindsModule } from './sync/kinds/offline-kinds.module';
 import { SyncModule } from './sync/sync.module';
 import { FieldModule } from './field/field.module';
@@ -66,6 +67,7 @@ import { PrismaModule } from './prisma/prisma.module';
     TenancyModule,
     ModulesModule,
     AuditModule,
+    NotificationsModule,
     AuthModule,
     AdminModule,
     FilesModule,
