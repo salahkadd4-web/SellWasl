@@ -223,17 +223,17 @@ describe('journée du vendeur (phase 15)', () => {
       expect((await put(false)).status).toBe(200);
       try {
         const p = await phone('V08');
-        // Vendredi 9 octobre : chômé
+        // Vendredi 8 octobre 2027 : chômé (loin d'aujourd'hui : un autre test ouvre la journée du jour)
         const refused = await send(p, 'workday.start', {
           workdayId: uuidv7(),
-          date: '2026-10-09',
+          date: '2027-10-08',
         });
         expect(refused).toMatchObject({ status: 'REJECTED', error: { code: 'BUSINESS_RULE' } });
       } finally {
         await put(true);
       }
       const p = await phone('V08');
-      await closeDay(p, await startDay(p, '2026-10-09'));
+      await closeDay(p, await startDay(p, '2027-10-08'));
     });
 
     it('clôture : refusée avec une visite en cours, puis crée les visites manquées (BR-JOU-06, BR-PLA-06)', async () => {
