@@ -49,7 +49,7 @@ function decodeCursor(cursor: string): Prisma.NotificationWhereInput {
     const createdAt = new Date(at);
     return { OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }] };
   } catch {
-    throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Curseur invalide.');
+    throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Curseur invalide.');
   }
 }
 

@@ -1,9 +1,10 @@
 'use client';
 
-import type { DiscrepancyDto } from '@sellwasl/validation';
+import type { DiscrepancyDto, Page } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
 import { DISCREPANCY_STATUS, formatDA, formatDate, formatDateTime } from '@/lib/labels';
@@ -20,7 +21,8 @@ export default function DiscrepanciesPage() {
   const canDecide = can('discrepancies.decide');
   const [status, setStatus] = useState('OPEN');
   const [kind, setKind] = useState('');
-  const [rows, setRows] = useState<DiscrepancyDto[] | null>(null);
+  const [list, setList] = useState<Listed<DiscrepancyDto> | null>(null);
+  const rows = list?.page.data ?? null;
   const [deciding, setDeciding] = useState<DiscrepancyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -28,11 +30,11 @@ export default function DiscrepanciesPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const all = await api<DiscrepancyDto[]>(
-        'company',
-        `/discrepancies${kind ? `?kind=${kind}` : ''}`,
-      );
-      setRows(status === 'OPEN' ? all.filter((d) => OPEN.includes(d.status)) : all);
+      const params = new URLSearchParams();
+      if (status === 'OPEN') params.set('status', 'OPEN');
+      if (kind) params.set('kind', kind);
+      const path = `/discrepancies?${params}`;
+      setList({ path, page: await api<Page<DiscrepancyDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -139,6 +141,7 @@ export default function DiscrepanciesPage() {
               })}
             </div>
           )}
+          <ShowMore list={list} onChange={setList} />
         </Card>
       )}
       {deciding && (

@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { localDate } from '@sellwasl/business-rules';
-import type { createReceiptSchema, ReceiptDto } from '@sellwasl/validation';
+import type {
+  createReceiptSchema,
+  ReceiptDto,
+  Page,
+  stockReceiptsQuerySchema,
+} from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { notFound } from '../common/api-error';
@@ -18,6 +23,7 @@ import {
   warehouseRef,
 } from './stock-helpers';
 import { StockLedger } from './stock-ledger.service';
+import { paginate, type PageQuery } from '../common/pagination';
 
 const DETAIL = {
   warehouse: true,
@@ -154,17 +160,28 @@ export class ReceiptsService {
   }
 
   /** Entrées d'une période (par défaut les 30 derniers jours), les plus récentes d'abord. */
-  async list(from?: string, to?: string): Promise<ReceiptDto[]> {
+  async list(q: z.output<typeof stockReceiptsQuerySchema>): Promise<Page<ReceiptDto>> {
     const company = await this.db.company.findFirstOrThrow();
     const today = localDate(new Date(), company.timezone);
-    const start = from ?? localDate(new Date(Date.now() - 30 * 86_400_000), company.timezone);
-    const rows = await this.db.stockReceipt.findMany({
-      where: { deletedAt: null, receivedAt: localRange(start, to ?? today, company.timezone) },
-      include: DETAIL,
-      orderBy: { receivedAt: 'desc' },
-      take: 200,
-    });
-    return this.toDtos(rows);
+    const start = q.from ?? localDate(new Date(Date.now() - 30 * 86_400_000), company.timezone);
+    const where: Prisma.StockReceiptWhereInput = {
+      deletedAt: null,
+      receivedAt: localRange(start, q.to ?? today, company.timezone),
+    };
+    return paginate(
+      q,
+      (p) =>
+        this.db.stockReceipt.findMany({
+          where: { AND: [where, p.after] },
+          include: DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.stockReceipt.count({ where }),
+      async (rows) => {
+        return this.toDtos(rows);
+      },
+    );
   }
 
   async get(id: string): Promise<ReceiptDto> {

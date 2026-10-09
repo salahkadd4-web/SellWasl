@@ -35,7 +35,7 @@ function decodePage(page: string): PageToken {
   } catch {
     throw new ApiError(
       HttpStatus.BAD_REQUEST,
-      'VALIDATION_FAILED',
+      'VALIDATION_ERROR',
       'Page de synchronisation invalide.',
     );
   }

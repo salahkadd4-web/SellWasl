@@ -1,9 +1,10 @@
 'use client';
 
-import type { DebtorDto, PaymentRowDto } from '@sellwasl/validation';
+import type { DebtorDto, Page, PaymentRowDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, PageTitle } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { api, errorMessage, getAccessToken } from '@/lib/api';
 import { formatDA, formatDateTime, todayDate } from '@/lib/labels';
 
@@ -12,7 +13,8 @@ export default function PaymentsPage() {
   const [from, setFrom] = useState(() => `${todayDate().slice(0, 7)}-01`);
   const [to, setTo] = useState(todayDate);
   const [debtors, setDebtors] = useState<DebtorDto[] | null>(null);
-  const [payments, setPayments] = useState<PaymentRowDto[] | null>(null);
+  const [paymentsList, setPaymentsList] = useState<Listed<PaymentRowDto> | null>(null);
+  const payments = paymentsList?.page.data ?? null;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,7 +26,8 @@ export default function PaymentsPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setPayments(await api<PaymentRowDto[]>('company', `/payments?from=${from}&to=${to}`));
+      const path = `/payments?from=${from}&to=${to}`;
+      setPaymentsList({ path, page: await api<Page<PaymentRowDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -119,6 +122,11 @@ export default function PaymentsPage() {
           <h2 className="text-lg font-semibold text-text-dark">
             Paiements · espèces {formatDA(cash)} · crédit {formatDA(credit)}
           </h2>
+          {payments.length < paymentsList!.page.total && (
+            <p className="text-xs text-muted">
+              Totaux des {payments.length} paiements affichés sur {paymentsList!.page.total}.
+            </p>
+          )}
           {payments.length === 0 && <p className="text-sm text-muted">Aucun paiement.</p>}
           <div className="overflow-hidden rounded-xl border border-border">
             {payments.map((p) => (
@@ -142,6 +150,7 @@ export default function PaymentsPage() {
               </div>
             ))}
           </div>
+          <ShowMore list={paymentsList} onChange={setPaymentsList} />
         </Card>
       )}
     </div>

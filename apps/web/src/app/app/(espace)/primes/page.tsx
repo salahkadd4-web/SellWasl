@@ -1,9 +1,10 @@
 'use client';
 
-import type { IncentiveDto, IncentiveRuleDto, ProductDto } from '@sellwasl/validation';
+import type { IncentiveDto, IncentiveRuleDto, Page, ProductDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { api, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
 import { formatDA, formatDate, INCENTIVE_KIND, INCENTIVE_STATUS, todayDate } from '@/lib/labels';
@@ -40,6 +41,8 @@ export default function IncentivesPage() {
   const { can } = CompanyAuth.useAuth();
   const [rules, setRules] = useState<IncentiveRuleDto[] | null>(null);
   const [incentives, setIncentives] = useState<IncentiveDto[] | null>(null);
+  /** Liste par pages ; absente après un calcul (le calcul renvoie toute la période). */
+  const [incentivesList, setIncentivesList] = useState<Listed<IncentiveDto> | null>(null);
   const [date, setDate] = useState(todayDate);
   const [frequency, setFrequency] = useState<'WEEKLY' | 'MONTHLY'>('WEEKLY');
   const [editing, setEditing] = useState<IncentiveRuleDto | 'new' | null>(null);
@@ -57,8 +60,11 @@ export default function IncentivesPage() {
 
   useEffect(() => {
     void loadRules();
-    api<IncentiveDto[]>('company', '/incentives')
-      .then(setIncentives)
+    api<Page<IncentiveDto>>('company', '/incentives')
+      .then((page) => {
+        setIncentivesList({ path: '/incentives', page });
+        setIncentives(page.data);
+      })
       .catch(() => setIncentives([]));
   }, [loadRules]);
 
@@ -85,6 +91,7 @@ export default function IncentivesPage() {
     setError(null);
     setBusy(true);
     try {
+      setIncentivesList(null);
       setIncentives(
         await api<IncentiveDto[]>('company', '/incentives/calculate', {
           method: 'POST',
@@ -249,6 +256,14 @@ export default function IncentivesPage() {
             })}
           </div>
         )}
+        <ShowMore
+          list={incentivesList}
+          onChange={(list) => {
+            setIncentivesList(list);
+            // Pages suivantes ajoutées sans perdre les décisions déjà prises à l'écran
+            setIncentives((cur) => [...(cur ?? []), ...list.page.data.slice(cur?.length ?? 0)]);
+          }}
+        />
       </Card>
       {editing && (
         <RuleForm

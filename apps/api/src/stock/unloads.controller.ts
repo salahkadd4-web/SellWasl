@@ -7,6 +7,7 @@ import {
   type UnloadPreviewLine,
   unloadPreviewQuerySchema,
   unloadsQuerySchema,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -45,8 +46,8 @@ export class UnloadsController {
   @Get()
   list(
     @Query(new ZodValidationPipe(unloadsQuerySchema)) q: Out<typeof unloadsQuerySchema>,
-  ): Promise<UnloadDto[]> {
-    return this.unloads.list(q.date);
+  ): Promise<Page<UnloadDto>> {
+    return this.unloads.list(q);
   }
 
   @RequirePermission('loads.read')

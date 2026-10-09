@@ -4,6 +4,7 @@ import {
   discrepanciesQuerySchema,
   discrepancyDecisionSchema,
   type SettlementDetailDto,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -26,7 +27,7 @@ export class DiscrepanciesController {
   list(
     @Query(new ZodValidationPipe(discrepanciesQuerySchema))
     q: z.output<typeof discrepanciesQuerySchema>,
-  ): Promise<DiscrepancyDto[]> {
+  ): Promise<Page<DiscrepancyDto>> {
     return this.discrepancies.list(q);
   }
 

@@ -107,12 +107,6 @@ export interface CustomerDto {
   createdAt: string;
 }
 
-export interface Page<T> {
-  data: T[];
-  nextCursor: string | null;
-  total: number;
-}
-
 export interface CustomerHistory {
   visits: {
     id: string;

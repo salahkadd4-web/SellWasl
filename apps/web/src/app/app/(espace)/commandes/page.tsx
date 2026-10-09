@@ -1,9 +1,10 @@
 'use client';
 
-import type { OrderDto, TerritoryDto } from '@sellwasl/validation';
+import type { OrderDto, Page, TerritoryDto } from '@sellwasl/validation';
 import { ORDER_STATUSES } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { api, errorMessage } from '@/lib/api';
 import { formatDA, formatDate, ORDER_SOURCE_LABELS, ORDER_STATUS, todayDate } from '@/lib/labels';
 
@@ -13,7 +14,8 @@ export default function OrdersPage() {
   const [date, setDate] = useState(todayDate);
   const [sellerId, setSellerId] = useState('');
   const [status, setStatus] = useState('');
-  const [orders, setOrders] = useState<OrderDto[] | null>(null);
+  const [list, setList] = useState<Listed<OrderDto> | null>(null);
+  const orders = list?.page.data ?? null;
   const [open, setOpen] = useState<OrderDto | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +37,8 @@ export default function OrdersPage() {
     if (sellerId) params.set('sellerId', sellerId);
     if (status) params.set('status', status);
     try {
-      setOrders(await api<OrderDto[]>('company', `/orders?${params}`));
+      const path = `/orders?${params}`;
+      setList({ path, page: await api<Page<OrderDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -87,7 +90,8 @@ export default function OrdersPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold text-text-dark">{formatDate(date)}</h2>
             <span className="text-sm text-muted">
-              {orders.length} commande(s) · {formatDA(total)} hors annulées
+              {list!.page.total} commande(s) · {formatDA(total)} hors annulées
+              {orders.length < list!.page.total && ` (${orders.length} affichées)`}
             </span>
           </div>
           {orders.length === 0 && <p className="text-sm text-muted">Aucune commande.</p>}
@@ -123,6 +127,7 @@ export default function OrdersPage() {
               );
             })}
           </div>
+          <ShowMore list={list} onChange={setList} />
         </Card>
       )}
       {open && <OrderDialog order={open} onClose={() => setOpen(null)} />}

@@ -6,7 +6,10 @@ import type {
   PaymentRowDto,
   SettlementDetailDto,
   SettlementRowDto,
+  Page,
+  paymentsQuerySchema,
 } from '@sellwasl/validation';
+import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ApiError, notFound } from '../common/api-error';
@@ -19,6 +22,7 @@ import { dateOnly, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { fullName } from '../stock/stock-helpers';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
+import { paginate, type PageQuery } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 
@@ -26,6 +30,28 @@ type Tx = Prisma.TransactionClient;
  * Comptabilité (UC-70, UC-71, BR-PAY-07, BR-PAY-08) : récapitulatif des journées, versements au
  * comptable avec leur écart, dettes des clients, paiements et export CSV.
  */
+/** La période porte sur le jour de travail où l'argent a été encaissé. */
+const paymentsOf = (from: string, to: string): Prisma.PaymentWhereInput => ({
+  deletedAt: null,
+  workday: { date: { gte: toDate(from), lte: toDate(to) } },
+});
+
+function toPaymentRow(
+  p: Prisma.PaymentGetPayload<{ include: { customer: true; user: true } }>,
+): PaymentRowDto {
+  return {
+    id: p.id,
+    number: p.number,
+    kind: p.kind,
+    at: (p.occurredAt ?? p.createdAt).toISOString(),
+    customer: p.customer.name,
+    user: fullName(p.user),
+    dueAmount: Number(p.dueAmount),
+    cashAmount: Number(p.cashAmount),
+    creditAmount: Number(p.creditAmount),
+  };
+}
+
 @Injectable()
 export class AccountingService {
   constructor(
@@ -215,30 +241,37 @@ export class AccountingService {
     }));
   }
 
-  async payments(from: string, to: string): Promise<PaymentRowDto[]> {
-    // La période porte sur le jour de travail où l'argent a été encaissé
+  /** Paiements d'une période, par pages (écran Paiements). */
+  payments(q: z.output<typeof paymentsQuerySchema>): Promise<Page<PaymentRowDto>> {
+    const where = paymentsOf(q.from, q.to);
+    return paginate(
+      q,
+      (p) =>
+        this.db.payment.findMany({
+          where: { AND: [where, p.after] },
+          include: { customer: true, user: true },
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.payment.count({ where }),
+      (rows) => rows.map(toPaymentRow),
+    );
+  }
+
+  /** Tous les paiements d'une période (export). */
+  private async allPayments(from: string, to: string): Promise<PaymentRowDto[]> {
     const rows = await this.db.payment.findMany({
-      where: { deletedAt: null, workday: { date: { gte: toDate(from), lte: toDate(to) } } },
+      where: paymentsOf(from, to),
       include: { customer: true, user: true },
       orderBy: { occurredAt: 'asc' },
       take: 5000,
     });
-    return rows.map((p) => ({
-      id: p.id,
-      number: p.number,
-      kind: p.kind,
-      at: (p.occurredAt ?? p.createdAt).toISOString(),
-      customer: p.customer.name,
-      user: fullName(p.user),
-      dueAmount: Number(p.dueAmount),
-      cashAmount: Number(p.cashAmount),
-      creditAmount: Number(p.creditAmount),
-    }));
+    return rows.map(toPaymentRow);
   }
 
   /** Paiements d'une période en CSV (séparateur « ; », lisible par Excel en français). */
   async paymentsCsv(from: string, to: string): Promise<string> {
-    const rows = await this.payments(from, to);
+    const rows = await this.allPayments(from, to);
     const header = ['Numéro', 'Type', 'Date', 'Client', 'Encaissé par', 'Dû', 'Espèces', 'Crédit'];
     const lines = rows.map((r) =>
       [

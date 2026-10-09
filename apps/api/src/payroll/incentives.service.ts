@@ -7,6 +7,7 @@ import type {
   IncentiveRuleDto,
   incentiveRuleSchema,
   incentivesQuerySchema,
+  Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { conflict, personOf } from '../accounting/discrepancies.service';
@@ -18,6 +19,7 @@ import { dateOnly, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { type Actor, audit, namesOf, payrollSettings, type Tx, WITH_ROLE } from './payroll-common';
+import { paginate, type PageQuery } from '../common/pagination';
 
 const RULE_DETAIL = { product: true, user: WITH_ROLE } satisfies Prisma.IncentiveRuleInclude;
 type RuleRow = Prisma.IncentiveRuleGetPayload<{ include: typeof RULE_DETAIL }>;
@@ -154,19 +156,27 @@ export class IncentivesService {
       throw rule('Employé inconnu.');
   }
 
-  async list(q: z.output<typeof incentivesQuerySchema>): Promise<IncentiveDto[]> {
-    const rows = await this.db.incentive.findMany({
-      where: {
-        deletedAt: null,
-        ...(q.periodStart && { periodStart: toDate(q.periodStart) }),
-        ...(q.status && { status: q.status }),
-        ...(q.userId && { userId: q.userId }),
+  async list(q: z.output<typeof incentivesQuerySchema>): Promise<Page<IncentiveDto>> {
+    const where: Prisma.IncentiveWhereInput = {
+      deletedAt: null,
+      ...(q.periodStart && { periodStart: toDate(q.periodStart) }),
+      ...(q.status && { status: q.status }),
+      ...(q.userId && { userId: q.userId }),
+    };
+    return paginate(
+      q,
+      (p) =>
+        this.db.incentive.findMany({
+          where: { AND: [where, p.after] },
+          include: DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.incentive.count({ where }),
+      async (rows) => {
+        return this.toDtos(rows);
       },
-      include: DETAIL,
-      orderBy: [{ periodStart: 'desc' }, { createdAt: 'asc' }],
-      take: 500,
-    });
-    return this.toDtos(rows);
+    );
   }
 
   /**
@@ -233,7 +243,13 @@ export class IncentivesService {
         },
       );
     });
-    return this.list({ periodStart: period.start });
+    // Toutes les primes de la période, sans pagination : réponse du calcul
+    const rows = await this.db.incentive.findMany({
+      where: { deletedAt: null, periodStart: toDate(period.start) },
+      include: DETAIL,
+      orderBy: { createdAt: 'asc' },
+    });
+    return this.toDtos(rows);
   }
 
   /**

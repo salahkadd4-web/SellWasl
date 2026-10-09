@@ -1,6 +1,6 @@
 'use client';
 
-import type { CreateCompanyResponse, PlatformCompany } from '@sellwasl/validation';
+import type { CreateCompanyResponse, Page, PlatformCompany } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -13,6 +13,7 @@ import {
   Select,
   TemporaryPassword,
 } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { api, ApiClientError, errorMessage } from '@/lib/api';
 import { COMPANY_STATUS, MODE_LABELS, MODULE_LABELS } from '@/lib/labels';
 
@@ -20,7 +21,8 @@ const MODE_OPTIONS = Object.entries(MODE_LABELS).map(([value, label]) => ({ valu
 
 /** Entreprises de la plateforme (UC-90, phase 8). */
 export default function PlatformCompaniesPage() {
-  const [companies, setCompanies] = useState<PlatformCompany[] | null>(null);
+  const [list, setList] = useState<Listed<PlatformCompany> | null>(null);
+  const companies = list?.page.data ?? null;
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreateCompanyResponse | null>(null);
@@ -28,7 +30,10 @@ export default function PlatformCompaniesPage() {
 
   const load = useCallback(async () => {
     try {
-      setCompanies(await api<PlatformCompany[]>('platform', '/platform/companies'));
+      setList({
+        path: '/platform/companies',
+        page: await api<Page<PlatformCompany>>('platform', '/platform/companies'),
+      });
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -102,6 +107,7 @@ export default function PlatformCompaniesPage() {
           </Card>
         ))}
       </div>
+      <ShowMore list={list} onChange={setList} scope="platform" />
 
       {creating && (
         <CreateCompanyDialog

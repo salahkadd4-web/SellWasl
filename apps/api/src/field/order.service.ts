@@ -14,6 +14,7 @@ import {
   orderConfirmPayload,
   orderUpdatePayload,
   type SyncChange,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -29,6 +30,7 @@ import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { dateOnly, invalidState, rule, toDate } from './field-errors';
 import { VisitService } from './visit.service';
 import { WorkdayService } from './workday.service';
+import { paginate, type PageQuery } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 type ConfirmPayload = z.output<typeof orderConfirmPayload>;
@@ -110,6 +112,12 @@ export function receptionChanges(
  * Commandes de prévente (BR-CMD, UC-14, UC-17) : le serveur recalcule le panier avec la grille en
  * vigueur, scinde au quota, réserve le stock du dépôt et fige le résultat.
  */
+const ORDER_DETAIL = {
+  customer: true,
+  sellerUser: true,
+  orderLines: { include: { product: true, productVariant: true, unit: true } },
+} satisfies Prisma.OrderInclude;
+
 @Injectable()
 export class OrderService implements OnModuleInit {
   constructor(
@@ -631,14 +639,33 @@ export class OrderService implements OnModuleInit {
   async toDtos(where: Prisma.OrderWhereInput): Promise<OrderDto[]> {
     const orders = await this.db.order.findMany({
       where: { deletedAt: null, ...where },
-      include: {
-        customer: true,
-        sellerUser: true,
-        orderLines: { include: { product: true, productVariant: true, unit: true } },
-      },
+      include: ORDER_DETAIL,
       orderBy: [{ orderDate: 'desc' }, { createdAt: 'desc' }],
       take: 500,
     });
+    return this.mapOrders(orders);
+  }
+
+  /** Commandes par pages (liste du Web, phase 25). */
+  page(query: PageQuery, where: Prisma.OrderWhereInput): Promise<Page<OrderDto>> {
+    const filter = { deletedAt: null, ...where };
+    return paginate(
+      query,
+      (p) =>
+        this.db.order.findMany({
+          where: { AND: [filter, p.after] },
+          include: ORDER_DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.order.count({ where: filter }),
+      (rows) => this.mapOrders(rows),
+    );
+  }
+
+  private mapOrders(
+    orders: Prisma.OrderGetPayload<{ include: typeof ORDER_DETAIL }>[],
+  ): OrderDto[] {
     const order = { NORMAL: 0, PENDING: 1, BONUS: 2 } as const;
     return orders.map((o) => ({
       id: o.id,

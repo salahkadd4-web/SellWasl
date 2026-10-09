@@ -1,8 +1,15 @@
 'use client';
 
-import type { LotDto, PendingUnloadDto, UnloadDto, UnloadPreviewLine } from '@sellwasl/validation';
+import type {
+  LotDto,
+  Page,
+  PendingUnloadDto,
+  UnloadDto,
+  UnloadPreviewLine,
+} from '@sellwasl/validation';
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
 import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
@@ -51,7 +58,8 @@ export default function UnloadsPage() {
   const [pending, setPending] = useState<PendingUnloadDto[] | null>(null);
   const [counting, setCounting] = useState<PendingUnloadDto | null>(null);
   const [date, setDate] = useState(todayDate);
-  const [unloads, setUnloads] = useState<UnloadDto[] | null>(null);
+  const [unloadsList, setUnloadsList] = useState<Listed<UnloadDto> | null>(null);
+  const unloads = unloadsList?.page.data ?? null;
   const [detail, setDetail] = useState<UnloadDto | null>(null);
   const [done, setDone] = useState<UnloadDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,12 +67,13 @@ export default function UnloadsPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
+      const path = `/unloads?date=${date}`;
       const [p, u] = await Promise.all([
         api<PendingUnloadDto[]>('company', '/unloads/pending'),
-        api<UnloadDto[]>('company', `/unloads?date=${date}`),
+        api<Page<UnloadDto>>('company', path),
       ]);
       setPending(p);
-      setUnloads(u);
+      setUnloadsList({ path, page: u });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -173,6 +182,7 @@ export default function UnloadsPage() {
               </button>
             ))}
           </div>
+          <ShowMore list={unloadsList} onChange={setUnloadsList} />
         </Card>
       )}
       {detail && (

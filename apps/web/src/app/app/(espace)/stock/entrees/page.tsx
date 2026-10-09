@@ -1,8 +1,9 @@
 'use client';
 
-import type { ProductDto, ReceiptDto, SupplierDto } from '@sellwasl/validation';
+import type { Page, ProductDto, ReceiptDto, SupplierDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { emptyLine, type StockLine, StockLinesEditor, toPayload } from '@/components/stock-lines';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
@@ -19,7 +20,8 @@ export default function ReceiptsPage() {
   const [products, setProducts] = useState<ProductDto[]>([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [receipts, setReceipts] = useState<ReceiptDto[] | null>(null);
+  const [receiptsList, setReceiptsList] = useState<Listed<ReceiptDto> | null>(null);
+  const receipts = receiptsList?.page.data ?? null;
   const [detail, setDetail] = useState<ReceiptDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,8 @@ export default function ReceiptsPage() {
     setError(null);
     const params = new URLSearchParams(Object.entries({ from, to }).filter(([, v]) => v !== ''));
     try {
-      setReceipts(await api<ReceiptDto[]>('company', `/stock/receipts?${params}`));
+      const path = `/stock/receipts?${params}`;
+      setReceiptsList({ path, page: await api<Page<ReceiptDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -101,6 +104,7 @@ export default function ReceiptsPage() {
               </button>
             ))}
           </div>
+          <ShowMore list={receiptsList} onChange={setReceiptsList} />
         </Card>
       )}
       {detail && (

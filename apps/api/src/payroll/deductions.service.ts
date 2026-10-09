@@ -3,6 +3,7 @@ import type {
   createDeductionSchema,
   DeductionDto,
   deductionsQuerySchema,
+  Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { conflict, personOf } from '../accounting/discrepancies.service';
@@ -14,6 +15,7 @@ import { toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { audit, monthOf, namesOf, type Tx, WITH_ROLE } from './payroll-common';
+import { paginate, type PageQuery } from '../common/pagination';
 
 const DETAIL = { user: WITH_ROLE } satisfies Prisma.PayrollDeductionInclude;
 type Row = Prisma.PayrollDeductionGetPayload<{ include: typeof DETAIL }>;
@@ -29,18 +31,26 @@ export class DeductionsService {
     private readonly auditService: AuditService,
   ) {}
 
-  async list(q: z.output<typeof deductionsQuerySchema>): Promise<DeductionDto[]> {
-    const rows = await this.db.payrollDeduction.findMany({
-      where: {
-        deletedAt: null,
-        ...(q.userId && { userId: q.userId }),
-        ...(q.status && { status: q.status }),
+  async list(q: z.output<typeof deductionsQuerySchema>): Promise<Page<DeductionDto>> {
+    const where: Prisma.PayrollDeductionWhereInput = {
+      deletedAt: null,
+      ...(q.userId && { userId: q.userId }),
+      ...(q.status && { status: q.status }),
+    };
+    return paginate(
+      q,
+      (p) =>
+        this.db.payrollDeduction.findMany({
+          where: { AND: [where, p.after] },
+          include: DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.payrollDeduction.count({ where }),
+      async (rows) => {
+        return this.toDtos(rows);
       },
-      include: DETAIL,
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-    });
-    return this.toDtos(rows);
+    );
   }
 
   /** Retenue libre (motif obligatoire), en attente d'approbation comme les autres. */

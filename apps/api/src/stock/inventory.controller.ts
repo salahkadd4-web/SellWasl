@@ -8,12 +8,15 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import {
   createInventorySchema,
   type InventoryDto,
   type InventoryResult,
   inventoryLinesSchema,
+  inventoriesQuerySchema,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -30,8 +33,10 @@ export class InventoryController {
 
   @RequirePermission('stock.read')
   @Get()
-  list(): Promise<InventoryDto[]> {
-    return this.inventories.list();
+  list(
+    @Query(new ZodValidationPipe(inventoriesQuerySchema)) q: Out<typeof inventoriesQuerySchema>,
+  ): Promise<Page<InventoryDto>> {
+    return this.inventories.list(q);
   }
 
   @RequirePermission('stock.read')

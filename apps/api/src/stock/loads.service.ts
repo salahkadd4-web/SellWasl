@@ -6,6 +6,8 @@ import {
   type LoadDto,
   type planLoadSchema,
   type validateLoadSchema,
+  type Page,
+  loadsQuerySchema,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -24,6 +26,7 @@ import {
   warehouseRef,
 } from './stock-helpers';
 import { type Move, StockLedger } from './stock-ledger.service';
+import { paginate, type PageQuery } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 
@@ -297,14 +300,24 @@ export class LoadsService {
     return row ? toDto(row) : null;
   }
 
-  async list(date?: string): Promise<LoadDto[]> {
-    const day = date ?? localDate(new Date(), (await this.db.company.findFirstOrThrow()).timezone);
-    const rows = await this.db.load.findMany({
-      where: { date: toDate(day), deletedAt: null },
-      include: DETAIL,
-      orderBy: { loadedAt: 'desc' },
-    });
-    return rows.map(toDto);
+  async list(q: z.output<typeof loadsQuerySchema>): Promise<Page<LoadDto>> {
+    const day =
+      q.date ?? localDate(new Date(), (await this.db.company.findFirstOrThrow()).timezone);
+    const where: Prisma.LoadWhereInput = { date: toDate(day), deletedAt: null };
+    return paginate(
+      q,
+      (p) =>
+        this.db.load.findMany({
+          where: { AND: [where, p.after] },
+          include: DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.load.count({ where }),
+      async (rows) => {
+        return rows.map(toDto);
+      },
+    );
   }
 
   async get(id: string): Promise<LoadDto> {

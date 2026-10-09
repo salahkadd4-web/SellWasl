@@ -1,5 +1,6 @@
 // Entrepôt et stock (phase 17) : entrées, inventaires, chargements, déchargements, consultation
 import { z } from 'zod';
+import { pageQuery } from './pagination';
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format AAAA-MM-JJ');
 const qty = z.number().int().min(0).max(1_000_000);
@@ -104,10 +105,22 @@ export const movementsQuerySchema = z.object({
   type: z.enum(STOCK_MOVEMENT_TYPES).optional(),
   from: date.optional(),
   to: date.optional(),
+  ...pageQuery(['occurredAt', 'qty'], '-occurredAt'),
 });
 export const dateRangeQuerySchema = z.object({ from: date.optional(), to: date.optional() });
-export const loadsQuerySchema = z.object({ date: date.optional() });
-export const unloadsQuerySchema = z.object({ date: date.optional() });
+export const stockReceiptsQuerySchema = z.object({
+  ...dateRangeQuerySchema.shape,
+  ...pageQuery(['receivedAt', 'createdAt'], '-receivedAt'),
+});
+export const inventoriesQuerySchema = z.object(pageQuery(['createdAt'], '-createdAt'));
+export const loadsQuerySchema = z.object({
+  date: date.optional(),
+  ...pageQuery(['createdAt'], '-createdAt'),
+});
+export const unloadsQuerySchema = z.object({
+  date: date.optional(),
+  ...pageQuery(['createdAt'], '-createdAt'),
+});
 export const unloadPreviewQuerySchema = z.object({ workdayId: z.uuid() });
 
 export interface WarehouseRef {

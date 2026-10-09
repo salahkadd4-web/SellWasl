@@ -1,9 +1,10 @@
 'use client';
 
-import type { AdvanceDto, PayrollSettings } from '@sellwasl/validation';
+import type { AdvanceDto, Page, PayrollSettings } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { api, errorMessage } from '@/lib/api';
 import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
 import { ADVANCE_STATUS, formatDA, formatDateTime, formatMonth } from '@/lib/labels';
@@ -15,7 +16,8 @@ import { currentMonth, useEmployees } from '@/lib/payroll';
  */
 export default function AdvancesPage() {
   const [month, setMonth] = useState(currentMonth);
-  const [rows, setRows] = useState<AdvanceDto[] | null>(null);
+  const [rowsList, setRowsList] = useState<Listed<AdvanceDto> | null>(null);
+  const rows = rowsList?.page.data ?? null;
   const [settings, setSettings] = useState<PayrollSettings | null>(null);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -24,7 +26,8 @@ export default function AdvancesPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setRows(await api<AdvanceDto[]>('company', `/advances?month=${month}`));
+      const path = `/advances?month=${month}`;
+      setRowsList({ path, page: await api<Page<AdvanceDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -149,6 +152,7 @@ export default function AdvancesPage() {
               })}
             </div>
           )}
+          <ShowMore list={rowsList} onChange={setRowsList} />
         </Card>
       )}
       {creating && (

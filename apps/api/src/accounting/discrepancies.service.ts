@@ -4,6 +4,7 @@ import type {
   discrepanciesQuerySchema,
   discrepancyDecisionSchema,
   PersonDto,
+  Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -14,6 +15,7 @@ import { dateOnly, frDate, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { articleName, fullName } from '../stock/stock-helpers';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
+import { paginate, type PageQuery } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 
@@ -45,22 +47,32 @@ export class DiscrepanciesService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(q: z.output<typeof discrepanciesQuerySchema>): Promise<DiscrepancyDto[]> {
-    const rows = await this.db.discrepancy.findMany({
-      where: {
-        deletedAt: null,
-        ...(q.status && { status: q.status }),
-        ...(q.kind && { kind: q.kind }),
-        ...(q.userId && { userId: q.userId }),
-        ...((q.from || q.to) && {
-          date: { ...(q.from && { gte: toDate(q.from) }), ...(q.to && { lte: toDate(q.to) }) },
+  async list(q: z.output<typeof discrepanciesQuerySchema>): Promise<Page<DiscrepancyDto>> {
+    const where: Prisma.DiscrepancyWhereInput = {
+      deletedAt: null,
+      ...(q.status === 'OPEN'
+        ? { status: { in: ['VALIDATED' as const, 'UNDER_REVIEW' as const] } }
+        : q.status && { status: q.status }),
+      ...(q.kind && { kind: q.kind }),
+      ...(q.userId && { userId: q.userId }),
+      ...((q.from || q.to) && {
+        date: { ...(q.from && { gte: toDate(q.from) }), ...(q.to && { lte: toDate(q.to) }) },
+      }),
+    };
+    return paginate(
+      q,
+      (p) =>
+        this.db.discrepancy.findMany({
+          where: { AND: [where, p.after] },
+          include: DISCREPANCY_DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
         }),
+      () => this.db.discrepancy.count({ where }),
+      async (rows) => {
+        return this.toDtos(rows);
       },
-      include: DISCREPANCY_DETAIL,
-      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-      take: 500,
-    });
-    return this.toDtos(rows);
+    );
   }
 
   async get(id: string): Promise<DiscrepancyDto> {

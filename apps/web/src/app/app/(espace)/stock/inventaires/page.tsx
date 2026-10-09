@@ -1,8 +1,15 @@
 'use client';
 
-import type { InventoryDto, InventoryResult, ProductDto, StockRowDto } from '@sellwasl/validation';
+import type {
+  InventoryDto,
+  InventoryResult,
+  Page,
+  ProductDto,
+  StockRowDto,
+} from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
 import { idempotencyDone, idempotencyKey } from '@/lib/idempotency';
@@ -19,7 +26,8 @@ export default function InventoriesPage() {
   const canCount = can('inventory.count');
   const { warehouses, error: warehousesError } = useWarehouses();
   const depots = warehouses.filter((w) => w.type === 'DEPOT');
-  const [inventories, setInventories] = useState<InventoryDto[] | null>(null);
+  const [inventoriesList, setInventoriesList] = useState<Listed<InventoryDto> | null>(null);
+  const inventories = inventoriesList?.page.data ?? null;
   const [open, setOpen] = useState<InventoryDto | null>(null);
   const [detail, setDetail] = useState<InventoryDto | null>(null);
   const [result, setResult] = useState<InventoryResult | null>(null);
@@ -34,7 +42,8 @@ export default function InventoriesPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setInventories(await api<InventoryDto[]>('company', '/inventories'));
+      const path = '/inventories';
+      setInventoriesList({ path, page: await api<Page<InventoryDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -134,6 +143,7 @@ export default function InventoriesPage() {
               </button>
             ))}
           </div>
+          <ShowMore list={inventoriesList} onChange={setInventoriesList} />
         </Card>
       )}
       {detail && (

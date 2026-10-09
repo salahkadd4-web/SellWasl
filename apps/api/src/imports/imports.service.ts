@@ -309,7 +309,7 @@ export class ImportsService {
     file: UploadedCsv | undefined,
   ): Promise<ImportPreview> {
     if (!file || file.size === 0) {
-      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choisissez un fichier CSV.');
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Choisissez un fichier CSV.');
     }
     const checked = await this.checkFile(kind, file.buffer);
     const fileId = uuidv7();

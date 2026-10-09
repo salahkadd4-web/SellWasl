@@ -1,12 +1,15 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { SALES_MODES, type SalesMode } from '@sellwasl/business-rules';
 import {
   type CreateCompanyResponse,
   createCompanySchema,
   type PlatformCompany,
+  type Page,
+  platformCompaniesQuerySchema,
 } from '@sellwasl/validation';
 import { z } from 'zod';
 import { notFound } from '../common/api-error';
+import { paginate } from '../common/pagination';
 import { CurrentPlatformUser, type PlatformPrincipal, PlatformOnly } from '../common/auth-context';
 import { uuidv7 } from '../common/uuid';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -27,20 +30,31 @@ export class PlatformCompaniesController {
   ) {}
 
   @Get()
-  async list(): Promise<PlatformCompany[]> {
-    const companies = await this.prisma.company.findMany({
-      orderBy: { name: 'asc' },
-      include: {
-        companyModules: { where: { status: 'ACTIVE' } },
-        _count: { select: { users: true } },
-      },
-    });
-    return companies.map((c) =>
-      toPlatformCompany(
-        c,
-        c.companyModules.map((m) => m.moduleCode),
-        c._count.users,
-      ),
+  list(
+    @Query(new ZodValidationPipe(platformCompaniesQuerySchema))
+    q: z.output<typeof platformCompaniesQuerySchema>,
+  ): Promise<Page<PlatformCompany>> {
+    return paginate(
+      q,
+      (p) =>
+        this.prisma.company.findMany({
+          where: p.after,
+          orderBy: p.orderBy,
+          take: p.take,
+          include: {
+            companyModules: { where: { status: 'ACTIVE' } },
+            _count: { select: { users: true } },
+          },
+        }),
+      () => this.prisma.company.count(),
+      (rows) =>
+        rows.map((c) =>
+          toPlatformCompany(
+            c,
+            c.companyModules.map((m) => m.moduleCode),
+            c._count.users,
+          ),
+        ),
     );
   }
 

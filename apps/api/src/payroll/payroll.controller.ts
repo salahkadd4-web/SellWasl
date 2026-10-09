@@ -40,6 +40,7 @@ import {
   type PayrollSettings,
   progressQuerySchema,
   putPayrollSettingsSchema,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -121,7 +122,7 @@ export class PayrollController {
   @Get('advances')
   listAdvances(
     @Query(pipe(advancesQuerySchema)) q: Out<typeof advancesQuerySchema>,
-  ): Promise<AdvanceDto[]> {
+  ): Promise<Page<AdvanceDto>> {
     return this.advances.list(q);
   }
 
@@ -169,7 +170,7 @@ export class PayrollController {
   @Get('deductions')
   listDeductions(
     @Query(pipe(deductionsQuerySchema)) q: Out<typeof deductionsQuerySchema>,
-  ): Promise<DeductionDto[]> {
+  ): Promise<Page<DeductionDto>> {
     return this.deductions.list(q);
   }
 
@@ -235,7 +236,7 @@ export class PayrollController {
   @Get('incentives')
   listIncentives(
     @Query(pipe(incentivesQuerySchema)) q: Out<typeof incentivesQuerySchema>,
-  ): Promise<IncentiveDto[]> {
+  ): Promise<Page<IncentiveDto>> {
     return this.incentives.list(q);
   }
 

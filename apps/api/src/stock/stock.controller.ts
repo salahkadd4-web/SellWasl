@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
 import {
   createReceiptSchema,
-  dateRangeQuerySchema,
   movementsQuerySchema,
   putThresholdsSchema,
   type ReceiptDto,
@@ -9,6 +8,8 @@ import {
   type StockMovementDto,
   type StockRowDto,
   stockQuerySchema,
+  type Page,
+  stockReceiptsQuerySchema,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -39,7 +40,7 @@ export class StockController {
   @Get('movements')
   movements(
     @Query(new ZodValidationPipe(movementsQuerySchema)) q: Out<typeof movementsQuerySchema>,
-  ): Promise<StockMovementDto[]> {
+  ): Promise<Page<StockMovementDto>> {
     return this.query.movements(q);
   }
 
@@ -61,9 +62,10 @@ export class StockController {
   @RequirePermission('stock.read')
   @Get('receipts')
   listReceipts(
-    @Query(new ZodValidationPipe(dateRangeQuerySchema)) q: Out<typeof dateRangeQuerySchema>,
-  ): Promise<ReceiptDto[]> {
-    return this.receipts.list(q.from, q.to);
+    @Query(new ZodValidationPipe(stockReceiptsQuerySchema))
+    q: Out<typeof stockReceiptsQuerySchema>,
+  ): Promise<Page<ReceiptDto>> {
+    return this.receipts.list(q);
   }
 
   @RequirePermission('stock.read')

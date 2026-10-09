@@ -6,6 +6,7 @@ import {
   loadsQuerySchema,
   planLoadSchema,
   validateLoadSchema,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -24,8 +25,8 @@ export class LoadsController {
   @Get()
   list(
     @Query(new ZodValidationPipe(loadsQuerySchema)) q: Out<typeof loadsQuerySchema>,
-  ): Promise<LoadDto[]> {
-    return this.loads.list(q.date);
+  ): Promise<Page<LoadDto>> {
+    return this.loads.list(q);
   }
 
   @RequirePermission('loads.read')

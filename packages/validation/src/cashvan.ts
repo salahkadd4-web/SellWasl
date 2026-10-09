@@ -1,5 +1,6 @@
 // Cash van, pointage du camion, bons, versements (phase 20)
 import { z } from 'zod';
+import { pageQuery } from './pagination';
 import { orderLineInput } from './sync';
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format AAAA-MM-JJ');
@@ -54,7 +55,11 @@ export const createSettlementSchema = z.object({
   /** Justification du comptable (phase 21 bis). */
   note: z.string().trim().max(500).optional(),
 });
-export const paymentsQuerySchema = z.object({ from: date, to: date });
+export const paymentsQuerySchema = z.object({
+  from: date,
+  to: date,
+  ...pageQuery(['createdAt', 'dueAmount', 'cashAmount', 'creditAmount'], 'createdAt'),
+});
 export const receiptsQuerySchema = z.object({ date: date.optional() });
 
 interface ArticleRef {

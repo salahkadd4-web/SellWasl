@@ -25,7 +25,7 @@ function decodeCursor(cursor: string): Prisma.SyncOperationWhereInput {
     const receivedAt = new Date(at);
     return { OR: [{ receivedAt: { lt: receivedAt } }, { receivedAt, id: { lt: id } }] };
   } catch {
-    throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Curseur invalide.');
+    throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Curseur invalide.');
   }
 }
 

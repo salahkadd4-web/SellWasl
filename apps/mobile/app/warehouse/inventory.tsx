@@ -1,5 +1,11 @@
 import { colors } from '@sellwasl/config';
-import type { InventoryDto, InventoryResult, ProductDto, StockRowDto } from '@sellwasl/validation';
+import type {
+  InventoryDto,
+  InventoryResult,
+  Page,
+  ProductDto,
+  StockRowDto,
+} from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { request } from '@/api/client';
@@ -31,12 +37,13 @@ export default function InventoryScreen() {
     if (!depot) return;
     try {
       const [inventories, stock, products] = await Promise.all([
-        request<InventoryDto[]>('/inventories'),
+        // Première page, les plus récents d'abord : le brouillon en cours y figure
+        request<Page<InventoryDto>>('/inventories'),
         request<StockRowDto[]>(`/stock?warehouseId=${depot.id}`),
         request<ProductDto[]>('/products?status=ACTIVE'),
       ]);
       const open =
-        inventories.find((i) => i.status === 'DRAFT' && i.warehouse.id === depot.id) ?? null;
+        inventories.data.find((i) => i.status === 'DRAFT' && i.warehouse.id === depot.id) ?? null;
       setDraft(open);
       setRows(stock);
       setBaseUnits(

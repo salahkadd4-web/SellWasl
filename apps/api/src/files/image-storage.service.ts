@@ -79,7 +79,7 @@ export class ImageStorageService {
   /** Vérifie et enregistre une photo ; renvoie sa clé. */
   async save(companyId: string, folder: string, file: UploadedImage | undefined): Promise<string> {
     if (!file || file.size === 0) {
-      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choisissez une photo.');
+      throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Choisissez une photo.');
     }
     const type = sniffImage(file.buffer);
     if (!type) {

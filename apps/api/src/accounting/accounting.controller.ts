@@ -7,6 +7,7 @@ import {
   paymentsQuerySchema,
   type SettlementRowDto,
   settlementsQuerySchema,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -55,8 +56,8 @@ export class AccountingController {
   @Get('payments')
   payments(
     @Query(new ZodValidationPipe(paymentsQuerySchema)) q: Out<typeof paymentsQuerySchema>,
-  ): Promise<PaymentRowDto[]> {
-    return this.accounting.payments(q.from, q.to);
+  ): Promise<Page<PaymentRowDto>> {
+    return this.accounting.payments(q);
   }
 
   @RequirePermission('payments.read')

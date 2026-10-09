@@ -1,5 +1,6 @@
 // Phases 8 et 9 — plateforme, utilisateurs et paramétrage (UC-80, UC-82, UC-90)
 import { z } from 'zod';
+import { pageQuery } from './pagination';
 
 const name = (label: string, max = 80) => z.string().trim().min(1, `${label} obligatoire`).max(max);
 const optionalText = (max: number) =>
@@ -51,6 +52,9 @@ export const createCompanySchema = z.object({
   }),
 });
 export type CreateCompanyInput = z.input<typeof createCompanySchema>;
+
+/** Entreprises de la plateforme, par pages (phase 25). */
+export const platformCompaniesQuerySchema = z.object(pageQuery(['name', 'createdAt'], 'name'));
 
 export interface PlatformCompany {
   id: string;

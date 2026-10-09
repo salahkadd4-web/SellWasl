@@ -1,8 +1,9 @@
 'use client';
 
-import type { LoadDto, ProductDto, RouteSummaryDto, StockRowDto } from '@sellwasl/validation';
+import type { LoadDto, Page, ProductDto, RouteSummaryDto, StockRowDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { emptyLine, type StockLine, StockLinesEditor, toPayload } from '@/components/stock-lines';
 import { CashVanLoads } from '@/components/cash-van-loads';
 import { StockTabs } from '@/components/stock-tabs';
@@ -20,7 +21,8 @@ export default function LoadsPage() {
   const { warehouses, error: warehousesError } = useWarehouses();
   const [products, setProducts] = useState<ProductDto[]>([]);
   const [date, setDate] = useState(todayDate);
-  const [loads, setLoads] = useState<LoadDto[] | null>(null);
+  const [loadsList, setLoadsList] = useState<Listed<LoadDto> | null>(null);
+  const loads = loadsList?.page.data ?? null;
   const [detail, setDetail] = useState<LoadDto | null>(null);
   const [creating, setCreating] = useState(false);
   const [readyRoutes, setReadyRoutes] = useState<RouteSummaryDto[]>([]);
@@ -37,7 +39,8 @@ export default function LoadsPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setLoads(await api<LoadDto[]>('company', `/loads?date=${date}`));
+      const path = `/loads?date=${date}`;
+      setLoadsList({ path, page: await api<Page<LoadDto>>('company', path) });
       if (canRoutes)
         setReadyRoutes(
           (await api<RouteSummaryDto[]>('company', '/routes/preparing')).filter(
@@ -154,6 +157,7 @@ export default function LoadsPage() {
               </button>
             ))}
           </div>
+          <ShowMore list={loadsList} onChange={setLoadsList} />
         </Card>
       )}
       {detail && (

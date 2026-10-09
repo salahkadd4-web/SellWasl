@@ -1,6 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { releaseNewestFirst } from '@sellwasl/business-rules';
-import type { InventoryDto, InventoryResult, inventoryLinesSchema } from '@sellwasl/validation';
+import type {
+  InventoryDto,
+  InventoryResult,
+  inventoryLinesSchema,
+  Page,
+  inventoriesQuerySchema,
+} from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { notFound } from '../common/api-error';
@@ -11,6 +17,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { activeWarehouse, articleOf, toBaseLines, warehouseRef } from './stock-helpers';
 import { type Move, StockLedger } from './stock-ledger.service';
+import { paginate, type PageQuery } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 
@@ -198,14 +205,22 @@ export class InventoryService {
     });
   }
 
-  async list(): Promise<InventoryDto[]> {
-    const rows = await this.db.inventoryCount.findMany({
-      where: { deletedAt: null },
-      include: DETAIL,
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-    return rows.map(toDto);
+  async list(q: z.output<typeof inventoriesQuerySchema>): Promise<Page<InventoryDto>> {
+    const where: Prisma.InventoryCountWhereInput = { deletedAt: null };
+    return paginate(
+      q,
+      (p) =>
+        this.db.inventoryCount.findMany({
+          where: { AND: [where, p.after] },
+          include: DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.inventoryCount.count({ where }),
+      async (rows) => {
+        return rows.map(toDto);
+      },
+    );
   }
 
   async get(id: string): Promise<InventoryDto> {

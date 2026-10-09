@@ -31,6 +31,7 @@ import {
   type WorkdayDto,
   workdayReasonSchema,
   workdaysQuerySchema,
+  type Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { notFound } from '../common/api-error';
@@ -133,8 +134,8 @@ export class SupervisionController {
   listOrders(
     @CurrentUser() actor: AuthUser,
     @Query(new ZodValidationPipe(ordersQuerySchema)) query: Out<typeof ordersQuerySchema>,
-  ): Promise<OrderDto[]> {
-    return this.orders.toDtos({
+  ): Promise<Page<OrderDto>> {
+    return this.orders.page(query, {
       ...(query.date ? { orderDate: toDate(query.date) } : {}),
       ...(query.sellerId ? { sellerUserId: query.sellerId } : {}),
       ...(query.status ? { status: query.status } : {}),

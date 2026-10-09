@@ -495,20 +495,20 @@ describe('supervision (phase 16)', () => {
         await raw.lostDemand.count({ where: { orderLineId: refused.id, kind: 'LOST_SALE' } }),
       ).toBe(1);
 
-      const history = await call<OrderDto[]>(
+      const history = await call<Page<OrderDto>>(
         t.url,
         'GET',
         `/orders?date=${date}&sellerId=${v07.id}`,
         { token: sup },
       );
-      expect(history.body.map((o) => o.id).sort()).toEqual([orderId, second, third].sort());
+      expect(history.body.data.map((o) => o.id).sort()).toEqual([orderId, second, third].sort());
       // Sur le téléphone, un vendeur ne voit que ses commandes, même avec orders.read
       const v08 = await phones.get('V08');
-      const others = await call<OrderDto[]>(t.url, 'GET', `/orders?date=${date}`, {
+      const others = await call<Page<OrderDto>>(t.url, 'GET', `/orders?date=${date}`, {
         token: v08.token,
       });
-      expect(others.body.some((o) => o.id === orderId)).toBe(false);
-      const forced = await call<OrderDto[]>(
+      expect(others.body.data.some((o) => o.id === orderId)).toBe(false);
+      const forced = await call<Page<OrderDto>>(
         t.url,
         'GET',
         `/orders?date=${date}&sellerId=${v07.id}`,
@@ -516,7 +516,7 @@ describe('supervision (phase 16)', () => {
           token: v08.token,
         },
       );
-      expect(forced.body.some((o) => o.id === orderId)).toBe(false);
+      expect(forced.body.data.some((o) => o.id === orderId)).toBe(false);
       expect((await call(t.url, 'GET', `/orders/${orderId}`, { token: v08.token })).status).toBe(
         404,
       );

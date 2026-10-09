@@ -11,6 +11,7 @@ import type {
   StockAlertDto,
   StockMovementDto,
   StockRowDto,
+  Page,
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
@@ -239,15 +240,15 @@ describe('stock (phase 17)', () => {
       expect(created.status).toBe(201);
       expect(created.body.lines[0]).toMatchObject({ enteredQty: 3, qty: 3 * thon.baseQty });
       expect(await physical(depotId, thon.variantId)).toBe(before + 3 * thon.baseQty);
-      const list = await call<ReceiptDto[]>(t.url, 'GET', '/stock/receipts', { token: sup });
-      expect(list.body.map((r) => r.id)).toContain(created.body.id);
-      const moves = await call<StockMovementDto[]>(
+      const list = await call<Page<ReceiptDto>>(t.url, 'GET', '/stock/receipts', { token: sup });
+      expect(list.body.data.map((r) => r.id)).toContain(created.body.id);
+      const moves = await call<Page<StockMovementDto>>(
         t.url,
         'GET',
         `/stock/movements?type=IN&variantId=${thon.variantId}`,
         { token: sup },
       );
-      expect(moves.body[0]).toMatchObject({
+      expect(moves.body.data[0]).toMatchObject({
         type: 'IN',
         qty: 3 * thon.baseQty,
         sourceType: 'RECEIPT',
@@ -468,8 +469,8 @@ describe('stock (phase 17)', () => {
       expect(
         (await call(t.url, 'DELETE', `/inventories/${draft.body.id}`, { token: sup })).status,
       ).toBe(204);
-      const list = await call<InventoryDto[]>(t.url, 'GET', '/inventories', { token: sup });
-      expect(list.body.map((i) => i.id)).not.toContain(draft.body.id);
+      const list = await call<Page<InventoryDto>>(t.url, 'GET', '/inventories', { token: sup });
+      expect(list.body.data.map((i) => i.id)).not.toContain(draft.body.id);
     });
   });
 
@@ -538,8 +539,10 @@ describe('stock (phase 17)', () => {
       await withRules('CASHVAN-EST', { P07_multipleCashVanLoads: false }, async () => {
         expect((await load(supB, { truckId: truck.id, lines })).status).toBe(422);
       });
-      const list = await call<LoadDto[]>(t.url, 'GET', `/loads?date=${LOAD_DAY}`, { token: supB });
-      expect(list.body.map((l) => l.id)).toEqual(
+      const list = await call<Page<LoadDto>>(t.url, 'GET', `/loads?date=${LOAD_DAY}`, {
+        token: supB,
+      });
+      expect(list.body.data.map((l) => l.id)).toEqual(
         expect.arrayContaining([first.body.id, second.body.id]),
       );
     });
@@ -710,10 +713,10 @@ describe('stock (phase 17)', () => {
         body: { reason: 'Erreur de saisie' },
       });
       expect(reopen.status).toBe(409);
-      const list = await call<UnloadDto[]>(t.url, 'GET', '/unloads?date=2027-01-11', {
+      const list = await call<Page<UnloadDto>>(t.url, 'GET', '/unloads?date=2027-01-11', {
         token: supB,
       });
-      expect(list.body.map((u) => u.id)).toContain(done.body.id);
+      expect(list.body.data.map((u) => u.id)).toContain(done.body.id);
     });
 
     it('refuse un article inconnu par un refus clair', async () => {

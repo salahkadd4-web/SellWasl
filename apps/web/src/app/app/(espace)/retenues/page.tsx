@@ -1,9 +1,10 @@
 'use client';
 
-import type { DeductionDto } from '@sellwasl/validation';
+import type { DeductionDto, Page } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { AccountingTabs } from '@/components/accounting-tabs';
 import { Alert, Badge, Button, Card, Field, Modal, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { api, errorMessage } from '@/lib/api';
 import {
   DEDUCTION_SOURCE,
@@ -20,7 +21,8 @@ import { useEmployees } from '@/lib/payroll';
  */
 export default function DeductionsPage() {
   const [status, setStatus] = useState('PENDING');
-  const [rows, setRows] = useState<DeductionDto[] | null>(null);
+  const [list, setList] = useState<Listed<DeductionDto> | null>(null);
+  const rows = list?.page.data ?? null;
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,9 +30,8 @@ export default function DeductionsPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setRows(
-        await api<DeductionDto[]>('company', `/deductions${status ? `?status=${status}` : ''}`),
-      );
+      const path = `/deductions${status ? `?status=${status}` : ''}`;
+      setList({ path, page: await api<Page<DeductionDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -136,6 +137,7 @@ export default function DeductionsPage() {
               })}
             </div>
           )}
+          <ShowMore list={list} onChange={setList} />
         </Card>
       )}
       {creating && (

@@ -1,5 +1,6 @@
 // Paie interne, primes, acomptes, retenues et écarts (phase 21 bis)
 import { z } from 'zod';
+import { pageQuery } from './pagination';
 import { payrollSettingsSchema } from './settings';
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format AAAA-MM-JJ');
@@ -29,11 +30,13 @@ export const DISCREPANCY_STATUSES = [
 ] as const;
 export type DiscrepancyStatusCode = (typeof DISCREPANCY_STATUSES)[number];
 export const discrepanciesQuerySchema = z.object({
-  status: z.enum(DISCREPANCY_STATUSES).optional(),
+  /** OPEN : écarts à analyser (validés ou en cours d'analyse). */
+  status: z.enum([...DISCREPANCY_STATUSES, 'OPEN']).optional(),
   kind: z.enum(['STOCK', 'FINANCIAL']).optional(),
   userId: z.uuid().optional(),
   from: date.optional(),
   to: date.optional(),
+  ...pageQuery(['date', 'createdAt'], '-date'),
 });
 export const discrepancyDecisionSchema = z
   .object({
@@ -56,6 +59,7 @@ export const advancesQuerySchema = z.object({
   month: month.optional(),
   userId: z.uuid().optional(),
   status: z.enum(['REQUESTED', 'APPROVED', 'REJECTED', 'PAID', 'DEDUCTED']).optional(),
+  ...pageQuery(['requestedAt', 'month', 'amount'], '-requestedAt'),
 });
 export const decisionNoteSchema = z.object({ note: note.optional() });
 
@@ -68,6 +72,7 @@ export const createDeductionSchema = z.object({
 export const deductionsQuerySchema = z.object({
   userId: z.uuid().optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'APPLIED']).optional(),
+  ...pageQuery(['createdAt', 'amount'], '-createdAt'),
 });
 
 export const INCENTIVE_KINDS = [
@@ -129,6 +134,7 @@ export const incentivesQuerySchema = z.object({
   periodStart: date.optional(),
   status: z.enum(['CALCULATED', 'VALIDATED', 'REJECTED', 'APPLIED']).optional(),
   userId: z.uuid().optional(),
+  ...pageQuery(['periodStart', 'createdAt', 'amount'], '-periodStart'),
 });
 
 export const createPayrollPeriodSchema = z.object({ month });

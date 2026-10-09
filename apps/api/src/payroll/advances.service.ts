@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { advanceRemaining } from '@sellwasl/business-rules';
-import type { AdvanceDto, advancesQuerySchema, createAdvanceSchema } from '@sellwasl/validation';
+import type {
+  AdvanceDto,
+  advancesQuerySchema,
+  createAdvanceSchema,
+  Page,
+} from '@sellwasl/validation';
 import type { z } from 'zod';
 import { conflict, personOf } from '../accounting/discrepancies.service';
 import { AuditService } from '../audit/audit.service';
@@ -20,6 +25,7 @@ import {
   type Tx,
   WITH_ROLE,
 } from './payroll-common';
+import { paginate, type PageQuery } from '../common/pagination';
 
 const DETAIL = { user: WITH_ROLE } satisfies Prisma.SalaryAdvanceInclude;
 type Row = Prisma.SalaryAdvanceGetPayload<{ include: typeof DETAIL }>;
@@ -35,19 +41,27 @@ export class AdvancesService {
     private readonly auditService: AuditService,
   ) {}
 
-  async list(q: z.output<typeof advancesQuerySchema>): Promise<AdvanceDto[]> {
-    const rows = await this.db.salaryAdvance.findMany({
-      where: {
-        deletedAt: null,
-        ...(q.userId && { userId: q.userId }),
-        ...(q.status && { status: q.status }),
-        ...(q.month && { month: toDate(`${q.month}-01`) }),
+  async list(q: z.output<typeof advancesQuerySchema>): Promise<Page<AdvanceDto>> {
+    const where: Prisma.SalaryAdvanceWhereInput = {
+      deletedAt: null,
+      ...(q.userId && { userId: q.userId }),
+      ...(q.status && { status: q.status }),
+      ...(q.month && { month: toDate(`${q.month}-01`) }),
+    };
+    return paginate(
+      q,
+      (p) =>
+        this.db.salaryAdvance.findMany({
+          where: { AND: [where, p.after] },
+          include: DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.salaryAdvance.count({ where }),
+      async (rows) => {
+        return this.toDtos(rows);
       },
-      include: DETAIL,
-      orderBy: { requestedAt: 'desc' },
-      take: 500,
-    });
-    return this.toDtos(rows);
+    );
   }
 
   async create(actor: AuthUser, input: z.output<typeof createAdvanceSchema>): Promise<AdvanceDto> {

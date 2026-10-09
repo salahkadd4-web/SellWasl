@@ -6,6 +6,8 @@ import {
   type PendingUnloadDto,
   type UnloadDto,
   type UnloadPreviewLine,
+  type Page,
+  unloadsQuerySchema,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -20,6 +22,7 @@ import { type NewFact, writeFacts } from '../returns/return-facts';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { articleOf, fullName, localRange, warehouseRef } from './stock-helpers';
 import { type Move, StockLedger } from './stock-ledger.service';
+import { paginate, type PageQuery } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 
@@ -290,17 +293,29 @@ export class UnloadsService {
 
   private readonly photoUrl = (key: string | null) => this.images.urls(key)?.url ?? null;
 
-  async list(date?: string): Promise<UnloadDto[]> {
-    const day = date ?? localDate(new Date(), (await this.db.company.findFirstOrThrow()).timezone);
-    const rows = await this.db.unload.findMany({
-      where: { date: toDate(day), deletedAt: null },
-      include: DETAIL,
-      orderBy: { validatedAt: 'desc' },
-    });
-    const users = await this.db.user.findMany({
-      where: { id: { in: rows.map((r) => r.validatedByUserId).filter((x): x is string => !!x) } },
-    });
-    return rows.map((r) => toDto(r, this.photoUrl, users));
+  async list(q: z.output<typeof unloadsQuerySchema>): Promise<Page<UnloadDto>> {
+    const day =
+      q.date ?? localDate(new Date(), (await this.db.company.findFirstOrThrow()).timezone);
+    const where: Prisma.UnloadWhereInput = { date: toDate(day), deletedAt: null };
+    return paginate(
+      q,
+      (p) =>
+        this.db.unload.findMany({
+          where: { AND: [where, p.after] },
+          include: DETAIL,
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.unload.count({ where }),
+      async (rows) => {
+        const users = await this.db.user.findMany({
+          where: {
+            id: { in: rows.map((r) => r.validatedByUserId).filter((x): x is string => !!x) },
+          },
+        });
+        return rows.map((r) => toDto(r, this.photoUrl, users));
+      },
+    );
   }
 
   async get(id: string): Promise<UnloadDto> {

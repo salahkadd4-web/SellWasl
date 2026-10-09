@@ -89,7 +89,7 @@ function decodeCursor(cursor: string): Prisma.CustomerWhereInput {
     const [name, id] = JSON.parse(Buffer.from(cursor, 'base64url').toString()) as [string, string];
     return { OR: [{ name: { gt: name } }, { name, id: { gt: id } }] };
   } catch {
-    throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Curseur invalide.');
+    throw new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', 'Curseur invalide.');
   }
 }
 

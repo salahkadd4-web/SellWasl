@@ -1,5 +1,6 @@
 // Commandes (phase 16) : catalogue de visite, commandes, quotas, lignes en attente, objectifs, journées
 import { z } from 'zod';
+import { pageQuery } from './pagination';
 import type { MyObjective } from './sync';
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format AAAA-MM-JJ');
@@ -206,6 +207,7 @@ export const ordersQuerySchema = z.object({
   date: date.optional(),
   sellerId: z.uuid().optional(),
   status: z.enum(ORDER_STATUSES).optional(),
+  ...pageQuery(['orderDate', 'createdAt', 'totalAmount'], '-orderDate'),
 });
 
 // --- Journées (UC-57, UC-58, UC-64) ---

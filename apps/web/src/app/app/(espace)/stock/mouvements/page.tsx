@@ -1,8 +1,9 @@
 'use client';
 
-import type { StockMovementDto } from '@sellwasl/validation';
+import type { Page, StockMovementDto } from '@sellwasl/validation';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Card, Field, PageTitle, Select } from '@/components/ui';
+import { type Listed, ShowMore } from '@/components/show-more';
 import { StockTabs } from '@/components/stock-tabs';
 import { api, errorMessage } from '@/lib/api';
 import { articleLabel, formatDateTime, MOVEMENT_TYPE } from '@/lib/labels';
@@ -15,7 +16,8 @@ export default function MovementsPage() {
   const [type, setType] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [moves, setMoves] = useState<StockMovementDto[] | null>(null);
+  const [movesList, setMovesList] = useState<Listed<StockMovementDto> | null>(null);
+  const moves = movesList?.page.data ?? null;
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -24,7 +26,8 @@ export default function MovementsPage() {
       Object.entries({ warehouseId, type, from, to }).filter(([, v]) => v !== ''),
     );
     try {
-      setMoves(await api<StockMovementDto[]>('company', `/stock/movements?${params}`));
+      const path = `/stock/movements?${params}`;
+      setMovesList({ path, page: await api<Page<StockMovementDto>>('company', path) });
     } catch (err) {
       setError(errorMessage(err, 'Chargement impossible.'));
     }
@@ -89,6 +92,7 @@ export default function MovementsPage() {
               </div>
             ))}
           </div>
+          <ShowMore list={movesList} onChange={setMovesList} />
         </Card>
       )}
     </div>

@@ -6,6 +6,7 @@ import type {
   StockAlertDto,
   StockMovementDto,
   StockRowDto,
+  Page,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -15,6 +16,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { articleOf, fullName, localRange, warehouseRef } from './stock-helpers';
 import { StockLedger } from './stock-ledger.service';
+import { paginate, type PageQuery } from '../common/pagination';
 
 const ARTICLES = {
   where: { isActive: true, deletedAt: null, product: { isActive: true, deletedAt: null } },
@@ -58,45 +60,53 @@ export class StockQueryService {
   }
 
   /** Les 200 derniers mouvements correspondant aux filtres (BR-STK-03). */
-  async movements(q: z.output<typeof movementsQuerySchema>): Promise<StockMovementDto[]> {
+  async movements(q: z.output<typeof movementsQuerySchema>): Promise<Page<StockMovementDto>> {
     let occurredAt: { gte: Date; lt: Date } | undefined;
     if (q.from || q.to) {
       const company = await this.db.company.findFirstOrThrow();
       const today = localDate(new Date(), company.timezone);
       occurredAt = localRange(q.from ?? '2000-01-01', q.to ?? today, company.timezone);
     }
-    const rows = await this.db.stockMovement.findMany({
-      where: {
-        ...(q.type ? { type: q.type } : {}),
-        ...(q.variantId ? { productVariantId: q.variantId } : {}),
-        ...(q.warehouseId
-          ? { OR: [{ fromWarehouseId: q.warehouseId }, { toWarehouseId: q.warehouseId }] }
-          : {}),
-        ...(occurredAt ? { occurredAt } : {}),
+    const where: Prisma.StockMovementWhereInput = {
+      ...(q.type ? { type: q.type } : {}),
+      ...(q.variantId ? { productVariantId: q.variantId } : {}),
+      ...(q.warehouseId
+        ? { OR: [{ fromWarehouseId: q.warehouseId }, { toWarehouseId: q.warehouseId }] }
+        : {}),
+      ...(occurredAt ? { occurredAt } : {}),
+    };
+    return paginate(
+      q,
+      (p) =>
+        this.db.stockMovement.findMany({
+          where: { AND: [where, p.after] },
+          include: {
+            productVariant: { include: { product: true } },
+            fromWarehouse: true,
+            toWarehouse: true,
+            user: true,
+            reason: true,
+          },
+          orderBy: p.orderBy,
+          take: p.take,
+        }),
+      () => this.db.stockMovement.count({ where }),
+      async (rows) => {
+        return rows.map((m) => ({
+          id: m.id,
+          type: m.type,
+          qty: m.qty,
+          occurredAt: m.occurredAt.toISOString(),
+          variantId: m.productVariantId,
+          ...articleOf(m.productVariant),
+          from: m.fromWarehouse ? warehouseRef(m.fromWarehouse) : null,
+          to: m.toWarehouse ? warehouseRef(m.toWarehouse) : null,
+          user: { id: m.user.id, name: fullName(m.user) },
+          reason: m.reason?.label ?? null,
+          sourceType: m.sourceType,
+        }));
       },
-      include: {
-        productVariant: { include: { product: true } },
-        fromWarehouse: true,
-        toWarehouse: true,
-        user: true,
-        reason: true,
-      },
-      orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
-      take: 200,
-    });
-    return rows.map((m) => ({
-      id: m.id,
-      type: m.type,
-      qty: m.qty,
-      occurredAt: m.occurredAt.toISOString(),
-      variantId: m.productVariantId,
-      ...articleOf(m.productVariant),
-      from: m.fromWarehouse ? warehouseRef(m.fromWarehouse) : null,
-      to: m.toWarehouse ? warehouseRef(m.toWarehouse) : null,
-      user: { id: m.user.id, name: fullName(m.user) },
-      reason: m.reason?.label ?? null,
-      sourceType: m.sourceType,
-    }));
+    );
   }
 
   /** Articles dont le disponible est sous le seuil, dans chaque dépôt actif. */

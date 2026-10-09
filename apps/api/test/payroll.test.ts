@@ -21,6 +21,7 @@ import type {
   TruckCheckLine,
   UnloadDto,
   UnloadPreviewLine,
+  Page,
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
@@ -297,9 +298,9 @@ describe('paie : scénario E2E du livreur', () => {
     });
 
     it("l'écart est enregistré, validé par le contrôleur, et visible du comptable", async () => {
-      const list = await get<DiscrepancyDto[]>(`/discrepancies?kind=STOCK&userId=${driverId}`);
+      const list = await get<Page<DiscrepancyDto>>(`/discrepancies?kind=STOCK&userId=${driverId}`);
       expect(list.status).toBe(200);
-      const d = list.body.find((x) => x.date === DELIVERY && x.article === 'Couscous')!;
+      const d = list.body.data.find((x) => x.date === DELIVERY && x.article === 'Couscous')!;
       expect(d).toMatchObject({
         status: 'VALIDATED',
         qty: -2,
@@ -353,8 +354,8 @@ describe('paie : scénario E2E du livreur', () => {
 
     it('le comptable analyse, confirme la responsabilité : retenue en attente de 2 000 DA', async () => {
       const d = (
-        await get<DiscrepancyDto[]>(`/discrepancies?kind=STOCK&userId=${driverId}`)
-      ).body.find((x) => x.date === DELIVERY && x.article === 'Couscous')!;
+        await get<Page<DiscrepancyDto>>(`/discrepancies?kind=STOCK&userId=${driverId}`)
+      ).body.data.find((x) => x.date === DELIVERY && x.article === 'Couscous')!;
       discrepancyId = d.id;
       const review = await post<DiscrepancyDto>(`/discrepancies/${d.id}/review`);
       expect(review.body.status).toBe('UNDER_REVIEW');
@@ -385,9 +386,9 @@ describe('paie : scénario E2E du livreur', () => {
         discrepancyId,
       });
       expect((await post(`/deductions/${deductionId}/approve`)).status).toBe(409);
-      const d = (await get<DiscrepancyDto[]>(`/discrepancies?userId=${driverId}`)).body.find(
-        (x) => x.id === discrepancyId,
-      );
+      const d = (
+        await get<Page<DiscrepancyDto>>(`/discrepancies?userId=${driverId}`)
+      ).body.data.find((x) => x.id === discrepancyId);
       expect(d?.status).toBe('DEDUCTION_APPROVED');
     });
   });
@@ -638,14 +639,14 @@ describe('paie : scénario E2E du livreur', () => {
       ]);
       expect((await post(`/payroll/periods/${periodId}/calculate`)).status).toBe(409);
       expect((await post(`/payroll/periods/${periodId}/approve`)).status).toBe(409);
-      const d = (await get<DeductionDto[]>(`/deductions?userId=${driverId}`)).body[0]!;
+      const d = (await get<Page<DeductionDto>>(`/deductions?userId=${driverId}`)).body.data[0]!;
       expect(d.status).toBe('APPLIED');
       const disc = (
-        await get<DiscrepancyDto[]>(`/discrepancies?userId=${driverId}&kind=STOCK`)
-      ).body.find((x) => x.date === DELIVERY);
+        await get<Page<DiscrepancyDto>>(`/discrepancies?userId=${driverId}&kind=STOCK`)
+      ).body.data.find((x) => x.date === DELIVERY);
       expect(disc?.status).toBe('DEDUCTION_APPLIED');
-      const advances = (await get<AdvanceDto[]>(`/advances?userId=${driverId}&month=${MONTH}`))
-        .body;
+      const advances = (await get<Page<AdvanceDto>>(`/advances?userId=${driverId}&month=${MONTH}`))
+        .body.data;
       expect(advances.find((a) => a.amount === 10_000)?.status).toBe('DEDUCTED');
     });
 
@@ -723,9 +724,9 @@ describe('paie : scénario E2E du livreur', () => {
       const mine = reports.find((r) => r.companyId === companyId)!;
       expect(mine).toMatchObject({ date: '2027-08-31', payrollMonths: [] });
       expect(mine.error).toBeUndefined();
-      const august = (await get<IncentiveDto[]>('/incentives?periodStart=2027-08-01')).body.find(
-        (i) => i.rule.id === monthly.body.id,
-      );
+      const august = (
+        await get<Page<IncentiveDto>>('/incentives?periodStart=2027-08-01')
+      ).body.data.find((i) => i.rule.id === monthly.body.id);
       expect(august).toMatchObject({
         quantity: 80,
         amount: 400,
@@ -736,7 +737,7 @@ describe('paie : scénario E2E du livreur', () => {
       expect(saved.createdByUserId).toBeNull();
       // La prime hebdomadaire déjà appliquée ne bouge pas, la paie clôturée non plus
       expect(
-        (await get<IncentiveDto[]>('/incentives?periodStart=2027-08-07')).body.filter(
+        (await get<Page<IncentiveDto>>('/incentives?periodStart=2027-08-07')).body.data.filter(
           (i) => i.user.id === driverId,
         ),
       ).toHaveLength(1);
@@ -824,7 +825,8 @@ describe('paie : scénario E2E du livreur', () => {
         (await get<CompensationDto[]>(`/compensations?userId=${driverId}`, otherAccountant)).body,
       ).toEqual([]);
       expect(
-        (await get<DiscrepancyDto[]>(`/discrepancies?userId=${driverId}`, otherAccountant)).body,
+        (await get<Page<DiscrepancyDto>>(`/discrepancies?userId=${driverId}`, otherAccountant)).body
+          .data,
       ).toEqual([]);
       const advance = await raw.salaryAdvance.findFirstOrThrow({ where: { companyId } });
       expect((await post(`/advances/${advance.id}/approve`, {}, otherAccountant)).status).toBe(404);
