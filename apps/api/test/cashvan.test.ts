@@ -10,6 +10,7 @@ import type {
   TruckCheckLine,
   TruckStockDto,
   VisitCatalog,
+  Page,
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
@@ -79,8 +80,9 @@ describe('cash van (phase 20)', () => {
       where: { company: { code: 'CASHVAN-EST' }, date: new Date(`${DAY}T00:00:00Z`) },
       data: { status: 'CLOSED', closedAt: new Date() },
     });
+    // Tous les camions de la suite (C01 et C02) : un chargement en attente bloque les autres suites
     await raw.load.updateMany({
-      where: { truckId, date: new Date(`${DAY}T00:00:00Z`) },
+      where: { company: { code: 'CASHVAN-EST' }, date: new Date(`${DAY}T00:00:00Z`) },
       data: { status: 'RECEIVED', receivedAt: new Date() },
     });
     await t.close();
@@ -456,13 +458,13 @@ describe('cash van (phase 20)', () => {
       const debtors = await call<DebtorDto[]>(t.url, 'GET', '/debtors', { token: accountant });
       expect(debtors.status).toBe(200);
       expect(debtors.body.every((d) => d.debtAmount > 0)).toBe(true);
-      const payments = await call<PaymentRowDto[]>(
+      const payments = await call<Page<PaymentRowDto>>(
         t.url,
         'GET',
         `/payments?from=${DAY}&to=${DAY}`,
         { token: accountant },
       );
-      const sale = payments.body.find((p) => p.kind === 'DELIVERY_PAYMENT')!;
+      const sale = payments.body.data.find((p) => p.kind === 'DELIVERY_PAYMENT')!;
       expect(sale).toBeTruthy();
       const csv = await fetch(`${t.url}/payments/export?from=${DAY}&to=${DAY}`, {
         headers: { Authorization: `Bearer ${accountant}` },
