@@ -2,7 +2,7 @@ import type { OrderDto, Page } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { call, platformLogin, startApp, type TestApp, webLogin } from './helpers';
+import { call, platformLogin, type Reply, startApp, type TestApp, webLogin } from './helpers';
 
 /** Jour lointain : les commandes de test ne croisent aucun autre test. */
 const DAY = '2031-03-04';
@@ -67,7 +67,7 @@ describe('pagination et tri (phase 25)', () => {
     let total = -1;
     for (let i = 0; i < 400; i += 1) {
       const sep = path.includes('?') ? '&' : '?';
-      const reply = await page<T>(
+      const reply: Reply<Page<T>> = await page<T>(
         `${path}${sep}limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
       );
       expect(reply.status, JSON.stringify(reply.body)).toBe(200);

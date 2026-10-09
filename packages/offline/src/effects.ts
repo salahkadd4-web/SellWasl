@@ -126,6 +126,8 @@ export const EFFECTS: Partial<Record<OutboxOp['type'], Effect>> = {
       reviewReasons: ['NEW', 'OUT_OF_PART'],
       createdBy: me(s).name,
       createdAt: op.occurredAt,
+      // Fiche neuve : la réception du serveur apportera sa version
+      version: 1,
     };
     s.customers.set(id, customer);
   },
