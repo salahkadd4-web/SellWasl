@@ -475,6 +475,7 @@ function toRuleDto(r: RuleRow, units: { id: string; name: string }[]): Incentive
   const unit = units.find((u) => u.id === r.unitId);
   return {
     id: r.id,
+    version: r.version,
     name: r.name,
     kind: r.kind,
     frequency: r.frequency,

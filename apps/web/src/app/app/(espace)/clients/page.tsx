@@ -548,6 +548,8 @@ function CustomerForm({
     if (partChoice) body.partId = partChoice;
     else if (customer?.isPartForced) body.partId = null;
     if (customer?.isClosedPermanently && !closed) body.isClosedPermanently = false;
+    // Version reçue : une modification faite entre-temps par un autre est refusée (409)
+    if (customer) body.version = customer.version;
 
     setBusy(true);
     try {

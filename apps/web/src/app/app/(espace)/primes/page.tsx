@@ -333,6 +333,7 @@ function RuleForm({
       await api('company', rule ? `/incentive-rules/${rule.id}` : '/incentive-rules', {
         method: rule ? 'PATCH' : 'POST',
         body: JSON.stringify({
+          version: rule?.version,
           name: form.name.trim(),
           kind: form.kind,
           frequency: form.frequency,

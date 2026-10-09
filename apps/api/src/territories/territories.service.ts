@@ -107,6 +107,7 @@ export class TerritoriesService {
       u ? { id: u.id, code: u.code, name: fullName(u) } : null;
     return {
       id: t.id,
+      version: t.version,
       code: t.code,
       name: t.name,
       partCount: t.partCount,

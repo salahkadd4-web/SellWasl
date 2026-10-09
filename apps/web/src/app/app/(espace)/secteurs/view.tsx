@@ -546,7 +546,7 @@ function TerritoryForm({
           territory ? `/territories/${territory.id}` : '/territories',
           {
             method: territory ? 'PATCH' : 'POST',
-            body: JSON.stringify(body),
+            body: JSON.stringify({ ...body, version: territory?.version }),
           },
         ),
       );

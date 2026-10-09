@@ -1,5 +1,6 @@
 import { ClsService } from 'nestjs-cls';
 import { Prisma } from '../generated/prisma/client';
+import { guardedQuery } from '../common/version-guard';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Clé du contexte de requête (nestjs-cls) qui porte l'entreprise de l'utilisateur. */
@@ -105,6 +106,9 @@ export function createTenantPrisma(prisma: PrismaService, cls: ClsService) {
           } else if (CREATE_OPERATIONS.has(operation) || operation === 'upsert') {
             throw new TenantViolationError('Company : création réservée à la plateforme.');
           }
+          // Fiche gardée par sa version (phase 25) : mise à jour conditionnelle
+          const guarded = await guardedQuery(cls, model, operation, next, query as never);
+          if (guarded) return guarded.result;
           return query(next as typeof args);
         },
       },

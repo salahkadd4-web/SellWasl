@@ -23,6 +23,7 @@ import {
 } from '@sellwasl/validation';
 import { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Versioned } from '../common/versioning';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { TerritoriesService } from './territories.service';
 
@@ -62,6 +63,7 @@ export class TerritoriesController {
   }
 
   @RequirePermission('territories.update')
+  @Versioned('territory')
   @Patch('territories/:id')
   update(
     @CurrentUser() user: AuthUser,

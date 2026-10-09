@@ -200,7 +200,10 @@ function UserDialog({
     if (isSelf) delete body.role;
     try {
       if (user) {
-        await api('company', `/users/${user.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        await api('company', `/users/${user.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ ...body, version: user.version }),
+        });
         onSaved(null);
       } else {
         onSaved(

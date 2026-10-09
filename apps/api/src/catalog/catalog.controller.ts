@@ -41,6 +41,7 @@ import {
 } from '@sellwasl/validation';
 import { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Versioned } from '../common/versioning';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { MAX_IMAGE_BYTES, type UploadedImage } from '../files/image-storage.service';
 import { CatalogService } from './catalog.service';
@@ -76,6 +77,7 @@ export class CatalogController {
   }
 
   @RequirePermission('products.write')
+  @Versioned('productRange')
   @Patch('product-ranges/:id')
   updateRange(
     @CurrentUser() user: AuthUser,
@@ -102,6 +104,7 @@ export class CatalogController {
   }
 
   @RequirePermission('products.write')
+  @Versioned('productCategory')
   @Patch('product-categories/:id')
   updateCategory(
     @CurrentUser() user: AuthUser,
@@ -138,6 +141,7 @@ export class CatalogController {
   }
 
   @RequirePermission('products.write')
+  @Versioned('product')
   @Patch('products/:id')
   update(
     @CurrentUser() user: AuthUser,
@@ -158,6 +162,7 @@ export class CatalogController {
   }
 
   @RequirePermission('products.write')
+  @Versioned('productUnit', { param: 'unitId' })
   @Patch('products/:id/units/:unitId')
   updateUnit(
     @CurrentUser() user: AuthUser,
@@ -179,6 +184,7 @@ export class CatalogController {
   }
 
   @RequirePermission('products.write')
+  @Versioned('productVariant', { param: 'variantId' })
   @Patch('products/:id/variants/:variantId')
   updateVariant(
     @CurrentUser() user: AuthUser,
@@ -273,6 +279,7 @@ export class CatalogController {
   }
 
   @RequirePermission('price_tiers.update')
+  @Versioned('priceTier')
   @Patch('price-tiers/:id')
   updateTier(
     @CurrentUser() user: AuthUser,
@@ -305,6 +312,7 @@ export class CatalogController {
   }
 
   @RequirePermission('bonuses.update')
+  @Versioned('bonusRule')
   @Patch('bonus-rules/:id')
   updateBonus(
     @CurrentUser() user: AuthUser,

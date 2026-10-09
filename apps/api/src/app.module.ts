@@ -9,6 +9,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { IdempotencyInterceptor } from './common/idempotency';
+import { VersionInterceptor } from './common/versioning';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
@@ -95,6 +96,7 @@ import { PrismaModule } from './prisma/prisma.module';
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     // Idempotency-Key sur les routes @Idempotent() (phase 25)
     { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: VersionInterceptor },
   ],
 })
 export class AppModule {}

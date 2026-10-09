@@ -79,6 +79,8 @@ export const customerListQuerySchema = z.object({
 export type CustomerListQuery = z.input<typeof customerListQuerySchema>;
 
 export interface CustomerDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   code: string | null;
   name: string;

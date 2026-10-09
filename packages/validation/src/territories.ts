@@ -74,6 +74,8 @@ export interface TerritoryPartDto {
 }
 
 export interface TerritoryDto extends TerritoryOption {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   partCount: number;
   isActive: boolean;
   customerTypes: { id: string; name: string }[];

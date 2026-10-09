@@ -30,6 +30,7 @@ const duplicate = (field: string, message: string) =>
 function toDto(u: UserWithRole): CompanyUser {
   return {
     id: u.id,
+    version: u.version,
     code: u.code,
     firstName: u.firstName,
     lastName: u.lastName,

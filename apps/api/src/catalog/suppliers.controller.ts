@@ -7,6 +7,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Versioned } from '../common/versioning';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { SuppliersService } from './suppliers.service';
 
@@ -33,6 +34,7 @@ export class SuppliersController {
   }
 
   @RequirePermission('products.write')
+  @Versioned('supplier')
   @Patch('suppliers/:id')
   update(
     @CurrentUser() actor: AuthUser,

@@ -105,7 +105,12 @@ function SupplierForm({
     try {
       await api('company', supplier ? `/suppliers/${supplier.id}` : '/suppliers', {
         method: supplier ? 'PATCH' : 'POST',
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim() || null, isActive }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim() || null,
+          isActive,
+          version: supplier?.version,
+        }),
       });
       onSaved();
     } catch (err) {

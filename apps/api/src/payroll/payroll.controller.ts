@@ -44,6 +44,7 @@ import {
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
 import { Idempotent } from '../common/idempotency';
+import { Versioned } from '../common/versioning';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { AdvancesService } from './advances.service';
@@ -220,6 +221,7 @@ export class PayrollController {
   }
 
   @RequirePermission('incentives.manage')
+  @Versioned('incentiveRule')
   @Patch('incentive-rules/:id')
   updateRule(
     @CurrentUser() actor: AuthUser,

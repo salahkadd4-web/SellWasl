@@ -166,7 +166,7 @@ function SettingsForm({ section, editable }: { section: 'general' | 'rules'; edi
     try {
       const saved = await api<{ version: number; data: CompanySettings }>('company', '/settings', {
         method: 'PUT',
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, version: state?.version }),
       });
       setState(saved);
       setMessage({
@@ -488,8 +488,11 @@ function Reasons({ editable }: { editable: boolean }) {
     label: string;
     systemCode: string | null;
     isActive: boolean;
+    version: number;
   }>('/reasons');
-  const [renaming, setRenaming] = useState<{ id: string; label: string } | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; label: string; version: number } | null>(
+    null,
+  );
   return (
     <ListCard error={error}>
       <p className="text-sm text-muted">
@@ -509,7 +512,9 @@ function Reasons({ editable }: { editable: boolean }) {
                     <>
                       <Button
                         variant="secondary"
-                        onClick={() => setRenaming({ id: r.id, label: r.label })}
+                        onClick={() =>
+                          setRenaming({ id: r.id, label: r.label, version: r.version })
+                        }
                       >
                         Renommer
                       </Button>
@@ -570,7 +575,7 @@ function Reasons({ editable }: { editable: boolean }) {
                 await run(() =>
                   api('company', `/reasons/${renaming.id}`, {
                     method: 'PATCH',
-                    body: JSON.stringify({ label }),
+                    body: JSON.stringify({ label, version: renaming.version }),
                   }),
                 )
               )
@@ -593,6 +598,7 @@ interface WarehouseRow {
   name: string;
   plateNumber: string | null;
   isActive: boolean;
+  version: number;
   assignedUser: { id: string; code: string; firstName: string; lastName: string } | null;
 }
 
@@ -664,7 +670,7 @@ function Warehouses({ editable }: { editable: boolean }) {
                   ? api('company', '/warehouses', { method: 'POST', body: JSON.stringify(body) })
                   : api('company', `/warehouses/${editing.id}`, {
                       method: 'PATCH',
-                      body: JSON.stringify(body),
+                      body: JSON.stringify({ ...body, version: editing.version }),
                     }),
               );
               if (ok) setEditing(null);

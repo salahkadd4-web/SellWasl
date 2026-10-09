@@ -52,6 +52,7 @@ export function toProductDto(
     reference: p.reference,
     name: p.name,
     isActive: p.isActive,
+    version: p.version,
     range: { id: p.range.id, code: p.range.code, name: p.range.name },
     category: p.category ? { id: p.category.id, name: p.category.name } : null,
     units: p.productUnits.map((u) => ({
@@ -60,6 +61,7 @@ export function toProductDto(
       baseQty: u.baseQty,
       isBase: u.isBase,
       isActive: u.isActive,
+      version: u.version,
     })),
     variants: p.productVariants.map((v) => ({
       id: v.id,
@@ -68,6 +70,7 @@ export function toProductDto(
       isDefault: v.isDefault,
       isActive: v.isActive,
       sortOrder: v.sortOrder,
+      version: v.version,
       photo: photo(v.photoKey),
     })),
     hasFlavors: p.productVariants.some((v) => !v.isDefault),
@@ -107,7 +110,13 @@ export class CatalogService {
       where: { deletedAt: null },
       orderBy: { name: 'asc' },
     });
-    return rows.map(({ id, code, name, isActive }) => ({ id, code, name, isActive }));
+    return rows.map(({ id, code, name, isActive, version }) => ({
+      id,
+      code,
+      name,
+      isActive,
+      version,
+    }));
   }
 
   async createRange(actor: AuthUser, input: Out<typeof productRangeSchema>) {
@@ -131,7 +140,13 @@ export class CatalogService {
       data: { ...input, version: { increment: 1 } },
     });
     await this.log(actor, 'product_range.update', 'ProductRange', id, input);
-    return { id: row.id, code: row.code, name: row.name, isActive: row.isActive };
+    return {
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      isActive: row.isActive,
+      version: row.version,
+    };
   }
 
   async categories(): Promise<ProductCategoryDto[]> {
@@ -139,7 +154,7 @@ export class CatalogService {
       where: { deletedAt: null },
       orderBy: { name: 'asc' },
     });
-    return rows.map(({ id, name, isActive }) => ({ id, name, isActive }));
+    return rows.map(({ id, name, isActive, version }) => ({ id, name, isActive, version }));
   }
 
   async createCategory(actor: AuthUser, input: Out<typeof productCategorySchema>) {
@@ -148,7 +163,7 @@ export class CatalogService {
       data: { id, companyId: actor.companyId, ...input, createdByUserId: actor.userId },
     });
     await this.log(actor, 'product_category.create', 'ProductCategory', id, input);
-    return { id, name: input.name, isActive: input.isActive };
+    return { id, name: input.name, isActive: input.isActive, version: 1 };
   }
 
   async updateCategory(
@@ -163,7 +178,7 @@ export class CatalogService {
       data: { ...input, version: { increment: 1 } },
     });
     await this.log(actor, 'product_category.update', 'ProductCategory', id, input);
-    return { id: row.id, name: row.name, isActive: row.isActive };
+    return { id: row.id, name: row.name, isActive: row.isActive, version: row.version };
   }
 
   // Produits -----------------------------------------------------------------------------------

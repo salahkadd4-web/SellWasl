@@ -231,6 +231,8 @@ export interface DeductionDto {
 }
 
 export interface IncentiveRuleDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   name: string;
   kind: (typeof INCENTIVE_KINDS)[number];

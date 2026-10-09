@@ -15,6 +15,7 @@ import {
   PERMISSION,
 } from '../common/auth-context';
 import { IDEMPOTENT } from '../common/idempotency';
+import { VERSIONED } from '../common/versioning';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 /** Documentation servie hors production, ou sur demande (`API_DOCS=on`, staging) — api.md §1. */
@@ -31,6 +32,7 @@ interface Operation {
   'x-permission'?: string;
   'x-access'?: string;
   'x-module'?: string;
+  'x-versioned'?: boolean;
   parameters: {
     name: string;
     in: 'path' | 'query' | 'header';
@@ -164,6 +166,7 @@ export function buildOpenApi(app: INestApplication) {
           ...(permission ? { 'x-permission': permission } : {}),
           'x-access': access,
           ...(meta(MODULE) ? { 'x-module': meta(MODULE) as string } : {}),
+          ...(meta(VERSIONED) ? { 'x-versioned': true } : {}),
           parameters,
           ...(body
             ? {

@@ -52,6 +52,7 @@ export function toCustomerDto(c: CustomerRow, createdBy: string | null = null): 
   }
   return {
     id: c.id,
+    version: c.version,
     code: c.code,
     name: c.name,
     phone: c.phone,

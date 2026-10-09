@@ -19,6 +19,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Versioned } from '../common/versioning';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { SettingsService } from './settings.service';
 
@@ -34,6 +35,7 @@ export class SettingsController {
   }
 
   @RequirePermission('settings.update')
+  @Versioned('companySettings', { latest: true })
   @Put('settings')
   update(
     @CurrentUser() actor: AuthUser,
@@ -60,6 +62,7 @@ export class SettingsController {
   }
 
   @RequirePermission('settings.update')
+  @Versioned('customerType')
   @Patch('customer-types/:id')
   updateCustomerType(
     @CurrentUser() actor: AuthUser,
@@ -110,6 +113,7 @@ export class SettingsController {
   }
 
   @RequirePermission('settings.update')
+  @Versioned('reason')
   @Patch('reasons/:id')
   updateReason(
     @CurrentUser() actor: AuthUser,
@@ -137,6 +141,7 @@ export class SettingsController {
   }
 
   @RequirePermission('settings.update')
+  @Versioned('warehouse')
   @Patch('warehouses/:id')
   updateWarehouse(
     @CurrentUser() actor: AuthUser,

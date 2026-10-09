@@ -119,6 +119,8 @@ export interface RateDto {
 }
 
 export interface SupplierDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   name: string;
   phone: string | null;

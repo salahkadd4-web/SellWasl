@@ -80,17 +80,23 @@ export const productListQuerySchema = z.object({
 });
 
 export interface ProductRangeDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   code: string;
   name: string;
   isActive: boolean;
 }
 export interface ProductCategoryDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   name: string;
   isActive: boolean;
 }
 export interface ProductUnitDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   name: string;
   baseQty: number;
@@ -103,6 +109,8 @@ export interface PhotoDto {
   thumbUrl: string;
 }
 export interface ProductVariantDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   reference: string;
   name: string;
@@ -113,6 +121,8 @@ export interface ProductVariantDto {
   photo: PhotoDto | null;
 }
 export interface ProductDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   reference: string;
   name: string;
@@ -168,6 +178,8 @@ export const updatePriceTierSchema = priceTierSchema
   .partial();
 
 export interface PriceTierDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   product: { id: string; reference: string; name: string };
   variant: { id: string; name: string } | null;
@@ -217,6 +229,8 @@ export const updateBonusRuleSchema = z
   .refine(bonusDates, bonusDatesMessage);
 
 export interface BonusRuleDto {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   name: string;
   buyProduct: { id: string; reference: string; name: string };

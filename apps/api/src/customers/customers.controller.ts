@@ -19,6 +19,7 @@ import {
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
+import { Versioned } from '../common/versioning';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { CustomersService } from './customers.service';
 
@@ -62,6 +63,7 @@ export class CustomersController {
   }
 
   @RequirePermission('customers.update')
+  @Versioned('customer')
   @Patch('customers/:id')
   update(
     @CurrentUser() user: AuthUser,

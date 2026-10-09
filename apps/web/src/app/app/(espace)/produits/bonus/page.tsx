@@ -200,7 +200,7 @@ function BonusForm({
     try {
       await api('company', rule ? `/bonus-rules/${rule.id}` : '/bonus-rules', {
         method: rule ? 'PATCH' : 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, version: rule?.version }),
       });
       onSaved();
     } catch (err) {

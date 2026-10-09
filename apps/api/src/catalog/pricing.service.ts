@@ -57,6 +57,7 @@ function toTierDto(t: TierRow): PriceTierDto {
     minQty: t.minQty,
     unitPrice: Number(t.unitPrice),
     thresholdScope: t.thresholdScope,
+    version: t.version,
   };
 }
 
@@ -68,6 +69,7 @@ function toBonusDto(b: BonusRow): BonusRuleDto {
   });
   return {
     id: b.id,
+    version: b.version,
     name: b.name,
     buyProduct: product(b.buyProduct),
     buyVariant: b.buyVariant ? { id: b.buyVariant.id, name: b.buyVariant.name } : null,

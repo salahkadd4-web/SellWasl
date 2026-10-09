@@ -84,6 +84,8 @@ export const updateUserSchema = createUserSchema.partial();
 export type UpdateUserInput = z.input<typeof updateUserSchema>;
 
 export interface CompanyUser {
+  /** Version de la fiche : renvoyée à la modification (conflit, api.md §1). */
+  version: number;
   id: string;
   code: string;
   firstName: string;

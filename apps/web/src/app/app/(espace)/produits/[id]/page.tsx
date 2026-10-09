@@ -131,6 +131,7 @@ function ProductEditDialog({
         await api<ProductDto>('company', `/products/${product.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
+            version: product.version,
             reference: form.get('reference'),
             name: form.get('name'),
             rangeId: form.get('rangeId'),

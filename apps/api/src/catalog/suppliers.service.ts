@@ -13,8 +13,15 @@ type Input = z.output<typeof supplierSchema>;
 const duplicate = () =>
   new ApiError(HttpStatus.CONFLICT, 'DUPLICATE', 'Ce fournisseur existe déjà.', { field: 'name' });
 
-const toDto = (s: { id: string; name: string; phone: string | null; isActive: boolean }) => ({
+const toDto = (s: {
+  id: string;
+  name: string;
+  phone: string | null;
+  isActive: boolean;
+  version: number;
+}) => ({
   id: s.id,
+  version: s.version,
   name: s.name,
   phone: s.phone,
   isActive: s.isActive,
