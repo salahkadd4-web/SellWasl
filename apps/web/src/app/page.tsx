@@ -5,11 +5,11 @@ export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-8 px-4">
       <Image
-        src="/logo.png"
+        src="/symbol.png"
         alt="SellWasl"
-        width={300}
-        height={200}
-        className="h-auto w-[300px]"
+        width={160}
+        height={120}
+        className="h-auto w-[160px]"
         priority
       />
       <p className="text-center text-muted">One Platform. Every Flow.</p>

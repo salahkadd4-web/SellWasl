@@ -40,11 +40,11 @@ export function LoginForm({
         className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-border bg-white p-6 shadow-sm"
       >
         <Image
-          src="/logo.png"
+          src="/symbol.png"
           alt="SellWasl"
-          width={180}
-          height={120}
-          className="mx-auto h-auto w-[180px]"
+          width={96}
+          height={72}
+          className="mx-auto h-auto w-[96px]"
           priority
         />
         <div className="text-center">
