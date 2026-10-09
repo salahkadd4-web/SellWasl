@@ -171,6 +171,7 @@ const CUSTOMER_TYPES = [
   { code: 'DETAIL', name: 'Détail' },
   { code: 'SUPERETTE', name: 'Supérette' },
   { code: 'GROS', name: 'Gros' },
+  { code: 'HORECA', name: 'HORECA (hôtels, restaurants, cafétérias)' },
 ];
 
 const HOLIDAYS = [
@@ -198,6 +199,7 @@ const CATALOG = [
       DETAIL: { carton: 5800, triplette: 300 },
       SUPERETTE: { carton: 5650, triplette: 290 },
       GROS: { carton: 5500 },
+      HORECA: { carton: 5700 },
     },
     tiers: [{ type: 'DETAIL', unit: 'carton', minQty: 10, unitPrice: 5600 }],
   },
@@ -215,6 +217,7 @@ const CATALOG = [
       DETAIL: { carton: 6200, triplette: 320 },
       SUPERETTE: { carton: 6050, triplette: 310 },
       GROS: { carton: 5900 },
+      HORECA: { carton: 6100 },
     },
     tiers: [],
   },
@@ -243,6 +246,7 @@ const CATALOG = [
       DETAIL: { carton: 1200, paquet: 55 },
       SUPERETTE: { carton: 1170, paquet: 53 },
       GROS: { carton: 1130 },
+      HORECA: { carton: 1180 },
     },
     // Seuil calculé sur le total des parfums au prix du produit (BR-CAT-15).
     tiers: [{ type: 'DETAIL', unit: 'carton', minQty: 10, unitPrice: 1150 }],

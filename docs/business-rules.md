@@ -72,7 +72,7 @@ Le socle commun est toujours actif.
 | Intervalle d'envoi de la position pendant la journée | 5 min |
 | Motifs de non-commande | voir BR-VIS-04 |
 | Motifs d'échec de livraison | voir BR-LIV-02 |
-| Types de clients | Détail |
+| Types de clients | Détail, Gros, Supérette, HORECA (hôtels, restaurants, cafétérias) |
 
 **BR-TEN-08** — **Règles réglables par entreprise.** Chaque entreprise adapte ces règles à sa façon de travailler, sans développement spécifique. L'admin les règle sur le Web ; chaque changement est audité. Il prend effet au **prochain démarrage de journée** de chaque utilisateur, jamais en cours de journée ni sur des opérations passées : ainsi, le téléphone hors connexion et le serveur appliquent toujours la même version. Les valeurs par défaut favorisent les ventes et protègent la marge.
 
@@ -213,7 +213,7 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 **BR-CAT-02** — Le vendeur saisit une quantité dans l'unité de son choix (unité de base ou conditionnement). Elle est convertie en unité de base pour le stock, les quotas et les bonus.
 
-**BR-CAT-03** — L'entreprise définit ses **types de clients** (ex. Détail, Supérette, Gros). Chaque client a un type.
+**BR-CAT-03** — L'entreprise définit ses **types de clients** (ex. Détail, Supérette, Gros, HORECA pour les hôtels, restaurants et cafétérias). Chaque client a un type.
 
 **BR-CAT-04** — **Prix** : un prix TTC par produit, par type de client et par unité. Un parfum peut avoir son propre prix (BR-CAT-14). Un article sans prix pour le type d'un client n'est pas proposé à ce client.
 

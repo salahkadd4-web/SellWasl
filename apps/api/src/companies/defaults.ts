@@ -44,5 +44,10 @@ export const DEFAULT_REASONS: { kind: ReasonKind; label: string; systemCode?: Re
     { kind: 'REFUSAL', label: 'Autre', systemCode: 'OTHER' },
   ];
 
-/** Type de client par défaut (BR-TEN-07). */
-export const DEFAULT_CUSTOMER_TYPES = [{ code: 'DETAIL', name: 'Détail' }];
+/** Types de clients par défaut (BR-TEN-07) ; l'admin les adapte dans les paramètres. */
+export const DEFAULT_CUSTOMER_TYPES = [
+  { code: 'DETAIL', name: 'Détail' },
+  { code: 'GROS', name: 'Gros' },
+  { code: 'SUPERETTE', name: 'Supérette' },
+  { code: 'HORECA', name: 'HORECA (hôtels, restaurants, cafétérias)' },
+];

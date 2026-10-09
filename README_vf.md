@@ -723,7 +723,7 @@ Après le MVP : WEBSITE   WHATSAPP   ERP   MANUAL   API
 
 Client → Visite → Produits disponibles (avec les prix du type du client) → Unité + quantité → Panier (paliers et bonus automatiques) → Total → Confirmation.
 
-- **Prix** : un prix par type de client (Détail, Supérette, Gros…) et par unité (pièce, carton…), avec des **paliers** de quantité.
+- **Prix** : un prix par type de client (Détail, Supérette, Gros, HORECA…) et par unité (pièce, carton…), avec des **paliers** de quantité.
 - **Bonus cumulatifs**, ajoutés automatiquement à prix 0. Exemple : 1 carton de thon tomate acheté donne 4 triplettes de thon à l'huile offertes.
 - **Quotas** facultatifs, par jour, par produit et par vendeur. Au-delà, en prévente, la ligne passe **« en attente »** et le superviseur l'accepte ou la refuse ; en cash van, le produit est grisé et le vendeur peut noter une **demande perdue**.
 - Les prix sont **figés** dans la commande à la confirmation.
@@ -1229,7 +1229,7 @@ AuditLog
 
 ```text
 Holiday                 (jours fériés de l'entreprise)
-CustomerType            (Détail, Supérette, Gros…)
+CustomerType            (Détail, Supérette, Gros, HORECA…)
 ProductPackaging        (conditionnements : carton = 20 unités de base)
 PriceTier               (paliers de quantité)
 BonusRule               (pour Q de X acheté, N de Y offert)

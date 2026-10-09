@@ -145,7 +145,8 @@ describe('catalogue et prix', () => {
   it('les prix sont fixés par l’admin, et par le superviseur seulement avec P-10', async () => {
     const tom = product('THON-TOM');
     const grid = await call<PriceGrid>(t.url, 'GET', `/products/${tom.id}/prices`, { token: sup });
-    expect(grid.body.prices).toHaveLength(5);
+    // Détail (carton, triplette), Supérette (carton, triplette), Gros et HORECA (carton)
+    expect(grid.body.prices).toHaveLength(6);
     const forbidden = await call(t.url, 'PUT', `/products/${tom.id}/prices`, {
       token: sup,
       body: { prices: grid.body.prices },
@@ -165,7 +166,7 @@ describe('catalogue et prix', () => {
       body: { prices },
     });
     expect(saved.status).toBe(200);
-    expect(saved.body.prices).toHaveLength(4);
+    expect(saved.body.prices).toHaveLength(5);
     const eight = await simulate([
       { variantId: tom.variants[0]!.id, unitId: unit(tom, 'carton'), qty: 8 },
     ]);

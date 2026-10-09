@@ -58,6 +58,12 @@ describe('administration de la plateforme et de l’entreprise', () => {
     // Motifs par défaut, dont « Retour client » et « Marchandise manquante » (phase 17) et les 7
     // motifs de refus (phase 21)
     expect(reasons.body.length).toBe(27);
+    // Types de clients par défaut : détail, gros, supérette et HORECA (hôtels, restaurants, cafés)
+    const types = await call<{ code: string; name: string }[]>(t.url, 'GET', '/customer-types', {
+      token: admin,
+    });
+    expect(types.body.map((x) => x.code).sort()).toEqual(['DETAIL', 'GROS', 'HORECA', 'SUPERETTE']);
+    expect(types.body.find((x) => x.code === 'HORECA')!.name).toContain('restaurants');
   });
 
   it('refuse un code d’entreprise déjà utilisé', async () => {

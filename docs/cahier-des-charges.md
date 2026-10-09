@@ -474,5 +474,5 @@ Ces règles restent identiques partout, parce qu'elles protègent la fiabilité 
 | **Récapitulatif de journée** | Résumé des bons, des encaissements et du montant attendu, à remettre au comptable |
 | **Secteur** | Territoire d'un vendeur, identifié par un code libre (ex. 3101), découpé en parties |
 | **Tournée** | Ensemble des commandes qu'un livreur doit livrer à une date donnée |
-| **Type de client** | Catégorie de client (Détail, Supérette, Gros…) qui détermine les prix |
+| **Type de client** | Catégorie de client (Détail, Supérette, Gros, HORECA…) qui détermine les prix |
 | **Versement** | Remise de l'argent encaissé au comptable, avec calcul de l'écart |
