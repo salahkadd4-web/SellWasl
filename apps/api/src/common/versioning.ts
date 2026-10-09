@@ -36,6 +36,8 @@ export const Versioned = (model: string, options: { param?: string; latest?: boo
     latest: options.latest ?? false,
   } satisfies VersionedTarget);
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type VersionDelegate = {
   findFirst(args: object): Promise<{ version: number } | null>;
 };
@@ -82,6 +84,9 @@ export class VersionInterceptor implements NestInterceptor {
 
   private async run(target: VersionedTarget, req: Request, version: number, next: CallHandler) {
     const id = String(req.params[target.param] ?? '');
+    // Identifiant illisible : la validation de la route répond 400, comme sans version
+    if (!target.latest && !UUID.test(id))
+      return lastValueFrom(next.handle(), { defaultValue: undefined });
     const current = await this.current(target, id);
     // Fiche absente : le service répond 404 comme sans version
     if (current === undefined) return lastValueFrom(next.handle(), { defaultValue: undefined });

@@ -88,6 +88,12 @@ describe('conflit de version (phase 25)', () => {
   it('version invalide : 400', async () => {
     expect((await patchCustomer({ version: 'x' })).status).toBe(400);
     expect((await patchCustomer({ version: 0 })).status).toBe(400);
+    // Identifiant illisible : refus clair, comme sans version
+    const bad = await call(t.url, 'PATCH', '/customers/pas-un-uuid', {
+      token: sup,
+      body: { name: 'x', version: 1 },
+    });
+    expect(bad.status).toBe(400);
   });
 
   it('produit : ancienne version refusée, bonne version acceptée', async () => {

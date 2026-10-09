@@ -117,6 +117,23 @@ describe('pagination et tri (phase 25)', () => {
       { token: adm },
     );
     expect(reply.status).toBe(400);
+    // Curseurs fabriqués : valeur d'un autre type, identifiant illisible
+    const forged = (parts: unknown[]) => Buffer.from(JSON.stringify(parts)).toString('base64url');
+    for (const cursor of [
+      forged(['-orderDate', 's', 'pas une date', first.body.data[0]!.id]),
+      forged(['-orderDate', 'd', '2031-03-04T00:00:00.000Z', 'pas-un-uuid']),
+      forged(['-totalAmount', 'd', '2031-03-04T00:00:00.000Z', first.body.data[0]!.id]),
+    ]) {
+      const forgedReply = await call(
+        t.url,
+        'GET',
+        `/orders?sort=${JSON.parse(Buffer.from(cursor, 'base64url').toString())[0]}&cursor=${cursor}`,
+        {
+          token: adm,
+        },
+      );
+      expect(forgedReply.status, cursor).toBe(400);
+    }
   });
 
   it('50 par défaut', async () => {

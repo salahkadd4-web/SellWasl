@@ -4,6 +4,8 @@ import { ApiError } from './api-error';
 
 type Dir = 'asc' | 'desc';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Paramètres lus par `pageQuery` (packages/validation). */
 export interface PageQuery {
   limit: number;
@@ -47,7 +49,12 @@ function decode(cursor: string, sort: string): { value: unknown; id: string } {
     const [cursorSort, type, value, id] = JSON.parse(
       Buffer.from(cursor, 'base64url').toString(),
     ) as [string, Tagged[0], string | number, string];
-    if (cursorSort !== sort || typeof id !== 'string' || !['d', 'b', 'n', 's'].includes(type))
+    if (
+      cursorSort !== sort ||
+      typeof id !== 'string' ||
+      !UUID.test(id) ||
+      !['d', 'b', 'n', 's'].includes(type)
+    )
       throw invalidCursor();
     const decoded = untag([type, value]);
     if (decoded instanceof Date && Number.isNaN(decoded.getTime())) throw invalidCursor();
@@ -83,7 +90,15 @@ export async function paginate<R extends { id: string }, T>(
   map: (rows: R[]) => T[] | Promise<T[]>,
 ): Promise<Page<T>> {
   const args = pageArgs(query);
-  const [rows, total] = await Promise.all([find(args), count()]);
+  const [rows, total] = await Promise.all([
+    find(args).catch((error: unknown) => {
+      // Curseur fabriqué : valeur d'un autre type que le champ de tri, refusée par Prisma
+      if (query.cursor && (error as Error)?.constructor?.name?.startsWith('PrismaClient'))
+        throw invalidCursor();
+      throw error;
+    }),
+    count(),
+  ]);
   const page = rows.slice(0, query.limit);
   const last = page[page.length - 1];
   const nextCursor =
