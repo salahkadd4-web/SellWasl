@@ -1329,15 +1329,17 @@ Ajouts phase 0 :
 
 ## Tâches
 
-- [ ] REST API versionnée
-- [ ] Validation des entrées
-- [ ] Swagger / OpenAPI
-- [ ] Pagination, filtres, tri
-- [ ] Gestion homogène des erreurs
-- [ ] Rate limiting
-- [ ] Isolation tenant, permissions et contrôle de module sur chaque endpoint
+- [x] REST API versionnée
+- [x] Validation des entrées
+- [x] Swagger / OpenAPI — généré depuis le code, `/api/docs` hors production (api.md §1.1)
+- [x] Pagination, filtres, tri — 12 listes qui grossissent (api.md §1.2)
+- [x] Gestion homogène des erreurs — testée pour 400, 401, 403, 404, 409, 422 et 429
+- [x] Rate limiting
+- [x] Isolation tenant, permissions et contrôle de module sur chaque endpoint
+- [x] Idempotence des créations d'argent et de stock (api.md §1.3)
+- [x] Conflit de version sur les fiches modifiées depuis le Web (api.md §1.4)
 
-Intégrations futures : ERP, CRM, comptabilité, e-commerce, facturation, systèmes externes.
+Intégrations futures : ERP, CRM, comptabilité, e-commerce, facturation, systèmes externes — après le MVP (décision du 2026-10-07).
 
 ---
 

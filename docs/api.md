@@ -1,7 +1,7 @@
 # API — SellWasl
 
 > **Phase 1 — rédigé le 2026-10-02.**
-> Ce document fixe les conventions de l'API REST et la liste de ses endpoints pour le MVP, dont le protocole de synchronisation du mobile. La documentation détaillée de chaque endpoint (schémas complets) sera générée en OpenAPI à partir des schémas Zod de `packages/validation` (architecture §3).
+> Ce document fixe les conventions de l'API REST et la liste de ses endpoints pour le MVP, dont le protocole de synchronisation du mobile. La documentation détaillée de chaque endpoint (schémas complets) est générée en OpenAPI à partir du code : routes, droits et schémas Zod de `packages/validation` (phase 25, §1.1).
 >
 > Documents liés : [rbac.md](rbac.md) (permissions), [modules.md](modules.md) (modules), [database.md](database.md) (données), [architecture.md](architecture.md) §10 (synchronisation).
 
@@ -33,11 +33,54 @@
 | Dates | Date métier : `"2026-10-03"`. Instant : ISO 8601 en UTC, `"2026-10-03T08:15:00Z"` |
 | Entreprise | **Jamais dans la requête** : déduite de la session (BR-TEN-02). Un champ `companyId` envoyé est ignoré |
 | Authentification | En-tête `Authorization: Bearer <jeton d'accès>` ; sur le Web, le jeton de rafraîchissement est dans un cookie `HttpOnly` |
-| Pagination | Par curseur : `?limit=50&cursor=<opaque>` → `{ "data": [...], "nextCursor": "…" }`. `limit` vaut 50 par défaut, 200 au plus |
-| Filtres et tri | Paramètres de requête nommés (`?territoryId=…&status=ACTIVE`) ; tri par `?sort=name` ou `?sort=-createdAt` |
-| Modification concurrente | Les ressources éditables sur le Web renvoient leur `version`. Une mise à jour (`PATCH`) l'envoie : si elle a changé entre-temps, la réponse est `409 VERSION_CONFLICT` et rien n'est écrasé |
-| Idempotence sur le Web | Les créations qui touchent à l'argent ou au stock (versement, entrée de stock, lancement de préparation) acceptent l'en-tête `Idempotency-Key`. Un double clic ne crée qu'une seule fois |
-| Documentation | OpenAPI généré, servi à `/api/docs` en développement et en staging, jamais en production |
+| Pagination | Par curseur sur les listes qui grossissent (§1.2) : `?limit=50&cursor=<opaque>` → `{ "data": [...], "nextCursor": "…", "total": 120 }`. `limit` vaut 50 par défaut, 200 au plus ; `nextCursor` vaut `null` à la dernière page |
+| Filtres et tri | Paramètres de requête nommés (`?territoryId=…&status=ACTIVE`) ; tri par `?sort=name` ou `?sort=-createdAt`, parmi les champs autorisés de la route (sinon `400`) |
+| Modification concurrente | Les fiches éditables sur le Web renvoient leur `version` (§1.4). Une mise à jour l'envoie : si elle a changé entre-temps, la réponse est `409 VERSION_CONFLICT` (`details.current`) et rien n'est écrasé. Sans `version`, la mise à jour passe comme avant |
+| Idempotence sur le Web | Les créations qui touchent à l'argent ou au stock (§1.3) acceptent l'en-tête `Idempotency-Key`. Un double clic ou un renvoi ne crée qu'une seule fois |
+| Documentation | OpenAPI généré depuis le code, servi à `/api/docs` (§1.1) hors production, ou avec `API_DOCS=on` (staging) ; jamais en production |
+
+### 1.1 Documentation OpenAPI
+
+- `/api/docs` : Swagger UI ; `/api/docs/openapi.json` : le document OpenAPI 3.1. Hors du préfixe `/api/v1` et sans session.
+- Généré au démarrage depuis les routes NestJS : chemin, méthode, paramètres, corps et paramètres de requête (schémas Zod des pipes de validation), accès (`x-access` : `public`, `platform`, `permission`, `authenticated`, `module`), droit exigé (`x-permission`), en-tête `Idempotency-Key` des routes idempotentes, `x-versioned` des fiches versionnées. Les réponses sont décrites par le format d'erreur commun (§2).
+
+### 1.2 Listes paginées
+
+| Liste | Tri (`sort`) | Par défaut |
+|---|---|---|
+| `GET /orders` | `orderDate`, `createdAt`, `totalAmount` | `-orderDate` |
+| `GET /payments` | `createdAt`, `dueAmount`, `cashAmount`, `creditAmount` | `createdAt` |
+| `GET /stock/movements` | `occurredAt`, `qty` | `-occurredAt` |
+| `GET /stock/receipts` | `receivedAt`, `createdAt` | `-receivedAt` |
+| `GET /inventories` | `createdAt` | `-createdAt` |
+| `GET /loads`, `GET /unloads` | `createdAt` | `-createdAt` |
+| `GET /discrepancies` | `date`, `createdAt` | `-date` |
+| `GET /advances` | `requestedAt`, `month`, `amount` | `-requestedAt` |
+| `GET /deductions` | `createdAt`, `amount` | `-createdAt` |
+| `GET /incentives` | `periodStart`, `createdAt`, `amount` | `-periodStart` |
+| `GET /platform/companies` | `name`, `createdAt` | `name` |
+
+Le curseur porte la valeur de tri et l'identifiant de la dernière ligne : à valeur égale, l'identifiant départage, aucune ligne n'est perdue ni répétée d'une page à l'autre. Un curseur d'un autre tri, ou illisible, est refusé (`400 VALIDATION_ERROR`). `total` compte les lignes avec les filtres de la requête. Les clients, les notifications et le journal de synchronisation suivent déjà ce format. Sur le Web, « Afficher plus » charge la page suivante.
+
+### 1.3 Idempotence
+
+Routes concernées : `POST /settlements`, `/stock/receipts`, `/routes/launch`, `/loads/plan`, `/loads/{id}/validate`, `/unloads`, `/inventories/{id}/validate`, `/advances/{id}/pay`, `/payroll/payments/{id}/pay`.
+
+- `Idempotency-Key` : 8 à 100 caractères (`A-Z a-z 0-9 . _ : -`), propre à l'entreprise, gardée 24 h.
+- Même clé, même contenu : la réponse enregistrée est renvoyée, rien n'est recréé.
+- Même clé, autre contenu (ou autre route) : `422 IDEMPOTENCY_MISMATCH`.
+- Même clé, première requête pas encore finie : `409 IN_PROGRESS`.
+- Une requête refusée (erreur) libère la clé : on peut réessayer avec la même.
+- Sans en-tête, rien ne change. Le Web et l'écran du magasinier envoient une clé par action, gardée jusqu'au succès.
+
+### 1.4 Fiches versionnées
+
+`PATCH` des clients, produits, unités, parfums, utilisateurs, secteurs, types de clients, gammes, catégories, fournisseurs, entrepôts, motifs, paliers, bonus et règles de prime ; `PUT /settings` (comparée à la dernière version des paramètres).
+
+- Les réponses de ces fiches portent `version`. Le formulaire Web renvoie la version reçue.
+- Version différente : `409 VERSION_CONFLICT`, `details.current` donne la version en base, message « Fiche modifiée entre-temps par quelqu'un d'autre : rechargez la page. »
+- La mise à jour est conditionnelle (`where { id, version }`) : deux modifications simultanées avec la même version, une seule passe.
+- Version invalide (pas un entier positif) : `400 VALIDATION_ERROR`.
 
 ---
 
@@ -64,8 +107,9 @@ Toutes les erreurs ont la même forme :
 | 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED` | Pas de session, ou jeton expiré : le client rafraîchit |
 | 403 | `FORBIDDEN`, `WRONG_CHANNEL`, `DEVICE_REVOKED`, `DEVICE_BLOCKED`, `COMPANY_SUSPENDED`, `MODULE_DISABLED` | Refus : voir rbac.md §3 |
 | 404 | `NOT_FOUND` | Inexistant **ou hors du périmètre** de l'utilisateur (rbac.md §3) |
-| 409 | `VERSION_CONFLICT`, `DUPLICATE`, `INVALID_STATE` | Modification concurrente, doublon, ou action impossible dans l'état actuel (par exemple rouvrir une journée dont la préparation est lancée) |
+| 409 | `VERSION_CONFLICT`, `DUPLICATE`, `INVALID_STATE`, `IN_PROGRESS` | Modification concurrente (§1.4), doublon, action impossible dans l'état actuel (par exemple rouvrir une journée dont la préparation est lancée), ou même `Idempotency-Key` déjà en cours (§1.3) |
 | 422 | `BUSINESS_RULE` | Règle métier violée ; `details.rule` donne l'identifiant (`BR-JOU-08`) |
+| 422 | `IDEMPOTENCY_MISMATCH` | `Idempotency-Key` déjà utilisée pour une autre requête (§1.3) |
 | 422 | `AMBIGUOUS_PART` | Plusieurs parties contiennent la position d'un client ; `details.options` les liste, à choisir (BR-ORG-04) |
 | 422 | `IMPORT_INVALID` | Fichier d'import illisible : colonnes obligatoires absentes, trop de lignes |
 | 429 | `RATE_LIMITED` | Trop de requêtes (§9) |
@@ -354,7 +398,7 @@ Règles : `docs/payroll.md`, `docs/incentives.md`, `docs/stock-discrepancies.md`
 | `GET`, `POST` | `/compensations?userId`, `/compensations` | `compensation.read`, `compensation.update` — `{ userId, baseSalary, effectiveFrom, note? }` ; ferme la précédente |
 | `GET` | `/compensations/current` | `compensation.read` — salaire en vigueur de chaque utilisateur |
 | `GET`, `PUT` | `/payroll/settings` | `payroll.read`, `settings.update` — calendrier (somme 100 %, sinon `400`), acomptes, plafond, début de semaine |
-| `GET` | `/discrepancies?status&kind&userId&from&to` | `discrepancies.read` |
+| `GET` | `/discrepancies?status&kind&userId&from&to` | `discrepancies.read` — `status=OPEN` : écarts à analyser (validés ou en cours d'analyse) ; paginé (§1.2) |
 | `POST` | `/discrepancies/{id}/review`, `/discrepancies/{id}/decide` | `discrepancies.decide` — `{ decision, amount?, note }`, décision `NO_LIABILITY`, `REJECT` ou `LIABILITY` |
 | `GET` | `/settlements/{workdayId}/detail` | `settlements.read` — origine d'un écart de caisse ; `POST /settlements` accepte `note` |
 | `GET`, `POST` | `/deductions`, `/deductions` | `deductions.manage` — retenue `OTHER` |
