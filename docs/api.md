@@ -59,6 +59,7 @@
 | `GET /deductions` | `createdAt`, `amount` | `-createdAt` |
 | `GET /incentives` | `periodStart`, `createdAt`, `amount` | `-periodStart` |
 | `GET /platform/companies` | `name`, `createdAt` | `name` |
+| `GET /audit` | `createdAt` | `-createdAt` |
 
 Le curseur porte la valeur de tri et l'identifiant de la dernière ligne : à valeur égale, l'identifiant départage, aucune ligne n'est perdue ni répétée d'une page à l'autre. Un curseur d'un autre tri, ou illisible, est refusé (`400 VALIDATION_ERROR`). `total` compte les lignes avec les filtres de la requête. Les clients, les notifications et le journal de synchronisation suivent déjà ce format. Sur le Web, « Afficher plus » charge la page suivante.
 
@@ -192,7 +193,8 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `PATCH` | `/users/{id}` | `users.update` — jamais son propre rôle ; il reste toujours un administrateur actif ; un changement de rôle ferme les sessions |
 | `POST` | `/users/{id}/disable`, `/users/{id}/enable` | `users.disable` |
 | `POST` | `/users/{id}/reset-password` | `users.update` |
-| `GET` | `/audit` | `audit.read` |
+| `GET` | `/audit?from&to&userId&entity&entityId&action` | `audit.read` — journal d'audit paginé (§1.2, tri `createdAt`, `-createdAt` par défaut), libellés du catalogue (docs/audit.md) ; période en jours locaux de l'entreprise |
+| `GET` | `/audit/export` (mêmes filtres) | `audit.read` — CSV « ; », 10 000 lignes au plus, les plus récentes |
 | `GET` | `/notifications?unread=true&cursor=&limit=` | Propres notifications, récentes d'abord (`Page<NotificationDto>`) |
 | `GET` | `/notifications/unread-count` | Nombre de non lues |
 | `PATCH` | `/notifications/{id}/read` | Marque lue (404 pour celle d'un autre) |

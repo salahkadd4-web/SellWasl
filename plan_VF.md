@@ -1363,27 +1363,29 @@ AuditLog
 
 ## À tracer
 
-- [ ] Connexion et déconnexion
-- [ ] Création, modification, suppression
-- [ ] Changement de statut
-- [ ] Changement de stock et opérations importantes de stock
-- [ ] Changement de prix
-- [ ] Changement de rôle
-- [ ] Affectation de secteur
-- [ ] Activation et désactivation de module
-- [ ] Révocation d'appareil
+- [x] Connexion et déconnexion
+- [x] Création, modification, suppression
+- [x] Changement de statut
+- [x] Changement de stock et opérations importantes de stock
+- [x] Changement de prix
+- [x] Changement de rôle
+- [x] Affectation de secteur
+- [x] Activation et désactivation de module
+- [x] Révocation d'appareil
 - [ ] Actions du support (`PlatformAuditLog`) *(après le MVP)*
 
 **Ajouts phase 0** (BR-AUD-01)
 
-- [ ] Association d'un appareil à un profil
-- [ ] Démarrage, clôture et réouverture de journée
-- [ ] Prix, paliers, bonus, quotas et objectifs
-- [ ] Forçage de la partie d'un client, polygones et planning
-- [ ] Traitement des lignes en attente et lancement de la préparation
-- [ ] Écarts de réception, de déchargement et d'inventaire
-- [ ] Encaissements, versements et écarts
-- [ ] Réimpressions de bons
+- [x] Association d'un appareil à un profil
+- [x] Démarrage, clôture et réouverture de journée
+- [x] Prix, paliers, bonus, quotas et objectifs
+- [x] Forçage de la partie d'un client, polygones et planning
+- [x] Traitement des lignes en attente et lancement de la préparation
+- [x] Écarts de réception, de déchargement et d'inventaire
+- [x] Encaissements, versements et écarts
+- [x] Réimpressions de bons
+
+**Réalisé en phase 26** : IP, navigateur et appareil ajoutés à chaque ligne ; catalogue typé des actions ; consultation par l'admin (écran « Journal d'audit », API paginée, export CSV). Catalogue : `docs/audit.md`.
 
 ---
 
