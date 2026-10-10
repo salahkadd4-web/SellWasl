@@ -20,12 +20,6 @@ export default function HomePage() {
         >
           Espace entreprise
         </Link>
-        <Link
-          href="/admin"
-          className="rounded-lg border border-border px-4 py-3 text-center font-semibold text-primary"
-        >
-          Administration plateforme
-        </Link>
       </nav>
     </main>
   );

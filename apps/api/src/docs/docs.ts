@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { RequestMethod } from '@nestjs/common';
+import { platformAccess } from '@sellwasl/business-rules';
 import { METHOD_METADATA, PATH_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum';
 import { ModulesContainer } from '@nestjs/core';
@@ -255,9 +256,15 @@ export function mountDocs(app: INestApplication): void {
   if (!docsEnabled()) return;
   const server = app.getHttpAdapter().getInstance() as Express;
   let document: ReturnType<typeof buildOpenApi> | null = null;
-  server.get('/api/docs/openapi.json', (_req, res) => {
+  const platformAllowed = platformAccess(process.env);
+  server.get('/api/docs/openapi.json', (req, res) => {
     document ??= buildOpenApi(app);
-    res.json(document);
+    if (platformAllowed(req.ip)) return res.json(document);
+    // Hors de la liste d'IP, la plateforme n'apparaît pas non plus dans la documentation (phase 27)
+    const paths = Object.fromEntries(
+      Object.entries(document.paths).filter(([path]) => !path.startsWith('/api/v1/platform')),
+    );
+    return res.json({ ...document, paths });
   });
   server.get('/api/docs/init.js', (_req, res) => res.type('application/javascript').send(INIT));
   (app as NestExpressApplication).useStaticAssets(absolutePath(), { prefix: '/api/docs/ui' });

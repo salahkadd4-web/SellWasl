@@ -1,4 +1,4 @@
-import { Module, RequestMethod } from '@nestjs/common';
+import { type MiddlewareConsumer, Module, type NestModule, RequestMethod } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
@@ -36,6 +36,7 @@ import { SupervisionModule } from './supervision/supervision.module';
 import { AdminModule } from './settings/admin.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PlatformIpMiddleware } from './platform/platform-ip.middleware';
 
 @Module({
   imports: [
@@ -112,4 +113,11 @@ import { PrismaModule } from './prisma/prisma.module';
     { provide: APP_INTERCEPTOR, useClass: VersionInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Plateforme réservée à une liste d'IP (phase 27)
+    consumer
+      .apply(PlatformIpMiddleware)
+      .forRoutes({ path: 'platform/{*path}', method: RequestMethod.ALL });
+  }
+}

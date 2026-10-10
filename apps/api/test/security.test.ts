@@ -2,8 +2,9 @@ import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cookieOptions } from '../src/auth/cookies';
 import { validateEnv } from '../src/config/env';
+import { buildOpenApi } from '../src/docs/docs';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { call, startApp, type TestApp, webLogin } from './helpers';
+import { call, platformLogin, startApp, type TestApp, webLogin } from './helpers';
 
 const DATABASE_URL = 'postgresql://u:p@localhost:5432/db';
 const SECRET = 'x'.repeat(40);
@@ -207,6 +208,57 @@ describe('sécurité : comptes', () => {
     expect((await change(`x1${u.code.toLowerCase()}`)).status).toBe(400);
     expect((await change(u.password)).status).toBe(400);
     expect((await change('Solide2026')).status).toBe(204);
+  });
+});
+
+describe('sécurité : espace plateforme réservé à une liste d’IP', () => {
+  /** Démarre l'API avec une liste d'IP donnée, le temps de `run`. */
+  async function withAllowlist(list: string, run: (t: TestApp) => Promise<void>) {
+    const previous = process.env.PLATFORM_ALLOWED_IPS;
+    process.env.PLATFORM_ALLOWED_IPS = list;
+    const t = await startApp();
+    try {
+      await run(t);
+    } finally {
+      await t.close();
+      if (previous === undefined) delete process.env.PLATFORM_ALLOWED_IPS;
+      else process.env.PLATFORM_ALLOWED_IPS = previous;
+    }
+  }
+
+  it('hors liste : chaque route de la plateforme répond 404, connexion comprise', async () => {
+    await withAllowlist('198.51.100.4', async (t) => {
+      // Toutes les routes, depuis les métadonnées Nest (la documentation servie les cache)
+      const doc = buildOpenApi(t.app);
+      const routes = Object.entries(doc.paths)
+        .filter(([path]) => path.startsWith('/api/v1/platform/'))
+        .flatMap(([path, ops]) => Object.keys(ops).map((m) => [m.toUpperCase(), path] as const));
+      expect(routes.length).toBeGreaterThan(5);
+      for (const [method, path] of routes) {
+        const url = `${t.url}${path.replace('/api/v1', '').replace(/\{[^}]+\}/g, '01a00000-0000-7000-8000-000000000000')}`;
+        const reply = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: method === 'GET' ? undefined : '{}',
+        });
+        expect(reply.status, `${method} ${path}`).toBe(404);
+        const body = (await reply.json()) as { error: { code: string } };
+        expect(body.error.code, `${method} ${path}`).toBe('NOT_FOUND');
+      }
+      // La documentation ne montre pas la plateforme hors de la liste
+      const visible = (await (
+        await fetch(t.url.replace('/api/v1', '/api/docs/openapi.json'))
+      ).json()) as { paths: Record<string, unknown> };
+      expect(Object.keys(visible.paths).some((p) => p.startsWith('/api/v1/platform'))).toBe(false);
+      // Les routes de l'entreprise ne changent pas
+      expect(await webLogin(t.url, 'DISTRI-ORAN', 'A-SUP')).toBeTruthy();
+    });
+  });
+
+  it('dans la liste : la plateforme répond normalement', async () => {
+    await withAllowlist('127.0.0.1, ::1', async (t) => {
+      expect(await platformLogin(t.url)).toBeTruthy();
+    });
   });
 });
 
