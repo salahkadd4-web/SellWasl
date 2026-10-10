@@ -1393,33 +1393,35 @@ AuditLog
 
 ## Authentification
 
-- [ ] Hash sécurisé des mots de passe
-- [ ] JWT / sessions
-- [ ] Refresh tokens, expiration, rotation, révocation
-- [ ] Réinitialisation du mot de passe
-- [ ] Protection brute force
+- [x] Hash sécurisé des mots de passe
+- [x] JWT / sessions
+- [x] Refresh tokens, expiration, rotation, révocation
+- [x] Réinitialisation du mot de passe
+- [x] Protection brute force
 
 ## API
 
-- [ ] Validation des données et des uploads
-- [ ] Guards RBAC et modules
-- [ ] Rate limiting
-- [ ] Protection contre les injections
-- [ ] Protection IDOR
-- [ ] Contrôle tenant systématique
-- [ ] HTTPS
+- [x] Validation des données et des uploads
+- [x] Guards RBAC et modules
+- [x] Rate limiting
+- [x] Protection contre les injections
+- [x] Protection IDOR
+- [x] Contrôle tenant systématique
+- [x] HTTPS
 
 ## Données
 
-- [ ] Secrets dans les variables d'environnement, chiffrés
-- [ ] Chiffrement des données sensibles lorsque nécessaire
-- [ ] Contrôle d'accès aux fichiers
-- [ ] Sauvegardes
-- [ ] Monitoring et alertes
+- [x] Secrets dans les variables d'environnement, chiffrés
+- [x] Chiffrement des données sensibles lorsque nécessaire
+- [x] Contrôle d'accès aux fichiers
+- [x] Sauvegardes
+- [x] Monitoring et alertes
 
 ## Livrable
 
-- [ ] `docs/security.md`
+- [x] `docs/security.md`
+
+**Réalisé en phase 27** : blocage des comptes après 5 échecs, règle des mots de passe, IP réelle derrière le proxy (`TRUST_PROXY`), configuration durcie, espace plateforme invisible hors d'une liste d'IP avec deuxième facteur (TOTP, secret chiffré), base locale du téléphone chiffrée (SQLCipher), Sentry facultatif, scripts de sauvegarde et restauration testée. Reste : CSP des pages Web ; audit du support après le MVP (security.md §8).
 
 ---
 

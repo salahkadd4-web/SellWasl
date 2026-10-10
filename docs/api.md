@@ -106,7 +106,9 @@ Toutes les erreurs ont la même forme :
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Données invalides ; `details` liste les champs |
 | 401 | `UNAUTHENTICATED`, `TOKEN_EXPIRED` | Pas de session, ou jeton expiré : le client rafraîchit |
+| 401 | `TOTP_SETUP`, `TOTP_REQUIRED`, `TOTP_INVALID` | Plateforme : enrôlement du deuxième facteur (`details.secret`, `details.otpauthUri`), code exigé, code faux ou déjà utilisé (security.md §2) |
 | 403 | `FORBIDDEN`, `WRONG_CHANNEL`, `DEVICE_REVOKED`, `DEVICE_BLOCKED`, `COMPANY_SUSPENDED`, `MODULE_DISABLED` | Refus : voir rbac.md §3 |
+| 403 | `ACCOUNT_LOCKED` | Compte bloqué 15 minutes après 5 mots de passe faux ; `details.until` (security.md §1) |
 | 404 | `NOT_FOUND` | Inexistant **ou hors du périmètre** de l'utilisateur (rbac.md §3) |
 | 409 | `VERSION_CONFLICT`, `DUPLICATE`, `INVALID_STATE`, `IN_PROGRESS` | Modification concurrente (§1.4), doublon, action impossible dans l'état actuel (par exemple rouvrir une journée dont la préparation est lancée), ou même `Idempotency-Key` déjà en cours (§1.3) |
 | 422 | `BUSINESS_RULE` | Règle métier violée ; `details.rule` donne l'identifiant (`BR-JOU-08`) |
@@ -164,7 +166,7 @@ Préfixe `/platform`, réservé aux sessions `PlatformUser` (rbac.md §2.1).
 
 | Méthode | Chemin | Permission | Usage |
 |---|---|---|---|
-| `POST` | `/platform/auth/login`, `/platform/auth/refresh`, `/platform/auth/logout` | — | Connexion séparée du Super Admin |
+| `POST` | `/platform/auth/login`, `/platform/auth/refresh`, `/platform/auth/logout` | — | Connexion séparée du Super Admin, avec deuxième facteur (`code`, TOTP). Toutes les routes `/platform/*` répondent `404` hors de la liste d'IP (security.md §2) |
 | `GET` | `/platform/companies` | `companies.read` | Liste, avec statut et mode |
 | `POST` | `/platform/companies` | `companies.create` | Nom, code, mode, administrateur → entreprise, modules, rôles, paramètres par défaut (modules.md §4) ; renvoie une seule fois le mot de passe provisoire de l'administrateur |
 | `GET` | `/platform/companies/{id}` | `companies.read` | Détail, nombre d'utilisateurs et d'appareils |
@@ -617,8 +619,7 @@ La réponse est le fichier CSV (séparateur `;`, encodage UTF-8 avec BOM, pour u
 
 | Endpoint | Limite |
 |---|---|
-| `/auth/login`, `/auth/device/login`, `/platform/auth/login` | 5 échecs par compte en 15 minutes, puis blocage de 15 minutes ; 20 tentatives par adresse IP et par minute |
-| `/auth/device/activate` | 10 tentatives par adresse IP et par heure |
-| `/sync/push`, `/sync/pull` | 60 requêtes par appareil et par minute |
-| `/devices/heartbeat` | 2 par appareil et par minute |
-| Autres endpoints | 300 requêtes par utilisateur et par minute |
+| `/auth/login`, `/auth/device/login`, `/platform/auth/login` | 5 mots de passe faux consécutifs par compte, puis blocage de 15 minutes (`ACCOUNT_LOCKED`) ; 10 tentatives par adresse IP et par minute |
+| `/auth/device/activate` | 10 tentatives par adresse IP et par minute |
+| `/auth/refresh` | 30 par adresse IP et par minute |
+| Autres endpoints (dont `/sync/*`, `/devices/heartbeat`) | 300 requêtes par adresse IP et par minute |

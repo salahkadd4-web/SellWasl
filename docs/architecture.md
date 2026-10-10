@@ -474,14 +474,14 @@ Le détail des tables sera dans `database.md`.
 | Jetons | Jeton d'accès de 15 minutes ; jeton de rafraîchissement de 30 jours, à **rotation** à chaque usage, stocké haché en base. Si un jeton déjà utilisé est présenté de nouveau, toute la session est révoquée. |
 | Web | Jeton de rafraîchissement en cookie `HttpOnly` ; jeton d'accès en mémoire, jamais dans `localStorage` |
 | Mobile | Jetons dans expo-secure-store ; base locale chiffrée (§11.5) |
-| Force brute | Limitation par compte et par adresse IP (@nestjs/throttler) ; blocage temporaire après 5 échecs |
+| Force brute | Limitation par adresse IP (@nestjs/throttler) ; blocage du compte 15 minutes après 5 échecs |
 | Entrées | Toutes validées par Zod ; requêtes Prisma paramétrées ; taille des imports CSV limitée |
 | Transport | HTTPS partout ; en-têtes de sécurité (Helmet) |
 | Secrets | Variables d'environnement, jamais dans le dépôt ; `.env.example` sans valeur réelle |
 | Audit | Table `AuditLog` en ajout seul : l'application n'a pas le droit de modifier ni de supprimer une ligne d'audit |
-| Comptes plateforme | Table et connexion séparées pour le Super Admin (`PlatformUser`) |
+| Comptes plateforme | Table et connexion séparées pour le Super Admin (`PlatformUser`) ; espace visible seulement depuis une liste d'IP ; deuxième facteur (TOTP) |
 
-Le détail sera dans `security.md` (phase 27).
+Le détail est dans [security.md](security.md) (phase 27).
 
 ---
 
