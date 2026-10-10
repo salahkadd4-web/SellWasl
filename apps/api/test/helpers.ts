@@ -2,6 +2,9 @@ import type { INestApplication, Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { totpCode } from '../src/auth/totp';
+import { DataCipher } from '../src/common/crypto';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 export const PASSWORD = 'SellWasl@2026';
 
@@ -55,9 +58,35 @@ export async function webLogin(base: string, companyCode: string, login: string)
   return reply.body.accessToken;
 }
 
-export async function platformLogin(base: string): Promise<string> {
-  const reply = await call<{ accessToken: string }>(base, 'POST', '/platform/auth/login', {
-    body: { email: 'superadmin@sellwasl.test', password: PASSWORD },
+export const PLATFORM_EMAIL = 'superadmin@sellwasl.test';
+
+/**
+ * Connexion du Super Admin avec son deuxième facteur (phase 27) : enrôle le compte s'il ne l'est
+ * pas, sinon calcule le code depuis le secret. Le dernier pas utilisé est effacé avant : les tests
+ * se connectent plusieurs fois dans le même pas de 30 s (le rejeu est testé dans security.test.ts).
+ */
+export async function platformLogin(t: TestApp): Promise<string> {
+  const prisma = t.app.get(PrismaService);
+  await prisma.platformUser.update({
+    where: { email: PLATFORM_EMAIL },
+    data: { totpLastStep: null },
   });
+  const body = { email: PLATFORM_EMAIL, password: PASSWORD };
+  const first = await call<{ accessToken: string }>(t.url, 'POST', '/platform/auth/login', {
+    body,
+  });
+  const details = (first.body.error as { details?: { secret?: string } } | undefined)?.details;
+  const secret =
+    details?.secret ??
+    t.app
+      .get(DataCipher)
+      .decrypt(
+        (await prisma.platformUser.findUniqueOrThrow({ where: { email: PLATFORM_EMAIL } }))
+          .totpSecret!,
+      );
+  const reply = await call<{ accessToken: string }>(t.url, 'POST', '/platform/auth/login', {
+    body: { ...body, code: totpCode(secret, Math.floor(Date.now() / 30_000)) },
+  });
+  if (reply.status !== 200) throw new Error(`Connexion plateforme : ${JSON.stringify(reply.body)}`);
   return reply.body.accessToken;
 }

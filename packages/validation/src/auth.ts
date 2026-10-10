@@ -15,6 +15,11 @@ export type WebLoginInput = z.infer<typeof webLoginSchema>;
 export const platformLoginSchema = z.object({
   email: z.string().trim().toLowerCase().email('Email invalide'),
   password,
+  /** Code à 6 chiffres de l'application d'authentification (phase 27). */
+  code: z
+    .string()
+    .regex(/^\d{6}$/, 'Code à 6 chiffres')
+    .optional(),
 });
 export type PlatformLoginInput = z.infer<typeof platformLoginSchema>;
 

@@ -15,7 +15,7 @@ describe('administration de la plateforme et de l’entreprise', () => {
 
   beforeAll(async () => {
     t = await startApp();
-    platform = await platformLogin(t.url);
+    platform = await platformLogin(t);
   });
   afterAll(() => t.close());
 

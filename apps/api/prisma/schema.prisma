@@ -416,6 +416,12 @@ model PlatformUser {
    */
   failedLoginCount Int               @default(0) @map("failed_login_count")
   lockedUntil      DateTime?         @map("locked_until") @db.Timestamptz(3)
+  /**
+   * Deuxième facteur (TOTP) : secret chiffré (AES-256-GCM), enrôlement, dernier pas utilisé (phase 27).
+   */
+  totpSecret       String?           @map("totp_secret")
+  totpEnabledAt    DateTime?         @map("totp_enabled_at") @db.Timestamptz(3)
+  totpLastStep     Int?              @map("totp_last_step")
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
   platformSessions PlatformSession[]

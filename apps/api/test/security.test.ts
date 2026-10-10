@@ -1,7 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cookieOptions } from '../src/auth/cookies';
+import { hashPassword } from '../src/auth/passwords';
+import { totpCode } from '../src/auth/totp';
+import { uuidv7 } from '../src/common/uuid';
 import { validateEnv } from '../src/config/env';
+import { resetPlatformTwoFactor } from '../scripts/reset-platform-2fa';
 import { buildOpenApi } from '../src/docs/docs';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { call, platformLogin, startApp, type TestApp, webLogin } from './helpers';
@@ -257,8 +261,86 @@ describe('sécurité : espace plateforme réservé à une liste d’IP', () => {
 
   it('dans la liste : la plateforme répond normalement', async () => {
     await withAllowlist('127.0.0.1, ::1', async (t) => {
-      expect(await platformLogin(t.url)).toBeTruthy();
+      expect(await platformLogin(t)).toBeTruthy();
     });
+  });
+});
+
+describe('sécurité : deuxième facteur de la plateforme', () => {
+  let t: TestApp;
+  let raw: PrismaService;
+  const email = `support-${Date.now()}@sellwasl.test`;
+  const login = (code?: string) =>
+    call<{
+      accessToken: string;
+      error?: { code: string; details?: { otpauthUri?: string; secret?: string } };
+    }>(t.url, 'POST', '/platform/auth/login', {
+      body: { email, password: 'SellWasl@2026', ...(code ? { code } : {}) },
+    });
+  const step = () => Math.floor(Date.now() / 30_000);
+
+  beforeAll(async () => {
+    t = await startApp();
+    raw = t.app.get(PrismaService);
+    await raw.platformUser.create({
+      data: {
+        id: uuidv7(),
+        email,
+        name: 'Support 2FA',
+        passwordHash: await hashPassword('SellWasl@2026'),
+      },
+    });
+  });
+  afterAll(async () => {
+    await raw.platformUser.update({ where: { email }, data: { status: 'DISABLED' } });
+    await t.close();
+  });
+
+  it('première connexion : enrôlement par QR code, puis code exigé', async () => {
+    const setup = await login();
+    expect(setup.status).toBe(401);
+    expect(setup.body.error?.code).toBe('TOTP_SETUP');
+    const secret = setup.body.error!.details!.secret!;
+    expect(setup.body.error!.details!.otpauthUri).toContain(`secret=${secret}`);
+    // Secret chiffré en base
+    const stored = await raw.platformUser.findUniqueOrThrow({ where: { email } });
+    expect(stored.totpSecret).toBeTruthy();
+    expect(stored.totpSecret).not.toContain(secret);
+    expect(stored.totpEnabledAt).toBeNull();
+    // Le même secret tant que l'enrôlement n'est pas confirmé
+    expect((await login()).body.error!.details!.secret).toBe(secret);
+
+    expect((await login('000000')).body.error?.code).toBe('TOTP_INVALID');
+    const enrolled = await login(totpCode(secret, step()));
+    expect(enrolled.status, JSON.stringify(enrolled.body)).toBe(200);
+    expect(enrolled.body.accessToken).toBeTruthy();
+
+    // Ensuite : le code est exigé, et ne sert qu'une fois
+    const required = await login();
+    expect(required.status).toBe(401);
+    expect(required.body.error?.code).toBe('TOTP_REQUIRED');
+    expect(required.body.error?.details?.secret).toBeUndefined();
+    const replay = await login(totpCode(secret, step()));
+    expect(replay.body.error?.code).toBe('TOTP_INVALID');
+    const next = await login(totpCode(secret, step() + 1));
+    expect(next.status).toBe(200);
+  });
+
+  it('mauvais mot de passe : jamais d’enrôlement ni de secret', async () => {
+    const reply = await call<{ error?: { code: string; details?: unknown } }>(
+      t.url,
+      'POST',
+      '/platform/auth/login',
+      { body: { email, password: 'Mauvais123' } },
+    );
+    expect(reply.status).toBe(401);
+    expect(reply.body.error?.code).toBe('INVALID_CREDENTIALS');
+    expect(reply.body.error?.details).toBeUndefined();
+  });
+
+  it('téléphone perdu : la réinitialisation relance l’enrôlement', async () => {
+    await resetPlatformTwoFactor(raw, email);
+    expect((await login()).body.error?.code).toBe('TOTP_SETUP');
   });
 });
 

@@ -25,7 +25,7 @@ describe('modules et changement de mode', () => {
   beforeAll(async () => {
     t = await startApp([PreSalesProbeController]);
     raw = t.app.get(PrismaService);
-    platform = await platformLogin(t.url);
+    platform = await platformLogin(t);
     companyA = (await raw.company.findUniqueOrThrow({ where: { code: 'DISTRI-ORAN' } })).id;
   });
   afterAll(() => t.close());

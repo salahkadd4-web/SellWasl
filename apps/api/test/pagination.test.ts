@@ -142,7 +142,7 @@ describe('pagination et tri (phase 25)', () => {
   });
 
   it('chaque liste qui grossit répond par pages { data, nextCursor, total }', async () => {
-    const platform = await platformLogin(t.url);
+    const platform = await platformLogin(t);
     const accountant = await webLogin(t.url, 'DISTRI-ORAN', 'A-CPT');
     const lists: [string, string?][] = [
       ['/orders'],

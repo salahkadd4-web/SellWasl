@@ -48,7 +48,7 @@ describe("contrôle d'accès par l'API", () => {
   });
 
   it("sépare les comptes plateforme et les comptes d'entreprise", async () => {
-    const platform = await platformLogin(t.url);
+    const platform = await platformLogin(t);
     expect((await call(t.url, 'GET', '/me', { token: platform })).status).toBe(403);
     expect((await call(t.url, 'GET', '/platform/me', { token: supA })).status).toBe(403);
     expect((await call(t.url, 'GET', '/platform/me', { token: platform })).status).toBe(200);

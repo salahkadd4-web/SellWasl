@@ -6,6 +6,7 @@ import { DevicesService } from '../devices/devices.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { DataCipher } from '../common/crypto';
 import { LockoutService } from './lockout.service';
 import { PlatformAuthController } from './platform-auth.controller';
 import { TokensService } from './tokens.service';
@@ -22,7 +23,7 @@ import { TokensService } from './tokens.service';
     }),
   ],
   controllers: [AuthController, PlatformAuthController, DevicesController],
-  providers: [TokensService, AuthService, AuthGuard, DevicesService, LockoutService],
+  providers: [TokensService, AuthService, AuthGuard, DevicesService, LockoutService, DataCipher],
   exports: [AuthGuard, TokensService],
 })
 export class AuthModule {}
