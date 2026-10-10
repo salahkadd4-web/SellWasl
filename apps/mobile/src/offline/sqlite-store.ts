@@ -1,6 +1,49 @@
 import type { MetaKey, OfflineStore, OutboxOp, StoredRow } from '@sellwasl/offline';
 import type { OfflineKind, PulledRow } from '@sellwasl/validation';
+import { getRandomBytes } from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
+
+/** Base chiffrée (SQLCipher) depuis la phase 27 ; l'ancienne, en clair, est recopiée puis effacée. */
+const DB_NAME = 'sellwasl-offline-v2.db';
+const LEGACY_DB_NAME = 'sellwasl-offline.db';
+const KEY_NAME = 'sellwasl.dbKey';
+
+/** Clé de 256 bits, créée au premier lancement et gardée dans le coffre-fort du téléphone. */
+async function databaseKey(): Promise<string> {
+  const stored = await SecureStore.getItemAsync(KEY_NAME);
+  if (stored) return stored;
+  const key = Array.from(getRandomBytes(32), (b) => b.toString(16).padStart(2, '0')).join('');
+  await SecureStore.setItemAsync(KEY_NAME, key);
+  return key;
+}
+
+/** Clé brute de SQLCipher : seulement des chiffres hexadécimaux, sans dérivation. */
+const keyPragma = (key: string) => `"x'${key}'"`;
+
+/**
+ * Recopie l'ancienne base en clair dans la base chiffrée (une seule fois), pour ne perdre aucune
+ * opération en attente, puis l'efface. Une copie déjà faite (base chiffrée non vide) est ignorée.
+ */
+async function migrateLegacy(key: string): Promise<void> {
+  const legacy = await SQLite.openDatabaseAsync(LEGACY_DB_NAME);
+  try {
+    const tables = await legacy.getFirstAsync<{ n: number }>(
+      "SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'outbox'",
+    );
+    if (tables?.n) {
+      const target = `${SQLite.defaultDatabaseDirectory as string}/${DB_NAME}`;
+      await legacy
+        .execAsync(
+          `ATTACH DATABASE '${target}' AS encrypted KEY ${keyPragma(key)}; SELECT sqlcipher_export('encrypted'); DETACH DATABASE encrypted;`,
+        )
+        .catch(() => undefined);
+    }
+  } finally {
+    await legacy.closeAsync();
+  }
+  await SQLite.deleteDatabaseAsync(LEGACY_DB_NAME).catch(() => undefined);
+}
 
 const SCHEMA = `
   PRAGMA journal_mode = WAL;
@@ -32,10 +75,15 @@ export class SqliteStore implements OfflineStore {
 
   private open(): Promise<SQLite.SQLiteDatabase> {
     if (!this.db)
-      this.db = SQLite.openDatabaseAsync('sellwasl-offline.db').then(async (db) => {
+      this.db = (async () => {
+        // Base chiffrée : un téléphone volé ne livre ni clients ni opérations (architecture §11.5)
+        const key = await databaseKey();
+        await migrateLegacy(key);
+        const db = await SQLite.openDatabaseAsync(DB_NAME);
+        await db.execAsync(`PRAGMA key = ${keyPragma(key)};`);
         await db.execAsync(SCHEMA);
         return db;
-      });
+      })();
     return this.db;
   }
 
