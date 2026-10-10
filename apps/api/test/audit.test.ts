@@ -1,3 +1,4 @@
+import type { AuditRowDto, Page } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AuditService } from '../src/audit/audit.service';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -135,5 +136,108 @@ describe('audit (phase 26)', () => {
       expect(text).not.toContain(secret);
     expect(text).not.toMatch(/passwordHash|refreshToken|tokenHash|"token"/i);
     await raw.user.update({ where: { id: userId }, data: { status: 'DISABLED' } });
+  });
+
+  describe('consultation (admin)', () => {
+    const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Algiers' });
+    const list = (query: string, token = adm) =>
+      call<Page<AuditRowDto>>(t.url, 'GET', `/audit${query}`, { token });
+
+    it('l’admin lit le journal par pages, avec les libellés', async () => {
+      const reply = await list('?limit=5');
+      expect(reply.status, JSON.stringify(reply.body)).toBe(200);
+      expect(reply.body.data.length).toBe(5);
+      expect(reply.body.total).toBeGreaterThan(5);
+      expect(reply.body.nextCursor).toBeTruthy();
+      const at = reply.body.data.map((r) => r.at);
+      expect(at).toEqual([...at].sort().reverse());
+      const login = (await list('?action=auth.login&limit=1')).body.data[0]!;
+      expect(login).toMatchObject({
+        actionLabel: 'Connexion',
+        entity: 'User',
+        entityLabel: 'Utilisateur',
+      });
+      expect(login.actor?.name).toBeTruthy();
+    });
+
+    it('autre rôle : 403 ; autre entreprise : rien de cette entreprise', async () => {
+      expect((await list('', sup)).status).toBe(403);
+      const reasons = await raw.auditLog.findFirstOrThrow({
+        where: { companyId, action: 'reason.update' },
+      });
+      const other = await webLogin(t.url, 'CASHVAN-EST', 'B-ADM');
+      const reply = await list(`?entityId=${reasons.entityId}`, other);
+      expect(reply.status).toBe(200);
+      expect(reply.body.total).toBe(0);
+    });
+
+    it('filtres : action, fiche, auteur et période', async () => {
+      const admin = await raw.user.findFirstOrThrow({ where: { companyId, code: 'A-ADM' } });
+      const byAction = await list('?action=reason.update&entity=Reason&limit=200');
+      expect(byAction.body.total).toBeGreaterThan(0);
+      expect(
+        byAction.body.data.every((r) => r.action === 'reason.update' && r.entity === 'Reason'),
+      ).toBe(true);
+      const byUser = await list(`?userId=${admin.id}&limit=200`);
+      expect(byUser.body.data.every((r) => r.actor?.id === admin.id)).toBe(true);
+      const day = today();
+      const recent = await list(`?from=${day}&to=${day}&action=reason.update`);
+      expect(recent.body.total).toBeGreaterThan(0);
+      const past = await list('?from=2020-01-01&to=2020-01-31');
+      expect(past.body.total).toBe(0);
+      expect((await list('?action=inconnue')).status).toBe(400);
+    });
+
+    it('export CSV : mêmes filtres, formule neutralisée', async () => {
+      // Auteur dont le prénom ressemble à une formule : la cellule commence par une apostrophe
+      const created = await call<{ user: { id: string; code: string }; temporaryPassword: string }>(
+        t.url,
+        'POST',
+        '/users',
+        {
+          token: adm,
+          body: {
+            code: `FRM${Date.now() % 100000}`,
+            firstName: '=SOMME(A1)',
+            lastName: 'Test',
+            role: 'COMPTABLE',
+          },
+        },
+      );
+      expect(created.status).toBe(201);
+      const login = await call(t.url, 'POST', '/auth/login', {
+        body: {
+          companyCode: 'DISTRI-ORAN',
+          login: created.body.user.code,
+          password: created.body.temporaryPassword,
+        },
+      });
+      expect(login.status).toBe(200);
+      const reply = await fetch(
+        `${t.url}/audit/export?userId=${created.body.user.id}&action=auth.login`,
+        { headers: { Authorization: `Bearer ${adm}` } },
+      );
+      expect(reply.status).toBe(200);
+      expect(reply.headers.get('content-type')).toContain('text/csv');
+      const csv = await reply.text();
+      const lines = csv.trim().split('\n');
+      expect(lines[0]).toContain('Action');
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain('Connexion');
+      expect(lines[1]).toContain("'=SOMME(A1)");
+      const forbidden = await fetch(`${t.url}/audit/export`, {
+        headers: { Authorization: `Bearer ${sup}` },
+      });
+      expect(forbidden.status).toBe(403);
+      await raw.user.update({ where: { id: created.body.user.id }, data: { status: 'DISABLED' } });
+    });
+
+    it('le journal ne se modifie pas et ne s’efface pas', async () => {
+      const row = await raw.auditLog.findFirstOrThrow({ where: { companyId } });
+      await expect(
+        raw.auditLog.update({ where: { id: row.id }, data: { action: 'auth.logout' } }),
+      ).rejects.toThrow();
+      await expect(raw.auditLog.delete({ where: { id: row.id } })).rejects.toThrow();
+    });
   });
 });

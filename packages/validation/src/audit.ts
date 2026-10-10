@@ -195,3 +195,40 @@ export const AUDIT_ENTITIES = {
 
 export type AuditEntity = keyof typeof AUDIT_ENTITIES;
 export const AUDIT_ENTITY_CODES = Object.keys(AUDIT_ENTITIES) as [AuditEntity, ...AuditEntity[]];
+
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format AAAA-MM-JJ');
+
+/** Filtres du journal : période (jours locaux de l'entreprise), auteur, fiche, action. */
+export const auditFiltersSchema = z.object({
+  from: date.optional(),
+  to: date.optional(),
+  userId: z.uuid().optional(),
+  entity: z.enum(AUDIT_ENTITY_CODES).optional(),
+  entityId: z.uuid().optional(),
+  action: z.enum(AUDIT_ACTION_CODES).optional(),
+});
+export type AuditFilters = z.output<typeof auditFiltersSchema>;
+
+/** Liste paginée du journal, la plus récente d'abord. */
+export const auditQuerySchema = z.object({
+  ...auditFiltersSchema.shape,
+  ...pageQuery(['createdAt'], '-createdAt'),
+});
+
+/** Ligne du journal (GET /audit). */
+export interface AuditRowDto {
+  id: string;
+  at: string;
+  action: AuditAction;
+  actionLabel: string;
+  entity: string;
+  entityLabel: string;
+  entityId: string | null;
+  actor: { id: string; code: string; name: string } | null;
+  deviceId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  reason: string | null;
+  before: unknown;
+  after: unknown;
+}
