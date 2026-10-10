@@ -3,7 +3,9 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import type { Request } from 'express';
 import { ClsModule } from 'nestjs-cls';
+import { AUDIT_CONTEXT, type AuditContext } from './audit/audit.service';
 import { LoggerModule } from 'nestjs-pino';
 import { AuditModule } from './audit/audit.module';
 import { AuthGuard } from './auth/auth.guard';
@@ -62,7 +64,18 @@ import { PrismaModule } from './prisma/prisma.module';
     // Limite par défaut : 300 requêtes par minute ; les routes de connexion sont plus strictes.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     // Contexte de chaque requête : l'entreprise de l'utilisateur, lue par le client filtré (phase 5).
-    ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+    ClsModule.forRoot({
+      global: true,
+      middleware: {
+        mount: true,
+        // Contexte du journal d'audit : IP et navigateur de chaque requête (phase 26)
+        setup: (cls, req: Request) =>
+          cls.set<AuditContext>(AUDIT_CONTEXT, {
+            ip: req.ip,
+            userAgent: req.headers['user-agent']?.slice(0, 300),
+          }),
+      },
+    }),
     // Tâches planifiées : paie automatique de la nuit (phase 21 bis)
     ScheduleModule.forRoot(),
     PrismaModule,

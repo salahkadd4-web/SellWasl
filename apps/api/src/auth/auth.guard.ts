@@ -22,6 +22,7 @@ import {
 import { ModulesService } from '../modules/modules.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TENANT_KEY } from '../tenancy/tenant-prisma';
+import { AUDIT_CONTEXT, type AuditContext } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
 
 export const ACTIVE_COMPANY_STATUSES = ['ACTIVE', 'TRIAL'] as const;
@@ -88,6 +89,9 @@ export class AuthGuard implements CanActivate {
 
     req.principal = user;
     this.cls.set(TENANT_KEY, user.companyId);
+    // Appareil du téléphone pour le journal d'audit (phase 26)
+    const audit = this.cls.get<AuditContext | undefined>(AUDIT_CONTEXT);
+    this.cls.set<AuditContext>(AUDIT_CONTEXT, { ...audit, deviceId: user.deviceId });
     return true;
   }
 
