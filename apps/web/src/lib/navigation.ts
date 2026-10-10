@@ -177,6 +177,13 @@ export const COMPANY_NAV: NavItem[] = [
     icon: 'sync',
   },
   {
+    href: '/app/audit',
+    label: "Journal d'audit",
+    permission: 'audit.read',
+    group: 'Administration',
+    icon: 'clock',
+  },
+  {
     href: '/app/parametres',
     label: 'Paramètres',
     permission: 'settings.read',
