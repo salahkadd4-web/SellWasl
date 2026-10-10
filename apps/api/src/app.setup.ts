@@ -14,7 +14,11 @@ function bigintReplacer(_key: string, value: unknown): unknown {
 
 /** Configuration commune à l'application et aux tests d'intégration. */
 export function configureApp(app: INestApplication): void {
-  (app.getHttpAdapter().getInstance() as Express).set('json replacer', bigintReplacer);
+  const server = app.getHttpAdapter().getInstance() as Express;
+  server.set('json replacer', bigintReplacer);
+  // IP réelle du client derrière les proxys de confiance (phase 27) ; 0 : X-Forwarded-For ignoré
+  const trustProxy = Number(process.env.TRUST_PROXY ?? 0);
+  if (Number.isInteger(trustProxy) && trustProxy > 0) server.set('trust proxy', trustProxy);
   app.use(helmet());
   app.use(cookieParser());
   app.setGlobalPrefix('api/v1');

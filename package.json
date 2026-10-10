@@ -35,6 +35,9 @@
     "onlyBuiltDependencies": [
       "@prisma/engines",
       "prisma"
-    ]
+    ],
+    "overrides": {
+      "mysql2": "^3.23.1"
+    }
   }
 }

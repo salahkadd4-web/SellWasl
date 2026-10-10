@@ -5,11 +5,12 @@ import { REFRESH_TOKEN_TTL_MS } from './tokens.service';
 export const COMPANY_REFRESH_COOKIE = 'sw_rt';
 export const PLATFORM_REFRESH_COOKIE = 'sw_prt';
 
-function options(path: string): CookieOptions {
+/** Cookie Secure (HTTPS seulement) partout sauf en développement et en test (phase 27). */
+export function cookieOptions(path: string, nodeEnv = process.env.NODE_ENV): CookieOptions {
   return {
     httpOnly: true,
     sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
+    secure: nodeEnv !== 'development' && nodeEnv !== 'test',
     path,
     maxAge: REFRESH_TOKEN_TTL_MS,
   };
@@ -23,11 +24,11 @@ const PATHS = {
 type CookieName = keyof typeof PATHS;
 
 export function setRefreshCookie(res: Response, name: CookieName, token: string): void {
-  res.cookie(name, token, options(PATHS[name]));
+  res.cookie(name, token, cookieOptions(PATHS[name]));
 }
 
 export function clearRefreshCookie(res: Response, name: CookieName): void {
-  res.clearCookie(name, { ...options(PATHS[name]), maxAge: undefined });
+  res.clearCookie(name, { ...cookieOptions(PATHS[name]), maxAge: undefined });
 }
 
 export function readRefreshCookie(req: Request, name: CookieName): string | undefined {
