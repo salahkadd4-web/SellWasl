@@ -14,6 +14,8 @@ import type {
   updateProductSchema,
   updateUnitSchema,
   updateVariantSchema,
+  AuditAction,
+  AuditEntity,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { createHash } from 'node:crypto';
@@ -92,7 +94,13 @@ export class CatalogService {
     return toProductDto(p, (key) => this.images.urls(key));
   }
 
-  private log(actor: AuthUser, action: string, entity: string, entityId: string, after?: unknown) {
+  private log(
+    actor: AuthUser,
+    action: AuditAction,
+    entity: AuditEntity,
+    entityId: string,
+    after?: unknown,
+  ) {
     return this.audit.write({
       companyId: actor.companyId,
       actorUserId: actor.userId,

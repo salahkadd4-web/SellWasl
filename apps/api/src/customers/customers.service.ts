@@ -7,6 +7,7 @@ import type {
   Page,
   ReviewReason,
   updateCustomerSchema,
+  AuditAction,
 } from '@sellwasl/validation';
 import { companySettingsSchema } from '@sellwasl/validation';
 import type { z } from 'zod';
@@ -388,7 +389,7 @@ export class CustomersService {
     actor: AuthUser,
     id: string,
     data: Prisma.CustomerUncheckedUpdateInput,
-    action: string,
+    action: AuditAction,
   ): Promise<CustomerDto> {
     const updated = await this.db.$transaction(async (tx) => {
       const row = await tx.customer.update({

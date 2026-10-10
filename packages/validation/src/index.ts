@@ -17,3 +17,4 @@ export * from './payroll';
 export * from './offline';
 export * from './notifications';
 export * from './pagination';
+export * from './audit';

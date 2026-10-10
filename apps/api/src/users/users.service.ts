@@ -5,6 +5,7 @@ import type {
   CreateUserInput,
   TemporaryPasswordResponse,
   UpdateUserInput,
+  AuditAction,
 } from '@sellwasl/validation';
 import { AuditService } from '../audit/audit.service';
 import { hashPassword, temporaryPassword } from '../auth/passwords';
@@ -262,7 +263,7 @@ export class UsersService {
 
   private log(
     actor: AuthUser,
-    action: string,
+    action: AuditAction,
     entityId: string,
     before?: Prisma.InputJsonValue,
     after?: Prisma.InputJsonValue,

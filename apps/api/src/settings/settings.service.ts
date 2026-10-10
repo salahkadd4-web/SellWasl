@@ -1,5 +1,10 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { type CompanySettings, companySettingsSchema } from '@sellwasl/validation';
+import {
+  type CompanySettings,
+  companySettingsSchema,
+  type AuditAction,
+  type AuditEntity,
+} from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { ApiError, notFound } from '../common/api-error';
@@ -258,7 +263,13 @@ export class SettingsService {
     }
   }
 
-  private log(actor: AuthUser, action: string, entity: string, entityId: string, after?: unknown) {
+  private log(
+    actor: AuthUser,
+    action: AuditAction,
+    entity: AuditEntity,
+    entityId: string,
+    after?: unknown,
+  ) {
     return this.audit.write({
       companyId: actor.companyId,
       actorUserId: actor.userId,

@@ -20,6 +20,8 @@ import type {
   territoryPartsSchema,
   territoryScheduleSchema,
   updateTerritorySchema,
+  AuditAction,
+  AuditEntity,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -64,7 +66,13 @@ export class TerritoriesService {
     private readonly placement: PlacementService,
   ) {}
 
-  private log(actor: AuthUser, action: string, entity: string, entityId: string, after?: unknown) {
+  private log(
+    actor: AuthUser,
+    action: AuditAction,
+    entity: AuditEntity,
+    entityId: string,
+    after?: unknown,
+  ) {
     return this.audit.write({
       companyId: actor.companyId,
       actorUserId: actor.userId,

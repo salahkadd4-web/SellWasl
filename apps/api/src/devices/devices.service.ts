@@ -11,6 +11,8 @@ import {
   type heartbeatSchema,
   type SessionSummary,
   type UserDevicesResponse,
+  type AuditAction,
+  type AuditEntity,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -201,7 +203,7 @@ export class DevicesService {
     actor: AuthUser,
     device: DeviceRow,
     status: 'ACTIVE' | 'BLOCKED' | 'REVOKED',
-    action: string,
+    action: AuditAction,
   ): Promise<void> {
     await this.db.$transaction(async (tx) => {
       await tx.device.update({
@@ -265,8 +267,8 @@ export class DevicesService {
   private async closeSessions(
     actor: AuthUser,
     where: Prisma.SessionWhereInput,
-    action: string,
-    entity: string,
+    action: AuditAction,
+    entity: AuditEntity,
     entityId: string,
   ): Promise<void> {
     await this.db.$transaction(async (tx) => {

@@ -5,6 +5,7 @@ import type {
   discrepancyDecisionSchema,
   PersonDto,
   Page,
+  AuditAction,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
@@ -179,7 +180,7 @@ export class DiscrepanciesService {
   private write(
     tx: Tx,
     actor: AuthUser,
-    action: string,
+    action: AuditAction,
     entityId: string,
     before: Prisma.InputJsonValue,
     after: Prisma.InputJsonValue,

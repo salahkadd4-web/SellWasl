@@ -9,6 +9,7 @@ import type {
   DeviceLoginInput,
   MeResponse,
   WebLoginInput,
+  AuditAction,
 } from '@sellwasl/validation';
 import { ApiError, forbidden, unauthorized } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
@@ -346,7 +347,7 @@ export class AuthService {
     companyId: string,
     userId: string,
     deviceId: string | null,
-    action: string,
+    action: AuditAction,
     client: ClientInfo,
   ): Promise<void> {
     await this.prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });

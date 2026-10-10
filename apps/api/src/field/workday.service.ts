@@ -148,7 +148,7 @@ export class WorkdayService implements OnModuleInit {
       companyId: actor.companyId,
       actorUserId: actor.userId,
       deviceId: actor.deviceId,
-      entity: 'Workday',
+      entity: 'Workday' as const,
       entityId: workdayId,
     };
     await this.audit.write({ ...base, action: 'workday.start', after: { date } }, tx);

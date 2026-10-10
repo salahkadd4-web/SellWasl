@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { AuditAction, AuditEntity } from '@sellwasl/validation';
 import { ClsService } from 'nestjs-cls';
 import { uuidv7 } from '../common/uuid';
 import type { Prisma } from '../generated/prisma/client';
@@ -8,8 +9,9 @@ export interface AuditEntry {
   companyId: string;
   actorUserId: string | null;
   deviceId?: string | null;
-  action: string;
-  entity: string;
+  /** Code du catalogue (packages/validation, docs/audit.md) : une action sans libellé ne compile pas. */
+  action: AuditAction;
+  entity: AuditEntity;
   entityId?: string | null;
   before?: Prisma.InputJsonValue;
   after?: Prisma.InputJsonValue;

@@ -1,4 +1,9 @@
-import { companySettingsSchema, type PayrollSettings } from '@sellwasl/validation';
+import {
+  companySettingsSchema,
+  type PayrollSettings,
+  type AuditAction,
+  type AuditEntity,
+} from '@sellwasl/validation';
 import type { AuditService } from '../audit/audit.service';
 import type { AuthUser } from '../common/auth-context';
 import { dateOnly, rule, toDate } from '../field/field-errors';
@@ -78,8 +83,8 @@ export function audit(
   service: AuditService,
   tx: Tx,
   actor: Actor,
-  action: string,
-  entity: string,
+  action: AuditAction,
+  entity: AuditEntity,
   entityId: string | null,
   before: Prisma.InputJsonValue | undefined,
   after: Prisma.InputJsonValue,
