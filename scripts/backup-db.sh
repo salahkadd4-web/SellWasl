@@ -5,6 +5,8 @@
 # Sans client PostgreSQL sur la machine : PG_DOCKER_CONTAINER=<conteneur> (DATABASE_URL vue depuis
 # le conteneur). Affiche le chemin de l'archive créée.
 set -euo pipefail
+# L'archive contient toute la base : dossier et fichiers lisibles par leur seul propriétaire
+umask 077
 
 : "${DATABASE_URL:?DATABASE_URL manquante}"
 BACKUP_DIR="${BACKUP_DIR:-backups}"
@@ -14,7 +16,7 @@ run() {
   if [ -n "${PG_DOCKER_CONTAINER:-}" ]; then docker exec -i "$PG_DOCKER_CONTAINER" "$@"; else "$@"; fi
 }
 
-mkdir -p "$BACKUP_DIR"
+mkdir -p -m 700 "$BACKUP_DIR"
 file="$BACKUP_DIR/sellwasl-$(date -u +%Y%m%dT%H%M%SZ).dump"
 
 # Format personnalisé, compressé : restauration sélective possible ; écrit à part puis renommé
