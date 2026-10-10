@@ -1,3 +1,4 @@
+import { newPasswordSchema } from '@sellwasl/validation';
 import { useState } from 'react';
 import { ApiClientError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -15,8 +16,9 @@ export default function ChangePasswordScreen() {
   async function submit() {
     setError(null);
     if (!current) return setError('Saisissez le mot de passe provisoire.');
-    if (next.length < 8)
-      return setError('Le nouveau mot de passe doit faire au moins 8 caractères.');
+    // Même règle que l'API (phase 27) : 8 caractères, une lettre et un chiffre
+    const checked = newPasswordSchema.safeParse(next);
+    if (!checked.success) return setError(checked.error.issues[0]!.message);
     if (next !== confirm) return setError('Les deux nouveaux mots de passe sont différents.');
     if (next === current) return setError('Choisissez un mot de passe différent du provisoire.');
     setBusy(true);
@@ -42,7 +44,7 @@ export default function ChangePasswordScreen() {
         autoCapitalize="none"
       />
       <Input
-        label="Nouveau mot de passe (8 caractères minimum)"
+        label="Nouveau mot de passe (8 caractères, une lettre et un chiffre)"
         value={next}
         onChangeText={setNext}
         secureTextEntry

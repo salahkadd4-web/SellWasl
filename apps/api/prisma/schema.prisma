@@ -411,6 +411,11 @@ model PlatformUser {
   role             PlatformRole      @default(SUPER_ADMIN)
   status           AccountStatus     @default(ACTIVE)
   lastLoginAt      DateTime?         @map("last_login_at") @db.Timestamptz(3)
+  /**
+   * Échecs de mot de passe consécutifs ; 5 → blocage de 15 minutes (phase 27).
+   */
+  failedLoginCount Int               @default(0) @map("failed_login_count")
+  lockedUntil      DateTime?         @map("locked_until") @db.Timestamptz(3)
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
   platformSessions PlatformSession[]
@@ -537,6 +542,11 @@ model User {
   status                         AccountStatus          @default(ACTIVE)
   mustChangePassword             Boolean                @default(true) @map("must_change_password")
   lastLoginAt                    DateTime?              @map("last_login_at") @db.Timestamptz(3)
+  /**
+   * Échecs de mot de passe consécutifs ; 5 → blocage de 15 minutes (phase 27).
+   */
+  failedLoginCount               Int                    @default(0) @map("failed_login_count")
+  lockedUntil                    DateTime?              @map("locked_until") @db.Timestamptz(3)
   companyId                      String                 @map("company_id") @db.Uuid
   roleId                         String                 @map("role_id") @db.Uuid
   deletedAt                      DateTime?              @map("deleted_at") @db.Timestamptz(3)

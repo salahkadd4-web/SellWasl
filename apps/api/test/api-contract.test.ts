@@ -104,7 +104,8 @@ describe('contrat de l’API (phase 25)', () => {
       let body: unknown = null;
       for (let i = 0; i < 12; i += 1) {
         const reply = await call(t.url, 'POST', '/auth/login', {
-          body: { companyCode: 'DISTRI-ORAN', login: 'A-SUP', password: 'mauvais' },
+          // Compte inconnu : la limite de débit s'applique sans bloquer un compte du seed (phase 27)
+          body: { companyCode: 'DISTRI-ORAN', login: 'INCONNU', password: 'mauvais' },
         });
         last = reply.status;
         body = reply.body;

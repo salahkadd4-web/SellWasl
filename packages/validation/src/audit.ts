@@ -10,6 +10,7 @@ export const AUDIT_ACTIONS = {
   // Connexions, comptes et appareils
   'auth.login': 'Connexion',
   'auth.logout': 'Déconnexion',
+  'auth.lockout': 'Compte bloqué après 5 mots de passe incorrects',
   'user.create': 'Utilisateur créé',
   'user.update': 'Utilisateur modifié (dont le rôle)',
   'user.disable': 'Utilisateur désactivé',

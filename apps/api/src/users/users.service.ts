@@ -189,7 +189,13 @@ export class UsersService {
     const updated = await this.db.$transaction(async (tx) => {
       const next = await tx.user.update({
         where: { id },
-        data: { passwordHash: await hashPassword(password), mustChangePassword: true },
+        // Réinitialisation par l'admin : le compte est aussi débloqué (phase 27)
+        data: {
+          passwordHash: await hashPassword(password),
+          mustChangePassword: true,
+          failedLoginCount: 0,
+          lockedUntil: null,
+        },
         include: userInclude,
       });
       await tx.session.updateMany({

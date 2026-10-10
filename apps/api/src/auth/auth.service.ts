@@ -19,6 +19,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ModulesService } from '../modules/modules.service';
 import { ACTIVE_COMPANY_STATUSES, moduleDisabled } from './auth.guard';
 import { hashPassword, verifyPassword } from './passwords';
+import { LockoutService } from './lockout.service';
 import { TokensService } from './tokens.service';
 
 export interface ClientInfo {
@@ -53,6 +54,7 @@ export class AuthService {
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
     private readonly modules: ModulesService,
+    private readonly lockout: LockoutService,
   ) {}
 
   /** Connexion Web : rôles Web uniquement (BR-USR-02). */
@@ -72,9 +74,12 @@ export class AuthService {
         })
       : null;
 
+    this.lockout.assertNotLocked(user);
     if (!(await verifyPassword(user?.passwordHash ?? null, input.password)) || !user || !company) {
+      if (user) await this.lockout.userFailed(user.id);
       throw invalidCredentials();
     }
+    await this.lockout.userSucceeded(user);
     this.assertCompanyActive(company.status);
     if (user.status !== 'ACTIVE') throw forbidden('ACCOUNT_DISABLED', 'Ce compte est désactivé.');
     if (user.role.channel !== 'WEB') {
@@ -113,7 +118,12 @@ export class AuthService {
       );
     }
     const { user } = activation;
-    if (!(await verifyPassword(user.passwordHash, input.password))) throw invalidCredentials();
+    this.lockout.assertNotLocked(user);
+    if (!(await verifyPassword(user.passwordHash, input.password))) {
+      await this.lockout.userFailed(user.id);
+      throw invalidCredentials();
+    }
+    await this.lockout.userSucceeded(user);
     this.assertCompanyActive(user.company.status);
     if (user.status !== 'ACTIVE') throw forbidden('ACCOUNT_DISABLED', 'Ce compte est désactivé.');
     if (user.role.channel !== 'MOBILE')
@@ -204,8 +214,12 @@ export class AuthService {
       include: { user: { include: { role: true, company: true } } },
     });
     if (!device) throw unauthorized('DEVICE_UNKNOWN', 'Appareil inconnu. Associez-le de nouveau.');
-    if (!(await verifyPassword(device.user.passwordHash, input.password)))
+    this.lockout.assertNotLocked(device.user);
+    if (!(await verifyPassword(device.user.passwordHash, input.password))) {
+      await this.lockout.userFailed(device.userId);
       throw invalidCredentials();
+    }
+    await this.lockout.userSucceeded(device.user);
     if (device.status === 'BLOCKED')
       throw forbidden('DEVICE_BLOCKED', 'Appareil bloqué. Contactez votre superviseur.');
     if (device.status !== 'ACTIVE')
@@ -279,6 +293,15 @@ export class AuthService {
         'Mot de passe actuel incorrect.',
       );
     }
+    // Règle des mots de passe (phase 27) : la forme est vérifiée par le schéma, le contexte ici
+    const weak = (message: string) =>
+      new ApiError(HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', message, {
+        fields: [{ path: 'newPassword', message }],
+      });
+    if (input.newPassword === input.currentPassword)
+      throw weak("Le nouveau mot de passe doit être différent de l'actuel.");
+    if (input.newPassword.toLowerCase().includes(current.code.toLowerCase()))
+      throw weak('Le mot de passe ne doit pas contenir votre identifiant.');
     await this.prisma.user.update({
       where: { id: user.userId },
       data: { passwordHash: await hashPassword(input.newPassword), mustChangePassword: false },

@@ -62,9 +62,17 @@ export type DeviceLoginInput = z.infer<typeof deviceLoginSchema>;
 /** Rafraîchissement mobile (le Web utilise un cookie HttpOnly). */
 export const refreshSchema = z.object({ refreshToken: z.string().min(10) });
 
+/** Règle des mots de passe (phase 27) : 8 caractères, au moins une lettre et un chiffre. */
+export const newPasswordSchema = z
+  .string()
+  .min(8, 'Au moins 8 caractères')
+  .max(200)
+  .regex(/\p{L}/u, 'Au moins une lettre')
+  .regex(/\d/, 'Au moins un chiffre');
+
 export const changePasswordSchema = z.object({
   currentPassword: password,
-  newPassword: z.string().min(8, 'Au moins 8 caractères').max(200),
+  newPassword: newPasswordSchema,
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 

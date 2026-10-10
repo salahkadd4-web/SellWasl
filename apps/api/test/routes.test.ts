@@ -65,6 +65,7 @@ describe('couverture des routes', () => {
       'audit/audit.service.ts',
       'auth/auth.guard.ts',
       'auth/auth.service.ts',
+      'auth/lockout.service.ts',
       'auth/platform-auth.controller.ts',
       'auth/tokens.service.ts',
       'companies/provisioning.service.ts',

@@ -22,6 +22,7 @@ import {
   readRefreshCookie,
   setRefreshCookie,
 } from './cookies';
+import { LockoutService } from './lockout.service';
 import { verifyPassword } from './passwords';
 import { TokensService } from './tokens.service';
 
@@ -31,6 +32,7 @@ export class PlatformAuthController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokensService,
+    private readonly lockout: LockoutService,
   ) {}
 
   @Public()
@@ -44,7 +46,9 @@ export class PlatformAuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthTokens> {
     const user = await this.prisma.platformUser.findUnique({ where: { email: body.email } });
+    this.lockout.assertNotLocked(user);
     const ok = await verifyPassword(user?.passwordHash ?? null, body.password);
+    if (user && !ok) await this.lockout.platformFailed(user.id);
     if (!ok || !user || user.status !== 'ACTIVE') {
       throw new ApiError(
         HttpStatus.UNAUTHORIZED,
@@ -52,6 +56,7 @@ export class PlatformAuthController {
         'Email ou mot de passe incorrect.',
       );
     }
+    await this.lockout.platformSucceeded(user);
     const client = clientInfo(req);
     const { refreshToken, ...tokens } = await this.tokens.openPlatformSession(
       user.id,

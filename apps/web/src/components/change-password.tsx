@@ -58,7 +58,7 @@ export function ChangePasswordForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          hint="Au moins 8 caractères."
+          hint="Au moins 8 caractères, avec une lettre et un chiffre."
         />
         <Field
           label="Confirmez le nouveau mot de passe"
