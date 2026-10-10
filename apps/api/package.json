@@ -29,6 +29,7 @@
     "@prisma/client": "~7.10.0",
     "@sellwasl/business-rules": "workspace:*",
     "@sellwasl/validation": "workspace:*",
+    "@sentry/nestjs": "^11.6.0",
     "cookie-parser": "^1.4.7",
     "helmet": "^8.1.0",
     "nestjs-cls": "^7.0.1",

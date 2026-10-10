@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { reportError } from './sentry';
 
 const DEFAULT_CODES: Record<number, string> = {
   400: 'VALIDATION_ERROR',
@@ -64,6 +65,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     this.logger.error(exception);
+    // Erreur inattendue : envoyée à Sentry s'il est configuré (phase 27)
+    const principal = (req as Request & { principal?: { companyId?: string; userId?: string } })
+      .principal;
+    reportError(exception, {
+      requestId,
+      companyId: principal?.companyId,
+      userId: principal?.userId,
+    });
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       error: { code: 'INTERNAL_ERROR', message: 'Erreur inattendue.', requestId },
     });
