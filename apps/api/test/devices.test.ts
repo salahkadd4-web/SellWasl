@@ -68,17 +68,28 @@ describe('appareils et connexions', () => {
 
     const prisma = t.app.get(PrismaService);
     const company = await prisma.company.findUniqueOrThrow({ where: { code: 'DISTRI-ORAN' } });
-    const workday = await prisma.workday.create({
-      data: {
-        id: uuidv7(),
-        companyId: company.id,
-        userId: seller.userId,
-        date: new Date(),
-        status: 'IN_PROGRESS',
-        startedAt: new Date(),
-        settingsVersion: 1,
-      },
+    // Journée du jour : une autre suite a pu la créer (date fixe tombée aujourd'hui) ; on la
+    // réutilise et on remet son état à la fin
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const existing = await prisma.workday.findFirst({
+      where: { companyId: company.id, userId: seller.userId, date: today },
     });
+    const workday = existing
+      ? await prisma.workday.update({
+          where: { id: existing.id },
+          data: { status: 'IN_PROGRESS' },
+        })
+      : await prisma.workday.create({
+          data: {
+            id: uuidv7(),
+            companyId: company.id,
+            userId: seller.userId,
+            date: today,
+            status: 'IN_PROGRESS',
+            startedAt: new Date(),
+            settingsVersion: 1,
+          },
+        });
     const inside = await call<{ positionRecorded: boolean }>(t.url, 'POST', '/devices/heartbeat', {
       token: phone.accessToken,
       body: { pendingOps: 0, position },
@@ -89,7 +100,12 @@ describe('appareils et connexions', () => {
 
     // La journée de test ne doit pas bloquer les changements de mode des autres tests
     await prisma.devicePing.deleteMany({ where: { workdayId: workday.id } });
-    await prisma.workday.delete({ where: { id: workday.id } });
+    if (existing)
+      await prisma.workday.update({
+        where: { id: existing.id },
+        data: { status: existing.status },
+      });
+    else await prisma.workday.delete({ where: { id: workday.id } });
   });
 
   it('bloque puis réactive un appareil ; le téléphone doit se reconnecter', async () => {
