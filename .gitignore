@@ -20,3 +20,6 @@ apps/mobile/ios/
 apps/web/AGENTS.md
 apps/web/CLAUDE.md
 next-env.d.ts
+
+# Sauvegardes locales de la base (scripts/backup-db.sh)
+backups/

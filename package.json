@@ -22,7 +22,9 @@
     "db:reset": "pnpm build:packages && pnpm --filter @sellwasl/api prisma:reset",
     "db:studio": "pnpm --filter @sellwasl/api prisma:studio",
     "build:packages": "turbo run build --filter=./packages/*",
-    "postinstall": "pnpm build:packages"
+    "postinstall": "pnpm build:packages",
+    "db:backup": "bash scripts/backup-db.sh",
+    "db:test-restore": "bash scripts/test-backup-restore.sh"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
