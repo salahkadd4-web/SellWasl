@@ -9,6 +9,7 @@ import type {
 } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { call, startApp, type TestApp, webLogin } from './helpers';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 /** Rectangle GeoJSON (longitude, latitude). */
 const box = (minLng: number, minLat: number, maxLng: number, maxLat: number) => ({
@@ -228,6 +229,12 @@ describe('secteurs et parties', () => {
     await reload();
     const t2501 = territory('2501');
     const part = (n: number) => t2501.parts.find((p) => p.number === n)!.id;
+    // Dates de référence d'origine, rétablies à la fin : le changement de planning les décale
+    const raw = t.app.get(PrismaService);
+    const original = await raw.customer.findMany({
+      where: { partId: { in: t2501.parts.map((p) => p.id) } },
+      select: { id: true, referenceDate: true },
+    });
     const saved = await call<TerritoryDto>(t.url, 'PUT', `/territories/${t2501.id}/schedule`, {
       token: sup,
       body: {
@@ -254,6 +261,15 @@ describe('secteurs et parties', () => {
       body: { days: [{ weekday: 'SUN', partId: territory('2502').parts[0]!.id }] },
     });
     expect(foreign.status).toBe(422);
+
+    // Planning d'origine rétabli : field.test.ts compte sur les clients du samedi de C01
+    const restored = await call(t.url, 'PUT', `/territories/${t2501.id}/schedule`, {
+      token: sup,
+      body: { days: t2501.schedule.map((s) => ({ weekday: s.weekday, partId: s.partId })) },
+    });
+    expect(restored.status).toBe(200);
+    for (const c of original)
+      await raw.customer.update({ where: { id: c.id }, data: { referenceDate: c.referenceDate } });
   });
 
   it('montre les clients sur la carte et les place par sélection (UC-53)', async () => {
