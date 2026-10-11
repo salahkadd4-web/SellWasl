@@ -36,7 +36,13 @@ export function Input({ label, ...props }: TextInputProps & { label: string }) {
   return (
     <View style={{ gap: 6 }}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={colors.muted} style={styles.input} {...props} />
+      {/* Libellé annoncé par TalkBack (phase 28) */}
+      <TextInput
+        accessibilityLabel={label}
+        placeholderTextColor={colors.muted}
+        style={styles.input}
+        {...props}
+      />
     </View>
   );
 }
@@ -58,6 +64,9 @@ export function PrimaryButton({
   const primary = variant === 'primary';
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: busy || disabled, busy }}
       onPress={onPress}
       disabled={busy || disabled}
       style={({ pressed }) => [
