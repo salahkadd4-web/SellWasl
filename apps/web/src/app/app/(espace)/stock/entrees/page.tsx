@@ -157,6 +157,11 @@ function NewReceipt({
   onDone: () => void;
 }) {
   const [warehouseId, setWarehouseId] = useState(depots[0]?.id ?? '');
+  // Les dépôts arrivent après l'ouverture du formulaire : le premier est choisi dès qu'il est
+  // connu (sinon la liste l'affiche alors que la valeur reste vide)
+  useEffect(() => {
+    if (!warehouseId && depots[0]) setWarehouseId(depots[0].id);
+  }, [depots, warehouseId]);
   const [supplierId, setSupplierId] = useState('');
   const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [reference, setReference] = useState('');
