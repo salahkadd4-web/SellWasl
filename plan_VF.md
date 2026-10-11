@@ -1429,37 +1429,39 @@ AuditLog
 
 ## Backend
 
-- [ ] Unitaires
-- [ ] Intégration
-- [ ] API
-- [ ] RBAC
-- [ ] Multi-tenant (`Company A ≠ Company B`)
-- [ ] Modules désactivés
-- [ ] Stock (réservation, libération, concurrence)
-- [ ] Commandes (machine à états)
-- [ ] Planification (fréquences)
+- [x] Unitaires
+- [x] Intégration
+- [x] API
+- [x] RBAC
+- [x] Multi-tenant (`Company A ≠ Company B`)
+- [x] Modules désactivés
+- [x] Stock (réservation, libération, concurrence)
+- [x] Commandes (machine à états)
+- [x] Planification (fréquences)
 
 ## Web
 
-- [ ] Composants
-- [ ] Navigation et guards
-- [ ] Formulaires
-- [ ] E2E : login, dashboard, clients, produits, secteurs, carte, visites, commandes, stock, livraisons
+- [x] Composants
+- [x] Navigation et guards
+- [x] Formulaires
+- [x] E2E : login, dashboard, clients, produits, secteurs, carte, visites, commandes, stock, livraisons
 
 ## Mobile
 
-- [ ] Connexion et navigation
-- [ ] Carte et GPS
-- [ ] Visites
-- [ ] Commandes
-- [ ] Livraisons
-- [ ] Stock
-- [ ] Offline et synchronisation
-- [ ] Notifications
+- [x] Connexion et navigation
+- [x] Carte et GPS
+- [x] Visites
+- [x] Commandes
+- [x] Livraisons
+- [x] Stock
+- [x] Offline et synchronisation
+- [x] Notifications
 
 ## Livrable
 
-- [ ] `docs/testing.md`
+- [x] `docs/testing.md`
+
+**Réalisé en phase 28** : matrice des droits et des modules générée (toutes les routes × 8 profils), tests de `packages/validation`, tests de composants Web (Vitest), 14 parcours Playwright (`pnpm test:e2e`), 20 tests d'écrans mobiles (jest-expo), couverture mesurée avec seuils dans chaque paquet. « Carte et GPS » mobile : position simulée dans les tests d'écrans ; la carte Web est testée sans Internet. Défauts trouvés et corrigés : dépôt de l'entrée de stock, libellés TalkBack du mobile.
 
 ---
 

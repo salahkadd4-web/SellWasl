@@ -1,0 +1,14 @@
+
+> @sellwasl/api@0.0.0 build C:\Users\salah\Desktop\test\SellWasl\apps\api
+> pnpm prisma:generate && nest build
+
+
+> @sellwasl/api@0.0.0 prisma:generate C:\Users\salah\Desktop\test\SellWasl\apps\api
+> prisma generate
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma\schema.prisma.
+
+✔ Generated Prisma Client (7.10.0) to .\src\generated\prisma in 3.92s
+

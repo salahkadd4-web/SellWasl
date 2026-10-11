@@ -1,0 +1,21 @@
+
+Running 14 tests using 1 worker
+
+  ok  1 [chromium] › e2e\administration.spec.ts:8:7 › journal d’audit › les connexions apparaissent, avec leur détail (9.8s)
+  ok  2 [chromium] › e2e\administration.spec.ts:20:5 › super-admin : enrôlement du deuxième facteur puis liste des entreprises (12.1s)
+  ok  3 [chromium] › e2e\catalogue.spec.ts:6:5 › produits : liste et fiche d’un produit (7.7s)
+  ok  4 [chromium] › e2e\catalogue.spec.ts:13:5 › secteurs : liste et carte, sans Internet (6.2s)
+  ok  5 [chromium] › e2e\clients.spec.ts:7:7 › clients › liste, recherche et fiche (9.2s)
+[WebServer] (node:14164) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+[WebServer] (Use `node --trace-deprecation ...` to show where the warning was created)
+  ok  6 [chromium] › e2e\clients.spec.ts:26:7 › clients › création d’un client hors partie (4.0s)
+  ok  7 [chromium] › e2e\connexion.spec.ts:5:7 › connexion › mauvais mot de passe : message clair (5.3s)
+  ok  8 [chromium] › e2e\connexion.spec.ts:14:7 › connexion › connexion, accueil, puis déconnexion (7.0s)
+  ok  9 [chromium] › e2e\pilotage.spec.ts:6:5 › accueil : salutation, modules actifs et accès (2.4s)
+  ok 10 [chromium] › e2e\pilotage.spec.ts:13:5 › rapports : la page s’affiche sans erreur (1.5s)
+  ok 11 [chromium] › e2e\stock.spec.ts:6:5 › niveaux de stock par article (6.7s)
+  ok 12 [chromium] › e2e\stock.spec.ts:12:5 › entrée au dépôt : enregistrée puis listée (5.8s)
+  ok 13 [chromium] › e2e\terrain.spec.ts:6:5 › commandes : la liste du jour s’affiche (5.8s)
+  ok 14 [chromium] › e2e\terrain.spec.ts:12:5 › tournées : préparation et livraisons de la date (1.9s)
+
+  14 passed (2.9m)

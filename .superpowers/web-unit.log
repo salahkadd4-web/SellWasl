@@ -1,0 +1,22 @@
+
+ RUN  v5.0.3 C:/Users/salah/Desktop/test/SellWasl/apps/web
+      Coverage enabled with v8
+
+
+ Test Files  5 passed (5)
+      Tests  15 passed (15)
+   Start at  22:52:30
+   Duration  13.32s (environment 58%, setup 21%, tests 14%, worker 3%, import 2%, transform 2%)
+
+Environment  jsdom was created 5 times · 18.02s total, 58% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+
+=============================== Coverage summary ===============================
+Statements   : 15.32% ( 120/783 )
+Branches     : 12.3% ( 56/455 )
+Functions    : 11.11% ( 30/270 )
+Lines        : 16.57% ( 116/700 )
+================================================================================

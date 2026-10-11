@@ -1,0 +1,129 @@
+
+> sellwasl@ build C:\Users\salah\Desktop\test\SellWasl
+> turbo run build "--filter=!@sellwasl/mobile"
+
+
+   • turbo 2.11.7
+   • Packages in scope: @sellwasl/api, @sellwasl/business-rules, @sellwasl/config, @sellwasl/offline, @sellwasl/validation, @sellwasl/web
+   • Running build in 6 packages
+   • Remote caching disabled
+
+@sellwasl/config:build: cache hit, replaying logs b56b4c7fa438e8a1
+@sellwasl/config:build: 
+@sellwasl/config:build: > @sellwasl/config@0.0.0 build C:\Users\salah\Desktop\test\sw-ci\packages\config
+@sellwasl/config:build: > tsc -p tsconfig.build.json
+@sellwasl/config:build: 
+@sellwasl/business-rules:build: cache hit, replaying logs a415dac48df2f80e
+@sellwasl/business-rules:build: 
+@sellwasl/business-rules:build: > @sellwasl/business-rules@0.0.0 build C:\Users\salah\Desktop\test\SellWasl\packages\business-rules
+@sellwasl/business-rules:build: > tsc -p tsconfig.build.json
+@sellwasl/business-rules:build: 
+@sellwasl/validation:build: cache hit, replaying logs f84c8118d746ef6b
+@sellwasl/validation:build: 
+@sellwasl/validation:build: > @sellwasl/validation@0.0.0 build C:\Users\salah\Desktop\test\SellWasl\packages\validation
+@sellwasl/validation:build: > tsc -p tsconfig.build.json
+@sellwasl/validation:build: 
+@sellwasl/offline:build: cache miss, executing d519efe033effd85
+@sellwasl/web:build: cache miss, executing 9c991971990cd945
+@sellwasl/offline:build: 
+@sellwasl/offline:build: > @sellwasl/offline@0.0.0 build C:\Users\salah\Desktop\test\SellWasl\packages\offline
+@sellwasl/offline:build: > tsc -p tsconfig.build.json
+@sellwasl/offline:build: 
+@sellwasl/web:build: 
+@sellwasl/web:build: > @sellwasl/web@0.0.0 build C:\Users\salah\Desktop\test\SellWasl\apps\web
+@sellwasl/web:build: > next build
+@sellwasl/web:build: 
+@sellwasl/api:build: cache miss, executing bc37933528f4e9e0
+@sellwasl/api:build: 
+@sellwasl/api:build: > @sellwasl/api@0.0.0 build C:\Users\salah\Desktop\test\SellWasl\apps\api
+@sellwasl/api:build: > pnpm prisma:generate && nest build
+@sellwasl/api:build: 
+@sellwasl/api:build: 
+@sellwasl/api:build: > @sellwasl/api@0.0.0 prisma:generate C:\Users\salah\Desktop\test\SellWasl\apps\api
+@sellwasl/api:build: > prisma generate
+@sellwasl/api:build: 
+@sellwasl/web:build: ▲ Next.js 16.3.8 (Turbopack)
+@sellwasl/web:build: - Environments: .env
+@sellwasl/web:build: ✓ Running next.config.ts took 220ms
+@sellwasl/web:build: 
+@sellwasl/web:build:   Creating an optimized production build ...
+@sellwasl/web:build: ✓ Compiled successfully in 28.3s
+@sellwasl/web:build:   Running TypeScript ...
+@sellwasl/api:build: Loaded Prisma config from prisma.config.ts.
+@sellwasl/api:build: 
+@sellwasl/api:build: Prisma schema loaded from prisma\schema.prisma.
+@sellwasl/api:build: 
+@sellwasl/api:build: ✔ Generated Prisma Client (7.10.0) to .\src\generated\prisma in 4.52s
+@sellwasl/api:build: 
+@sellwasl/web:build:   Finished TypeScript in 20.8s ...
+@sellwasl/web:build:   Collecting page data using 3 workers ...
+@sellwasl/web:build:   Generating static pages using 3 workers (0/49) ...
+@sellwasl/web:build:   Generating static pages using 3 workers (12/49) 
+@sellwasl/web:build:   Generating static pages using 3 workers (24/49) 
+@sellwasl/web:build:   Generating static pages using 3 workers (36/49) 
+@sellwasl/web:build: ✓ Generating static pages using 3 workers (49/49) in 3.1s
+@sellwasl/web:build:   Finalizing page optimization ...
+@sellwasl/web:build: 
+@sellwasl/web:build: Route (app)
+@sellwasl/web:build: ┌ ○ /
+@sellwasl/web:build: ├ ○ /_not-found
+@sellwasl/web:build: ├ ○ /admin
+@sellwasl/web:build: ├ ○ /admin/login
+@sellwasl/web:build: ├ ○ /app
+@sellwasl/web:build: ├ ○ /app/acomptes
+@sellwasl/web:build: ├ ○ /app/appareils
+@sellwasl/web:build: ├ ○ /app/attente
+@sellwasl/web:build: ├ ○ /app/audit
+@sellwasl/web:build: ├ ○ /app/clients
+@sellwasl/web:build: ├ ○ /app/clients/import
+@sellwasl/web:build: ├ ○ /app/commandes
+@sellwasl/web:build: ├ ○ /app/ecarts
+@sellwasl/web:build: ├ ○ /app/journees
+@sellwasl/web:build: ├ ○ /app/login
+@sellwasl/web:build: ├ ○ /app/ma-paie
+@sellwasl/web:build: ├ ○ /app/notifications
+@sellwasl/web:build: ├ ○ /app/objectifs
+@sellwasl/web:build: ├ ○ /app/objectifs/livreurs
+@sellwasl/web:build: ├ ○ /app/paie
+@sellwasl/web:build: ├ ○ /app/paiements
+@sellwasl/web:build: ├ ○ /app/parametres
+@sellwasl/web:build: ├ ○ /app/planning
+@sellwasl/web:build: ├ ○ /app/primes
+@sellwasl/web:build: ├ ○ /app/produits
+@sellwasl/web:build: ├ ƒ /app/produits/[id]
+@sellwasl/web:build: ├ ○ /app/produits/bonus
+@sellwasl/web:build: ├ ○ /app/produits/fournisseurs
+@sellwasl/web:build: ├ ○ /app/produits/import
+@sellwasl/web:build: ├ ○ /app/produits/simulateur
+@sellwasl/web:build: ├ ○ /app/quotas
+@sellwasl/web:build: ├ ○ /app/rapports
+@sellwasl/web:build: ├ ○ /app/remunerations
+@sellwasl/web:build: ├ ○ /app/retenues
+@sellwasl/web:build: ├ ○ /app/retours
+@sellwasl/web:build: ├ ○ /app/secteurs
+@sellwasl/web:build: ├ ○ /app/stock
+@sellwasl/web:build: ├ ○ /app/stock/chargements
+@sellwasl/web:build: ├ ○ /app/stock/dechargements
+@sellwasl/web:build: ├ ○ /app/stock/entrees
+@sellwasl/web:build: ├ ○ /app/stock/inventaires
+@sellwasl/web:build: ├ ○ /app/stock/mouvements
+@sellwasl/web:build: ├ ○ /app/stock/preparations
+@sellwasl/web:build: ├ ○ /app/suivi
+@sellwasl/web:build: ├ ƒ /app/suivi/[id]
+@sellwasl/web:build: ├ ○ /app/synchronisation
+@sellwasl/web:build: ├ ○ /app/tournees
+@sellwasl/web:build: ├ ○ /app/utilisateurs
+@sellwasl/web:build: ├ ○ /app/versements
+@sellwasl/web:build: └ ○ /manifest.webmanifest
+@sellwasl/web:build: 
+@sellwasl/web:build: 
+@sellwasl/web:build: ƒ Proxy (Middleware)
+@sellwasl/web:build: 
+@sellwasl/web:build: ○  (Static)   prerendered as static content
+@sellwasl/web:build: ƒ  (Dynamic)  server-rendered on demand
+@sellwasl/web:build: 
+
+ Tasks:    6 successful, 6 total
+Cached:    3 cached, 6 total
+  Time:    2m4.436s 
+
