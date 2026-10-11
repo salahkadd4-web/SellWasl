@@ -23,3 +23,6 @@ next-env.d.ts
 
 # Sauvegardes locales de la base (scripts/backup-db.sh)
 backups/
+
+# Espace de travail des plans (journaux, briefs) : jamais versionné
+.superpowers/
