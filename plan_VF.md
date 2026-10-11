@@ -1425,10 +1425,6 @@ AuditLog
 
 ---
 
-adb shell run-as com.sellwasl.app ls files/SQLite
-adb shell run-as com.sellwasl.app head -c 16 files/SQLite/sellwasl-offline-v2.db
-
-
 # PHASE 28 — Tests
 
 ## Backend
