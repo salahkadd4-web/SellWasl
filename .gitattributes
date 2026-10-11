@@ -1,0 +1,14 @@
+# Fins de ligne LF pour tous les fichiers texte, quel que soit le poste (Windows compris) :
+# la CI (Linux) vérifie le format avec Prettier, qui exige LF.
+* text=auto eol=lf
+
+# Fichiers binaires : jamais convertis
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
