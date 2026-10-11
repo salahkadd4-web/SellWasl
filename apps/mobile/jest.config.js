@@ -1,6 +1,8 @@
 // Tests d'écrans du mobile (phase 28, docs/testing.md) : jest-expo et React Native Testing Library.
 module.exports = {
   preset: 'jest-expo',
+  // Premier rendu lent quand l'API, le Web et le mobile se testent en même temps (turbo)
+  testTimeout: 20_000,
   testMatch: ['<rootDir>/__tests__/**/*.test.tsx'],
   setupFiles: ['<rootDir>/__tests__/setup.ts'],
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
