@@ -2,7 +2,7 @@
   "name": "@sellwasl/business-rules",
   "version": "0.0.0",
   "private": true,
-  "description": "R\u00e8gles m\u00e9tier pures, partag\u00e9es par l'API et le mobile (architecture \u00a74).",
+  "description": "Règles métier pures, partagées par l'API et le mobile (architecture §4).",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@sellwasl/config": "workspace:*",
+    "@vitest/coverage-v8": "^5.0.3",
     "vitest": "^5.0.3"
   }
 }

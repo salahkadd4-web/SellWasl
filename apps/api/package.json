@@ -52,6 +52,7 @@
     "@types/node": "^22.18.0",
     "@types/pg": "^8.23.1",
     "@types/swagger-ui-dist": "^3.30.6",
+    "@vitest/coverage-v8": "^5.0.3",
     "dotenv": "^17.2.2",
     "pino-pretty": "^13.1.1",
     "prisma": "~7.10.0",

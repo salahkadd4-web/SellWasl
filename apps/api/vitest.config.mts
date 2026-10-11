@@ -11,5 +11,14 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 120_000,
+    // Couverture mesurée à chaque lancement ; seuils un peu sous le niveau atteint (phase 28)
+    coverage: {
+      enabled: true,
+      provider: 'v8',
+      include: ['src/**'],
+      exclude: ['src/generated/**', 'src/main.ts'],
+      reporter: ['text-summary', 'html'],
+      thresholds: { statements: 87, branches: 72, functions: 90, lines: 89 },
+    },
   },
 });
