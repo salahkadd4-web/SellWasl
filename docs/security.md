@@ -41,7 +41,7 @@ Un compte bloqué révèle qu'il existe (il faut déjà connaître le code de l'
 | IP réelle | `TRUST_PROXY` : nombre de proxys de confiance devant l'API (0 par défaut : `X-Forwarded-For` ignoré). Sert à l'audit, aux sessions, à la limite de débit et à la liste de la plateforme. Sur le Web, `TRUST_PROXY` compte les proxys devant Next.js ; l'API, derrière le Web, compte aussi Next.js |
 | HTTPS | Terminé par le proxy de l'hébergeur ; HSTS par helmet (API) et par Next.js en production (Web) ; en-têtes `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` |
 | Chiffrement en base | Secrets TOTP en AES-256-GCM (`apps/api/src/common/crypto.ts`, clé `DATA_ENCRYPTION_KEY`). Les autres données (clients, positions, salaires) reposent sur le chiffrement du disque de la base gérée et sur les droits ; pas de chiffrement champ par champ dans le MVP |
-| Téléphone | Base locale chiffrée par SQLCipher (expo-sqlite), clé de 256 bits dans expo-secure-store ; une ancienne base en clair est recopiée puis effacée |
+| Téléphone | Base locale chiffrée par SQLCipher (expo-sqlite), clé de 256 bits dans expo-secure-store ; une ancienne base en clair est recopiée puis effacée. Vérifié le 2026-10-11 sur un téléphone (build de développement EAS) : synchronisation, puis début du fichier illisible (`adb shell run-as com.sellwasl.app head -c 16 files/SQLite/sellwasl-offline-v2.db`) |
 | Fichiers | Photos publiques par nom imprévisible (comme les adresses Cloudinary) ; imports CSV jamais servis |
 | Journaux | pino sans en-têtes d'authentification ni cookies ; audit sans mot de passe ni jeton (audit.md) |
 
@@ -93,4 +93,3 @@ Un compte bloqué révèle qu'il existe (il faut déjà connaître le code de l'
 
 - Politique de sécurité du contenu (CSP) des pages Web : Next.js demande des nonces ; aujourd'hui seul le service worker en a une.
 - Audit des actions du support (`platform_audit_log`) consultable : après le MVP.
-- Chiffrement de la base locale à vérifier sur une build native (EAS) avant le pilote.
