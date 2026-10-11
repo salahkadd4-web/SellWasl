@@ -1,3 +1,4 @@
 {
-  "extends": "@sellwasl/config/tsconfig/library.json"
+  "extends": "@sellwasl/config/tsconfig/library.json",
+  "exclude": ["src/**/*.test.ts"]
 }
