@@ -5,3 +5,7 @@ dist
 apps/api/src/generated
 next-env.d.ts
 .expo
+.next-e2e
+playwright-report
+test-results
+coverage
