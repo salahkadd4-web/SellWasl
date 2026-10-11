@@ -68,6 +68,10 @@ const SCHEMA = `
  * Base locale du téléphone (spec phase 23 §5) : données reçues (`records`), file d'envoi
  * (`outbox`) et curseurs (`meta`). Les accès passent l'un après l'autre : une transaction
  * d'expo-sqlite inclut toute requête lancée pendant qu'elle est ouverte.
+ *
+ * Transactions sur la connexion déjà ouverte (`withTransactionAsync`) : la base est chiffrée, et
+ * `withExclusiveTransactionAsync` ouvrirait une seconde connexion sans la clé (« file is not a
+ * database »). La file des accès garantit qu'aucune autre requête ne s'y glisse.
  */
 export class SqliteStore implements OfflineStore {
   private db: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -96,13 +100,13 @@ export class SqliteStore implements OfflineStore {
 
   applyPull(rows: PulledRow[], replace: OfflineKind[]): Promise<void> {
     return this.run((db) =>
-      db.withExclusiveTransactionAsync(async (txn) => {
-        for (const kind of replace) await txn.runAsync('DELETE FROM records WHERE kind = ?', kind);
+      db.withTransactionAsync(async () => {
+        for (const kind of replace) await db.runAsync('DELETE FROM records WHERE kind = ?', kind);
         for (const r of rows) {
           if (r.deleted)
-            await txn.runAsync('DELETE FROM records WHERE kind = ? AND id = ?', r.kind, r.id);
+            await db.runAsync('DELETE FROM records WHERE kind = ? AND id = ?', r.kind, r.id);
           else
-            await txn.runAsync(
+            await db.runAsync(
               'INSERT OR REPLACE INTO records (kind, id, data) VALUES (?, ?, ?)',
               r.kind,
               r.id,
@@ -172,15 +176,15 @@ export class SqliteStore implements OfflineStore {
   updateOps(patches: { opId: string; patch: Partial<OutboxOp> }[]): Promise<void> {
     if (patches.length === 0) return Promise.resolve();
     return this.run((db) =>
-      db.withExclusiveTransactionAsync(async (txn) => {
+      db.withTransactionAsync(async () => {
         for (const { opId, patch } of patches) {
-          const row = await txn.getFirstAsync<{ body: string }>(
+          const row = await db.getFirstAsync<{ body: string }>(
             'SELECT body FROM outbox WHERE op_id = ?',
             opId,
           );
           if (!row) continue;
           const op = { ...(JSON.parse(row.body) as OutboxOp), ...patch };
-          await txn.runAsync(
+          await db.runAsync(
             'UPDATE outbox SET device_seq = ?, body = ? WHERE op_id = ?',
             op.deviceSeq,
             JSON.stringify(op),
