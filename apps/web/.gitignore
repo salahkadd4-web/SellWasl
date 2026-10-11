@@ -1,0 +1,5 @@
+
+# Parcours Playwright (phase 28)
+.next-e2e/
+playwright-report/
+test-results/

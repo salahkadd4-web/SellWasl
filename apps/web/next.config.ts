@@ -3,6 +3,8 @@ import type { NextConfig } from 'next';
 const apiUrl = process.env.API_URL ?? 'http://localhost:3001';
 
 const nextConfig: NextConfig = {
+  // Dossier de compilation séparé pour les parcours Playwright (phase 28) : `pnpm dev` peut tourner à côté
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   // Même domaine que l'API : /api/* est redirigé vers NestJS (architecture §8).
   // En-têtes de sécurité ; le service worker n'est jamais mis en cache (phase 22)
   async headers() {

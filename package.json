@@ -24,7 +24,8 @@
     "build:packages": "turbo run build --filter=./packages/*",
     "postinstall": "pnpm build:packages",
     "db:backup": "bash scripts/backup-db.sh",
-    "db:test-restore": "bash scripts/test-backup-restore.sh"
+    "db:test-restore": "bash scripts/test-backup-restore.sh",
+    "test:e2e": "turbo run build --filter=@sellwasl/api && pnpm --filter @sellwasl/web test:e2e"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

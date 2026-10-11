@@ -1,0 +1,25 @@
+{
+  "cookies": [
+    {
+      "name": "sw_rt",
+      "value": "01a12d04-2e5d-7247-a68a-0eb84d452cef.p2gn9p3xN12tpwwq5jXxFtsApItl3_nRyGwsFwvzC-U",
+      "domain": "localhost",
+      "path": "/api/v1/auth",
+      "expires": 1794348611.25459,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [
+        {
+          "name": "sellwasl.company",
+          "value": "DISTRI-ORAN"
+        }
+      ]
+    }
+  ]
+}
