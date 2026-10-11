@@ -20,7 +20,9 @@
         "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT",
         "android.permission.BLUETOOTH_SCAN",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "scheme": "sellwasl",
@@ -63,6 +65,15 @@
         }
       ]
     ],
-    "platforms": ["android"]
+    "platforms": [
+      "android"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "84bb9c73-6948-4a5a-a459-5d650f38fc0e"
+      }
+    },
+    "owner": "sellwasl"
   }
 }
