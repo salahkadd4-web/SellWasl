@@ -65,9 +65,7 @@
         }
       ]
     ],
-    "platforms": [
-      "android"
-    ],
+    "platforms": ["android"],
     "extra": {
       "router": {},
       "eas": {
