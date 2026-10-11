@@ -19,8 +19,8 @@ export const product: ProductDto = {
   range: { id: 'R1', code: 'CONS', name: 'Conserves' },
   category: null,
   units: [
-    { id: 'tom-trip', name: 'triplette', baseQty: 1, isBase: true, isActive: true },
-    { id: 'tom-ctn', name: 'carton', baseQty: 20, isBase: false, isActive: true },
+    { id: 'tom-trip', name: 'triplette', baseQty: 1, isBase: true, isActive: true, version: 1 },
+    { id: 'tom-ctn', name: 'carton', baseQty: 20, isBase: false, isActive: true, version: 1 },
   ],
   variants: [
     {
@@ -31,11 +31,13 @@ export const product: ProductDto = {
       isActive: true,
       sortOrder: 0,
       photo: null,
+      version: 1,
     },
   ],
   hasFlavors: false,
   photo: null,
   supplierId: null,
+  version: 1,
 };
 
 export const customer: CustomerDto = {
@@ -62,6 +64,7 @@ export const customer: CustomerDto = {
   reviewReasons: [],
   createdBy: null,
   createdAt: '2027-01-01T00:00:00.000Z',
+  version: 1,
 };
 
 function rows<K extends OfflineKind>(kind: K, items: { id: string; data: OfflineKindData[K] }[]) {
