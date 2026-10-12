@@ -1,13 +1,76 @@
+# Pipeline (phase 29, docs/ci-cd.md) : qualité, tests, compilation et parcours en parallèle, puis
+# images Docker essayées ; publiées sur GitHub Container Registry pour develop (staging) et main
+# (production). Le déploiement s'ajoutera après les images (phase 30).
 name: CI
 
 on:
   pull_request:
+    branches: [develop, main]
   push:
-    branches: [main]
+    branches: [develop, main]
+  workflow_dispatch:
+
+# Une pull request mise à jour annule sa CI en cours ; un push sur develop ou main va au bout.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+# Actions tierces épinglées sur l'empreinte de leur commit (une étiquette peut être déplacée) ;
+# Dependabot propose les mises à jour (.github/dependabot.yml).
+env:
+  DATABASE_URL: postgresql://sellwasl:sellwasl@localhost:5432/sellwasl
 
 jobs:
-  build:
+  qualite:
+    name: Qualité (format, lint, types)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sellwasl
+          POSTGRES_PASSWORD: sellwasl
+          POSTGRES_DB: sellwasl
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sellwasl"
+          --health-interval 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      # Unitaires, intégration de l'API sur une base jetable, écrans ; seuils de couverture
+      - run: pnpm test
+
+  build:
+    name: Compilation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm build --filter=!@sellwasl/mobile
+
+  e2e:
+    name: Parcours de bout en bout
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -22,17 +85,71 @@ jobs:
           --health-interval 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://sellwasl:sellwasl@localhost:5432/sellwasl
+      E2E_DATABASE_URL: postgresql://sellwasl:sellwasl@localhost:5432/sellwasl_e2e
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @sellwasl/web exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Rapport et traces des parcours
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-      - run: pnpm build --filter=!@sellwasl/mobile
-      - run: pnpm typecheck
-      # Tests unitaires (business-rules) et d'intégration de l'API sur une base de test jetable
-      - run: pnpm test
+          name: playwright
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 7
+
+  images:
+    name: Images Docker
+    needs: [qualite, tests, build, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Variables publiques de l'environnement GitHub (NEXT_PUBLIC_*) ; aucun sur une pull request
+    environment: ${{ github.event_name == 'push' && (github.ref_name == 'main' && 'production' || 'staging') || '' }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Image de l'API
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          tags: sellwasl-api:local
+          load: true
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+      - name: Image du Web
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          tags: sellwasl-web:local
+          load: true
+          build-args: |
+            NEXT_PUBLIC_MAP_TILE_URL=${{ vars.NEXT_PUBLIC_MAP_TILE_URL }}
+            NEXT_PUBLIC_MAP_ATTRIBUTION=${{ vars.NEXT_PUBLIC_MAP_ATTRIBUTION }}
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+      - name: Démarrage d'essai (base, API, Web)
+        run: bash docker/smoke-test.sh
+      - name: Publication sur GitHub Container Registry
+        if: github.event_name == 'push'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANNEL: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          sha=$(git rev-parse --short=12 HEAD)
+          for app in api web; do
+            for tag in "$CHANNEL" "sha-$sha"; do
+              docker tag "sellwasl-$app:local" "ghcr.io/$owner/sellwasl-$app:$tag"
+              docker push "ghcr.io/$owner/sellwasl-$app:$tag"
+            done
+          done

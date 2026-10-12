@@ -1,0 +1,11 @@
+# Mises à jour proposées par pull request (phase 29) : actions GitHub épinglées sur leur empreinte.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories: ['/', '/.github/actions/setup']
+    target-branch: develop
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

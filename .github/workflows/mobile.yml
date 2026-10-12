@@ -1,0 +1,34 @@
+# Compilation Android sur EAS, lancée à la main (phase 29, docs/ci-cd.md) : onglet Actions →
+# « Mobile (EAS) » → « Run workflow ». Secret requis : EXPO_TOKEN (compte Expo → Access tokens).
+# La compilation se poursuit sur EAS ; le lien de suivi s'affiche dans le journal.
+name: Mobile (EAS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Profil EAS : preview (APK de test, staging) ou production (AAB pour le Play Store)'
+        type: choice
+        options: [preview, production]
+        default: preview
+
+permissions:
+  contents: read
+
+jobs:
+  eas-build:
+    name: Compilation Android (${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8.2.1
+        with:
+          eas-version: 24.8.0
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Compilation EAS
+        working-directory: apps/mobile
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: eas build --platform android --profile "$PROFILE" --non-interactive --no-wait
