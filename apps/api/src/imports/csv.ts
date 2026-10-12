@@ -4,7 +4,7 @@
  */
 export function decodeCsv(content: Buffer): string {
   const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(content);
-  if (!utf8.includes('�')) return utf8.replace(/^﻿/, '');
+  if (!utf8.includes('\uFFFD')) return utf8.replace(/^\uFEFF/, '');
   return new TextDecoder('windows-1252').decode(content);
 }
 

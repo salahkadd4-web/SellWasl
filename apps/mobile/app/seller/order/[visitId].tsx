@@ -15,7 +15,7 @@ import {
 import { useLocal, useSync } from '@/offline/SyncProvider';
 import { printAfter } from '@/printing/printer';
 import { type CartEntry, entriesFromOrder, useCart } from '@/seller/cart';
-import { errorMessage, formatDA, formatDate } from '@/seller/format';
+import { errorMessage, formatDA } from '@/seller/format';
 import { ProductSheet } from '@/seller/ProductSheet';
 import { WorkdayGuard } from '@/seller/WorkdayGuard';
 import { newId, nextOrderNumber } from '@/sync/operations';

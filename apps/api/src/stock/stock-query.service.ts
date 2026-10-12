@@ -16,7 +16,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { articleOf, fullName, localRange, warehouseRef } from './stock-helpers';
 import { StockLedger } from './stock-ledger.service';
-import { paginate, type PageQuery } from '../common/pagination';
+import { paginate } from '../common/pagination';
 
 const ARTICLES = {
   where: { isActive: true, deletedAt: null, product: { isActive: true, deletedAt: null } },

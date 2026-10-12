@@ -12,11 +12,14 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint . --max-warnings 0"
   },
   "devDependencies": {
     "@sellwasl/config": "workspace:*",
+    "@sellwasl/eslint-config": "workspace:*",
     "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^9.39.5",
     "vitest": "^5.0.3"
   }
 }

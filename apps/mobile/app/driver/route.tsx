@@ -10,7 +10,7 @@ import { phoneDate } from '@/offline/ids';
 import { useLocal } from '@/offline/SyncProvider';
 import { CustomerMap } from '@/seller/CustomerMap';
 import { type FieldCustomer, openDirections } from '@/seller/customers';
-import { errorMessage, formatDA, formatDistance } from '@/seller/format';
+import { formatDA, formatDistance } from '@/seller/format';
 import { Card, Message, PrimaryButton } from '@/ui';
 
 /** Pastille d'état d'une livraison : verte faite, rouge à faire. */

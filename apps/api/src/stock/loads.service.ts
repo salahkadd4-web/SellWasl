@@ -26,7 +26,7 @@ import {
   warehouseRef,
 } from './stock-helpers';
 import { type Move, StockLedger } from './stock-ledger.service';
-import { paginate, type PageQuery } from '../common/pagination';
+import { paginate } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 

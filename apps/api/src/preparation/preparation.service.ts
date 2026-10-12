@@ -10,7 +10,7 @@ import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
-import { dateOnly, invalidState, rule } from '../field/field-errors';
+import { invalidState, rule } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { articleName, articleOf } from '../stock/stock-helpers';
 import { type Move, StockLedger } from '../stock/stock-ledger.service';

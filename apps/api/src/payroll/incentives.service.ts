@@ -19,7 +19,7 @@ import { dateOnly, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { type Actor, audit, namesOf, payrollSettings, type Tx, WITH_ROLE } from './payroll-common';
-import { paginate, type PageQuery } from '../common/pagination';
+import { paginate } from '../common/pagination';
 
 const RULE_DETAIL = { product: true, user: WITH_ROLE } satisfies Prisma.IncentiveRuleInclude;
 type RuleRow = Prisma.IncentiveRuleGetPayload<{ include: typeof RULE_DETAIL }>;

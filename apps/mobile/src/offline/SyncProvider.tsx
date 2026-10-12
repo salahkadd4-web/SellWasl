@@ -152,7 +152,8 @@ export function useLocal<T>(
   deps: DependencyList,
 ): { data: T | null; error: string | null; ready: boolean } {
   const { local, ready } = useSync();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Les dépendances sont celles de l'appelant (comme useMemo) : liste transmise telle quelle
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo
   const compute = useCallback(view, deps);
   return useMemo(() => {
     if (!local) return { data: null, error: null, ready };

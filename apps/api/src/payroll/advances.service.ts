@@ -25,7 +25,7 @@ import {
   type Tx,
   WITH_ROLE,
 } from './payroll-common';
-import { paginate, type PageQuery } from '../common/pagination';
+import { paginate } from '../common/pagination';
 
 const DETAIL = { user: WITH_ROLE } satisfies Prisma.SalaryAdvanceInclude;
 type Row = Prisma.SalaryAdvanceGetPayload<{ include: typeof DETAIL }>;

@@ -23,7 +23,7 @@ import {
   warehouseRef,
 } from './stock-helpers';
 import { StockLedger } from './stock-ledger.service';
-import { paginate, type PageQuery } from '../common/pagination';
+import { paginate } from '../common/pagination';
 
 const DETAIL = {
   warehouse: true,

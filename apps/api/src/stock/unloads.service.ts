@@ -22,7 +22,7 @@ import { type NewFact, writeFacts } from '../returns/return-facts';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { articleOf, fullName, localRange, warehouseRef } from './stock-helpers';
 import { type Move, StockLedger } from './stock-ledger.service';
-import { paginate, type PageQuery } from '../common/pagination';
+import { paginate } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 

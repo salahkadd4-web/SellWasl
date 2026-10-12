@@ -3,7 +3,7 @@ import { colors } from '@sellwasl/config';
 import type { Frequency } from '@sellwasl/validation';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { readPosition } from '@/location/useLocation';
 import { useLocal } from '@/offline/SyncProvider';
@@ -60,7 +60,10 @@ export default function NewCustomerScreen() {
 
   // Types de clients servis par le secteur du vendeur (BR-CLI-02)
   const territoryId = today?.day.territory?.id ?? territories?.[0]?.id;
-  const types = territories?.find((t) => t.id === territoryId)?.customerTypes ?? [];
+  const types = useMemo(
+    () => territories?.find((t) => t.id === territoryId)?.customerTypes ?? [],
+    [territories, territoryId],
+  );
   useEffect(() => {
     if (types.length === 1 && !typeId) setTypeId(types[0]!.id);
   }, [types, typeId]);

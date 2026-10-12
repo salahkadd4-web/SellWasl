@@ -16,7 +16,7 @@ import { dateOnly, frDate, rule, toDate } from '../field/field-errors';
 import type { Prisma } from '../generated/prisma/client';
 import { articleName, fullName } from '../stock/stock-helpers';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
-import { paginate, type PageQuery } from '../common/pagination';
+import { paginate } from '../common/pagination';
 
 type Tx = Prisma.TransactionClient;
 
