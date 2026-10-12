@@ -5,6 +5,8 @@ const apiUrl = process.env.API_URL ?? 'http://localhost:3001';
 const nextConfig: NextConfig = {
   // Dossier de compilation séparé pour les parcours Playwright (phase 28) : `pnpm dev` peut tourner à côté
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
+  // Image Docker (phase 29) : serveur autonome avec ses seules dépendances ; `next start` inchangé
+  ...(process.env.NEXT_OUTPUT === 'standalone' ? { output: 'standalone' as const } : {}),
   // Même domaine que l'API : /api/* est redirigé vers NestJS (architecture §8).
   // En-têtes de sécurité ; le service worker n'est jamais mis en cache (phase 22)
   async headers() {

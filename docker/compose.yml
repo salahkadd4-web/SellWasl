@@ -1,0 +1,61 @@
+# Application complète à partir des images (phase 29, docs/ci-cd.md) : base, API et Web.
+# Sert au démarrage d'essai de la CI (docker/smoke-test.sh) et de point de départ au déploiement
+# (phase 30). Le développement quotidien reste sur ../docker-compose.yml (base seule).
+#
+# Obligatoires : POSTGRES_PASSWORD, JWT_ACCESS_SECRET, DATA_ENCRYPTION_KEY.
+# Facultatives (transmises seulement si elles sont définies) : PLATFORM_ALLOWED_IPS, SENTRY_DSN,
+# CLOUDINARY_URL, EXPO_ACCESS_TOKEN.
+name: sellwasl
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sellwasl
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD obligatoire}
+      POSTGRES_DB: sellwasl
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sellwasl']
+      interval: 5s
+      retries: 10
+
+  api:
+    image: ${API_IMAGE:-sellwasl-api:local}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${APP_ENV:-production}
+      DATABASE_URL: postgresql://sellwasl:${POSTGRES_PASSWORD}@postgres:5432/sellwasl
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET obligatoire}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?DATA_ENCRYPTION_KEY obligatoire}
+      # Le Web est le seul proxy devant l'API
+      TRUST_PROXY: ${API_TRUST_PROXY:-1}
+      PLATFORM_ALLOWED_IPS:
+      SENTRY_DSN:
+      CLOUDINARY_URL:
+      EXPO_ACCESS_TOKEN:
+    volumes:
+      - api-storage:/data/storage
+
+  web:
+    image: ${WEB_IMAGE:-sellwasl-web:local}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Proxys de confiance devant le Web (répartiteur, Caddy…) : 0 sans proxy
+      TRUST_PROXY: ${WEB_TRUST_PROXY:-0}
+      PLATFORM_ALLOWED_IPS:
+      SENTRY_DSN:
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+
+volumes:
+  postgres-data:
+  api-storage:

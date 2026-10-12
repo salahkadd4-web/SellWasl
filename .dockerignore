@@ -1,0 +1,22 @@
+# Contexte des images Docker (phase 29) : sources seulement, jamais de dépendances installées,
+# de compilations, de secrets ni de données locales.
+.git
+**/node_modules
+**/dist
+**/.next
+**/.next-e2e
+**/.turbo
+**/coverage
+**/playwright-report
+**/test-results
+**/.expo
+apps/mobile/android
+apps/mobile/ios
+apps/api/storage
+backups
+.superpowers
+**/.env
+**/.env.*
+!**/.env.example
+*.apk
+*.aab
