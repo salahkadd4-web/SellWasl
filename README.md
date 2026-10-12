@@ -71,10 +71,16 @@ L'écran **Tester l'imprimante** imprime un ticket de test sur une imprimante th
 | `pnpm dev` | API, Web et paquets partagés en mode développement |
 | `pnpm dev:mobile` | Serveur Metro de l'application mobile |
 | `pnpm build` | Compile tous les paquets et applications |
+| `pnpm lint` | Analyse le code avec ESLint (aucun avertissement admis) |
 | `pnpm typecheck` | Vérifie les types partout |
 | `pnpm test` | Tests unitaires et d'intégration (base `sellwasl_test` recréée à chaque lancement) |
+| `pnpm test:e2e` | Parcours de bout en bout Playwright ([docs/testing.md](docs/testing.md)) |
 | `pnpm format` | Formate le code avec Prettier |
 | `pnpm db:migrate` | Crée et applique une migration Prisma |
 | `pnpm db:seed` | Charge les données de démonstration |
 | `pnpm db:reset` | Efface la base, rejoue les migrations et le seed |
 | `pnpm db:studio` | Ouvre Prisma Studio pour parcourir les données |
+
+## Intégration et livraison continues
+
+Chaque pull request vers `develop` ou `main` passe par la CI GitHub : format, lint, types, tests, compilation, parcours de bout en bout, puis images Docker de l'API et du Web, publiées pour `develop` (staging) et `main` (production). Branches, environnements, images et compilation mobile : [docs/ci-cd.md](docs/ci-cd.md).

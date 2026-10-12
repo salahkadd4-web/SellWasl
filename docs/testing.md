@@ -35,6 +35,8 @@ Principes :
 
 Rapports : `coverage/index.html` dans chaque paquet ; `apps/web/playwright-report/index.html` pour les parcours (traces et captures des échecs dans `apps/web/test-results`).
 
+Dans la CI GitHub (phase 29, [ci-cd.md](ci-cd.md)), `pnpm test` et `pnpm test:e2e` tournent à chaque pull request, dans deux jobs parallèles ; le rapport des parcours en échec est conservé 7 jours (artefact `playwright`).
+
 ## 3. Données
 
 - **API** : base `<nom>_test` (`TEST_DATABASE_URL`, sinon `DATABASE_URL` suffixée), recréée par `test/global-setup.ts` : migrations puis `prisma/seed.ts` (deux entreprises : DISTRI-ORAN en prévente, CASHVAN-EST en cash van ; comptes `A-ADM`, `A-SUP`, `A-CPT`, `V07`, `V08`, `L01`, `M01`, `B-*`, `C01`, `C02` ; mot de passe `SellWasl@2026`).

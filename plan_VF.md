@@ -1485,6 +1485,12 @@ main   develop   feature/*   fix/*
 development → staging → production
 ```
 
+## Livrable
+
+- [x] `docs/ci-cd.md`
+
+**Réalisé en phase 29** : ESLint dans tout le dépôt (`@sellwasl/eslint-config`, aucun avertissement admis) ; CI en jobs parallèles (qualité, tests, compilation, parcours Playwright) puis images Docker de l'API et du Web essayées par un démarrage complet et publiées sur GitHub Container Registry (`develop` → `staging`, `main` → `production`) ; branche `develop`, script de protection des branches et des environnements GitHub ; compilation mobile EAS sur demande. « Deploy » : branché sur les images en phase 30.
+
 ---
 
 # PHASE 30 — Déploiement

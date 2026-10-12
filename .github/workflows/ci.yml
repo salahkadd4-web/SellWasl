@@ -142,10 +142,12 @@ jobs:
         if: github.event_name == 'push'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          REPO_OWNER: ${{ github.repository_owner }}
           CHANNEL: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
         run: |
-          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          owner=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
           sha=$(git rev-parse --short=12 HEAD)
           for app in api web; do
             for tag in "$CHANNEL" "sha-$sha"; do
