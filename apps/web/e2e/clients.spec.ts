@@ -37,4 +37,29 @@ test.describe('clients', () => {
     await page.getByLabel('Recherche').fill(name);
     await expect(page.locator('main button').filter({ hasText: name })).toBeVisible();
   });
+
+  test('formulaire envoyé pendant le chargement des types : le type affiché est envoyé', async ({
+    page,
+  }) => {
+    // Types de clients lents à venir : le formulaire s'ouvre avant leur arrivée
+    let release!: () => void;
+    const typesHeld = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/api/v1/customer-types', async (route) => {
+      await typesHeld;
+      await route.continue();
+    });
+    const name = `Client E2E lent ${Date.now()}`;
+    await page.goto('/app/clients');
+    await page.getByRole('button', { name: 'Nouveau client' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Nom', { exact: true }).fill(name);
+    // Clic pendant le chargement : l'envoi attend les types
+    const submitted = dialog.getByRole('button', { name: 'Créer le client' }).click();
+    await page.waitForTimeout(500);
+    release();
+    await submitted;
+    await expect(
+      page.getByRole('dialog').filter({ hasText: name }).getByText('Hors partie'),
+    ).toBeVisible();
+  });
 });

@@ -498,9 +498,9 @@ function CustomerForm({
   onClose: () => void;
   onSaved: (c: CustomerDto) => void;
 }) {
-  const [customerTypeId, setCustomerTypeId] = useState(
-    customer?.customerType.id ?? types.find((t) => t.isActive)?.id ?? '',
-  );
+  const [chosenTypeId, setCustomerTypeId] = useState(customer?.customerType.id ?? '');
+  // Sans choix, le premier type actif — même si les types arrivent après l'ouverture du formulaire
+  const customerTypeId = chosenTypeId || (types.find((t) => t.isActive)?.id ?? '');
   const [partChoice, setPartChoice] = useState(
     customer?.isPartForced && customer.part ? customer.part.id : '',
   );
@@ -657,7 +657,8 @@ function CustomerForm({
           />
         )}
         {error && <Alert>{error}</Alert>}
-        <Button type="submit" disabled={busy}>
+        {/* Pas d'envoi avant l'arrivée des types : le type affiché serait perdu */}
+        <Button type="submit" disabled={busy || !customerTypeId}>
           {busy ? 'Enregistrement…' : customer ? 'Enregistrer' : 'Créer le client'}
         </Button>
       </form>
