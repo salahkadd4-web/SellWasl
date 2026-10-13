@@ -49,5 +49,5 @@ for branch in main develop; do
 JSON
   echo "Branche $branch protégée"
 done
-echo "Terminé. Variables publiques du Web (facultatives) : Settings → Environments → staging /"
-echo "production → NEXT_PUBLIC_MAP_TILE_URL, NEXT_PUBLIC_MAP_ATTRIBUTION, NEXT_PUBLIC_SENTRY_DSN."
+echo "Terminé. Réglages du Web (facultatifs) : Settings → Environments → staging / production →"
+echo "secret NEXT_PUBLIC_MAPTILER_KEY, variable NEXT_PUBLIC_SENTRY_DSN (docs/maptiler.md)."

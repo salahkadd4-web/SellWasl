@@ -70,7 +70,7 @@ Dessin : Leaflet et Leaflet-Geoman. Les sommets s'aimantent aux sommets voisins 
 
 ## 8. Fond de carte
 
-Le fond de carte vient de `NEXT_PUBLIC_MAP_TILE_URL` (Web). Sans cette variable, l'application utilise les tuiles publiques d'OpenStreetMap, réservées au développement par leur règlement. Pour le pilote, un fournisseur avec une offre gratuite, comme MapTiler ; l'attribution se règle avec `NEXT_PUBLIC_MAP_ATTRIBUTION`.
+Le fond de carte vient de MapTiler (clé `NEXT_PUBLIC_MAPTILER_KEY` sur le Web, `EXPO_PUBLIC_MAPTILER_KEY` sur le mobile), avec OpenStreetMap en secours automatique : voir [maptiler.md](maptiler.md).
 
 ## 9. Tests
 

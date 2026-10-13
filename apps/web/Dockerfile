@@ -1,7 +1,8 @@
 # Image du Web (phase 29, docs/ci-cd.md). Compilée depuis la racine du dépôt :
 #   docker build -f apps/web/Dockerfile -t sellwasl-web .
-# Les variables NEXT_PUBLIC_* et l'adresse de l'API sont figées à la compilation (une image par
-# environnement) ; TRUST_PROXY, PLATFORM_ALLOWED_IPS et SENTRY_DSN sont lues au démarrage.
+# Les variables NEXT_PUBLIC_* (clé MapTiler comprise) et l'adresse de l'API sont figées à la
+# compilation (une image par environnement) ; TRUST_PROXY, PLATFORM_ALLOWED_IPS et SENTRY_DSN sont
+# lues au démarrage.
 
 FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
@@ -21,12 +22,10 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY --from=prune /app/out/full/ .
 # Adresse de l'API vue du serveur Web (réseau Docker) et réglages publics de l'environnement
 ARG API_URL=http://api:3001
-ARG NEXT_PUBLIC_MAP_TILE_URL
-ARG NEXT_PUBLIC_MAP_ATTRIBUTION
+ARG NEXT_PUBLIC_MAPTILER_KEY
 ARG NEXT_PUBLIC_SENTRY_DSN
 ENV API_URL=$API_URL \
-  NEXT_PUBLIC_MAP_TILE_URL=$NEXT_PUBLIC_MAP_TILE_URL \
-  NEXT_PUBLIC_MAP_ATTRIBUTION=$NEXT_PUBLIC_MAP_ATTRIBUTION \
+  NEXT_PUBLIC_MAPTILER_KEY=$NEXT_PUBLIC_MAPTILER_KEY \
   NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
   NEXT_OUTPUT=standalone \
   NEXT_TELEMETRY_DISABLED=1

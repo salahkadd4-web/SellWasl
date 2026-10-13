@@ -106,7 +106,7 @@ jobs:
     needs: [qualite, tests, build, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Variables publiques de l'environnement GitHub (NEXT_PUBLIC_*) ; aucun sur une pull request
+    # Variables de l'environnement GitHub (NEXT_PUBLIC_*, clé MapTiler) ; aucun sur une pull request
     environment: ${{ github.event_name == 'push' && (github.ref_name == 'main' && 'production' || 'staging') || '' }}
     permissions:
       contents: read
@@ -131,8 +131,7 @@ jobs:
           tags: sellwasl-web:local
           load: true
           build-args: |
-            NEXT_PUBLIC_MAP_TILE_URL=${{ vars.NEXT_PUBLIC_MAP_TILE_URL }}
-            NEXT_PUBLIC_MAP_ATTRIBUTION=${{ vars.NEXT_PUBLIC_MAP_ATTRIBUTION }}
+            NEXT_PUBLIC_MAPTILER_KEY=${{ secrets.NEXT_PUBLIC_MAPTILER_KEY }}
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max

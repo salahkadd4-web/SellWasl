@@ -5,13 +5,8 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import type { CustomerPosition, FieldPosition, TerritoryDto } from '@sellwasl/validation';
 import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-
-/** Fond de carte : OpenStreetMap par défaut, ou le fournisseur choisi (architecture §12). */
-const TILE_URL =
-  process.env.NEXT_PUBLIC_MAP_TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION =
-  process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
-  '&copy; <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>';
+import { MapUnavailableNotice } from '@/components/map-notice';
+import { addBaseLayer } from '@/lib/base-map';
 
 export const TERRITORY_COLORS = [
   '#2563eb',
@@ -98,14 +93,17 @@ export const TerritoryMap = forwardRef<TerritoryMapHandle, Props>(
     // Création de la carte, une seule fois. Geoman lit la variable globale L et ne s'attache
     // qu'aux cartes créées après son chargement : il est donc chargé d'abord.
     const [ready, setReady] = useState(false);
+    const [unavailable, setUnavailable] = useState(false);
     useEffect(() => {
       let instance: L.Map | null = null;
       let cancelled = false;
+      let cancelBase = () => {};
       (window as unknown as { L: typeof L }).L = L;
       void import('@geoman-io/leaflet-geoman-free').then(() => {
         if (cancelled || !container.current) return;
         instance = L.map(container.current, { center: [36.3, 3.5], zoom: 6 });
-        L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(instance);
+        // Fond de carte : MapTiler, sinon OpenStreetMap (docs/maptiler.md)
+        cancelBase = addBaseLayer(L, instance, () => setUnavailable(true));
         layers.current = {
           parts: L.layerGroup().addTo(instance),
           customers: L.layerGroup().addTo(instance),
@@ -145,6 +143,7 @@ export const TerritoryMap = forwardRef<TerritoryMapHandle, Props>(
       });
       return () => {
         cancelled = true;
+        cancelBase();
         instance?.remove();
         map.current = null;
         layers.current = null;
@@ -302,6 +301,11 @@ export const TerritoryMap = forwardRef<TerritoryMapHandle, Props>(
     }));
 
     // `isolate` : les calques Leaflet (z-index 400 et plus) restent sous les fenêtres
-    return <div ref={container} className="isolate h-full min-h-[420px] w-full rounded-2xl" />;
+    return (
+      <div className="relative h-full min-h-[420px] w-full">
+        <div ref={container} className="isolate h-full min-h-[420px] w-full rounded-2xl" />
+        {unavailable ? <MapUnavailableNotice /> : null}
+      </div>
+    );
   },
 );

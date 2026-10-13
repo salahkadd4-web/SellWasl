@@ -3,14 +3,11 @@
 import 'leaflet/dist/leaflet.css';
 import type { SupervisorMapDto } from '@sellwasl/validation';
 import L from 'leaflet';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { MapUnavailableNotice } from '@/components/map-notice';
 import { plainTooltip, TERRITORY_COLORS } from '@/components/territory-map';
+import { addBaseLayer } from '@/lib/base-map';
 
-const TILE_URL =
-  process.env.NEXT_PUBLIC_MAP_TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION =
-  process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ??
-  '&copy; <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>';
 const VISITED = '#16a34a';
 const TO_VISIT = '#dc2626';
 const TEAM = '#001850';
@@ -23,13 +20,16 @@ export default function SupervisorMap({ data }: { data: SupervisorMapDto }) {
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
   const fitted = useRef(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     if (!container.current || map.current) return;
     map.current = L.map(container.current, { center: [35.7, -0.63], zoom: 12 });
-    L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(map.current);
+    // Fond de carte : MapTiler, sinon OpenStreetMap (docs/maptiler.md)
+    const cancelBase = addBaseLayer(L, map.current, () => setUnavailable(true));
     layer.current = L.layerGroup().addTo(map.current);
     return () => {
+      cancelBase();
       map.current?.remove();
       map.current = null;
     };
@@ -84,9 +84,12 @@ export default function SupervisorMap({ data }: { data: SupervisorMapDto }) {
   }, [data]);
 
   return (
-    <div
-      ref={container}
-      className="h-[calc(100dvh-14rem)] min-h-80 w-full rounded-xl border border-border sm:h-[420px]"
-    />
+    <div className="relative">
+      <div
+        ref={container}
+        className="h-[calc(100dvh-14rem)] min-h-80 w-full rounded-xl border border-border sm:h-[420px]"
+      />
+      {unavailable ? <MapUnavailableNotice /> : null}
+    </div>
   );
 }

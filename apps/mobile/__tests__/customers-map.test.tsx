@@ -5,7 +5,9 @@ import { Linking } from 'react-native';
 import CustomersScreen from '../app/seller/(tabs)/customers';
 import SellerMapScreen from '../app/seller/(tabs)/map';
 import { useAuth } from '@/auth/AuthContext';
+import { mapProvider, resetMapProvider } from '@/map/provider';
 import { directionsUrl } from '@/seller/customers';
+import { CustomerMap } from '@/seller/CustomerMap';
 import { TodayProvider } from '@/today/TodayContext';
 import { fakeSync } from './fake-sync';
 
@@ -27,6 +29,7 @@ jest.mock('@maplibre/maplibre-react-native', () => {
       return createElement(View, { testID: props.id ?? name }, children as never);
     };
   return {
+    TransformRequestManager: { addHeader: jest.fn() },
     Map: element('map'),
     Camera: element('camera'),
     Images: element('images'),
@@ -98,6 +101,7 @@ beforeEach(() => {
     profile: null,
   } as unknown as ReturnType<typeof useAuth>);
   router.push.mockClear();
+  resetMapProvider();
   jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
 });
 
@@ -213,6 +217,8 @@ describe('carte des clients', () => {
         <SellerMapScreen />
       </TodayProvider>,
     );
+    // Sans clé MapTiler (tests) : OpenStreetMap, choisi sans requête
+    await screen.findByTestId('customers');
     expect(screen.getByText('Visite non réalisée')).toBeOnTheScreen();
     expect(screen.getByText('Visite réalisée')).toBeOnTheScreen();
     const features = () =>
@@ -237,5 +243,54 @@ describe('carte des clients', () => {
     expect(Linking.openURL).toHaveBeenCalledWith(
       'https://www.google.com/maps/dir/?api=1&destination=35.7,-0.6&travelmode=driving',
     );
+  });
+});
+
+describe('fond de carte : MapTiler, sinon OpenStreetMap', () => {
+  const point = [{ id: 'p1', latitude: 35.7, longitude: -0.6, done: false }];
+  const showMap = () => render(<CustomerMap points={point} position={null} onSelect={() => {}} />);
+  const replying = (status: number) =>
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue({ status } as Response);
+
+  it('clé absente : style OSM et attribution OpenStreetMap', async () => {
+    await showMap();
+    await screen.findByTestId('map');
+    expect(mockMap.map!.mapStyle).toMatchObject({ sources: { osm: { type: 'raster' } } });
+    expect(screen.getByText('© OpenStreetMap contributors')).toBeOnTheScreen();
+  });
+
+  it('clé acceptée : style MapTiler et attribution MapTiler', async () => {
+    replying(200);
+    await mapProvider('cle-test');
+    await showMap();
+    await screen.findByTestId('map');
+    expect(mockMap.map!.mapStyle).toBe(
+      'https://api.maptiler.com/maps/streets-v2/style.json?key=cle-test',
+    );
+    expect(screen.getByText('© MapTiler © OpenStreetMap contributors')).toBeOnTheScreen();
+  });
+
+  it('clé refusée (403) : OpenStreetMap', async () => {
+    replying(403);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await mapProvider('mauvaise-cle');
+    await showMap();
+    await screen.findByTestId('map');
+    expect(mockMap.map!.mapStyle).toMatchObject({ sources: { osm: { type: 'raster' } } });
+  });
+
+  it('style MapTiler en échec : bascule OSM ; OSM en échec : message', async () => {
+    replying(200);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await mapProvider('cle-test');
+    await showMap();
+    await screen.findByTestId('map');
+    await act(async () => (mockMap.map!.onDidFailLoadingMap as () => void)());
+    expect(mockMap.map!.mapStyle).toMatchObject({ sources: { osm: { type: 'raster' } } });
+    expect(screen.getByText('© OpenStreetMap contributors')).toBeOnTheScreen();
+    await act(async () => (mockMap.map!.onDidFailLoadingMap as () => void)());
+    expect(
+      screen.getByText('Fond de carte indisponible : les punaises restent affichées.'),
+    ).toBeOnTheScreen();
   });
 });

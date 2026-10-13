@@ -57,7 +57,7 @@ En staging et en production, l'API refuse de démarrer sans `JWT_ACCESS_SECRET` 
 
 | Nom | Où le régler | Usage |
 |---|---|---|
-| `NEXT_PUBLIC_MAP_TILE_URL`, `NEXT_PUBLIC_MAP_ATTRIBUTION` | Variables de l'environnement GitHub | Fond de carte du Web, figé dans l'image |
+| `NEXT_PUBLIC_MAPTILER_KEY` | Secret de l'environnement GitHub | Clé MapTiler du fond de carte du Web, figée dans l'image ([maptiler.md](maptiler.md)) |
 | `NEXT_PUBLIC_SENTRY_DSN` | Variable de l'environnement GitHub | Erreurs du navigateur, figé dans l'image |
 | `EXPO_TOKEN` | Secret du dépôt | Compilation mobile (§5) |
 | `GITHUB_TOKEN` | Fourni par GitHub | Publication des images |
@@ -71,7 +71,7 @@ En staging et en production, l'API refuse de démarrer sans `JWT_ACCESS_SECRET` 
 | `ghcr.io/<propriétaire>/sellwasl-web` | `apps/web/Dockerfile` | Serveur Next.js autonome sur le port 3000 ; `/api/*` transmis à l'API |
 
 - Les deux images tournent sans droits administrateur (utilisateur `node`) et sont construites à partir du monorepo réduit par `turbo prune` : une modification du mobile ne les recompile pas.
-- **Figé à la compilation du Web** : `API_URL` (par défaut `http://api:3001`, le nom du service dans Docker) et les `NEXT_PUBLIC_*` — d'où une image par environnement.
+- **Figé à la compilation du Web** : `API_URL` (par défaut `http://api:3001`, le nom du service dans Docker) et les `NEXT_PUBLIC_*` (dont la clé MapTiler) — d'où une image par environnement.
 - **Lu au démarrage** : `TRUST_PROXY`, `PLATFORM_ALLOWED_IPS`, `SENTRY_DSN` (Web et API) et toute la configuration de l'API — vérifié par le démarrage d'essai.
 
 Compiler et essayer en local (Docker Desktop lancé) :
@@ -98,7 +98,7 @@ Le workflow confie la compilation à EAS (`--no-wait`) ; le lien de suivi et l'A
 1. Pousser `main`, puis la branche `develop` : `git push -u origin develop`.
 2. Installer [GitHub CLI](https://cli.github.com), puis `gh auth login`.
 3. `bash scripts/github-setup.sh` : environnements `staging` (branche `develop`) et `production` (branche `main`), protection des deux branches.
-4. Facultatif : variables `NEXT_PUBLIC_*` dans Settings → Environments ; secret `EXPO_TOKEN` dans Settings → Secrets and variables → Actions.
+4. Facultatif : secret `NEXT_PUBLIC_MAPTILER_KEY` et variable `NEXT_PUBLIC_SENTRY_DSN` dans Settings → Environments (staging, production) ; secret `EXPO_TOKEN` dans Settings → Secrets and variables → Actions.
 5. Après la première publication : Packages du profil GitHub → `sellwasl-api` et `sellwasl-web` → laisser en privé (par défaut) ; le serveur s'y connectera avec un jeton en lecture (phase 30).
 
 Les noms des jobs exigés par la protection sont ceux du §1 : un job renommé dans `ci.yml` doit l'être aussi dans `scripts/github-setup.sh`.
