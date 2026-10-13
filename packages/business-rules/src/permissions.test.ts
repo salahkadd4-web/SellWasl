@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { modulesForMode } from './modules';
 import {
   DEFAULT_ROLE_PERMISSIONS,
+  delegablePermissions,
   forbiddenPermissionsFor,
   isPermissionModuleActive,
   PERMISSIONS,
@@ -81,5 +82,26 @@ describe('modules (docs/modules.md)', () => {
     expect(isRoleAvailable('LIVREUR', cashVan)).toBe(false);
     expect(isRoleAvailable('VENDEUR_CASH_VAN', cashVan)).toBe(true);
     expect(isRoleAvailable('SUPERVISEUR', cashVan)).toBe(true);
+  });
+});
+
+describe('permissions du superviseur réglées par l’administrateur (docs/rbac.md §7 bis)', () => {
+  it('déléguables : celles de l’administrateur, sans interdit ni gestion des permissions', () => {
+    const delegable = delegablePermissions();
+    expect(delegable).toEqual(
+      expect.arrayContaining(['users.create', 'settings.update', 'audit.read']),
+    );
+    expect(delegable).not.toContain('roles.manage');
+    expect(delegable.some((c) => c.endsWith('.own') || c.startsWith('payments.collect_'))).toBe(
+      false,
+    );
+    expect(forbiddenPermissionsFor('SUPERVISEUR', delegable)).toEqual([]);
+    // Les permissions par défaut du superviseur en font toutes partie
+    expect(DEFAULT_ROLE_PERMISSIONS.SUPERVISEUR.every((c) => delegable.includes(c))).toBe(true);
+  });
+
+  it('seul l’administrateur règle les permissions', () => {
+    expect(DEFAULT_ROLE_PERMISSIONS.COMPANY_ADMIN).toContain('roles.manage');
+    expect(DEFAULT_ROLE_PERMISSIONS.SUPERVISEUR).not.toContain('roles.manage');
   });
 });

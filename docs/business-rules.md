@@ -287,6 +287,12 @@ Les clients reprogrammés pour D (BR-PLA-05) s'ajoutent à la liste.
 
 **BR-OBJ-04** — Dans l'application, le vendeur voit pour chaque gamme la cible, le réalisé, le taux et la prime estimée, à la date de la dernière synchronisation.
 
+**BR-OBJ-05** — Seuil minimum (facultatif, sur chaque objectif du mois, vendeur ou livreur) : sous ce taux (score pour le livreur), aucune prime ; à partir du seuil, le calcul de BR-OBJ-03 s'applique tel quel. Exemple avec un seuil de 60 % : 55 % → 0 DA ; 75 % → 75 % de la prime.
+
+**BR-OBJ-06** — Objectif du jour : pour un pré-vendeur ou un vendeur cash van, une quantité d'un produit par jour (dans l'unité choisie), une prime par jour, un plafond et un **minimum du jour** facultatifs. Réalisé du jour : quantités livrées du produit, rattachées au jour de la commande (ou de la vente du cash van). Prime d'un jour : 0 sous le minimum, sinon `prime × min(réalisé ÷ cible, plafond)`, arrondie au dinar. Exemple : cible 10 cartons, prime 500 DA, minimum 4, plafond 100 % → 3 cartons : 0 ; 6 : 300 DA ; 12 : 500 DA.
+
+**BR-OBJ-07** — La prime des objectifs du jour est payée **à la semaine** : somme des jours de la semaine (début réglé dans la paie), calculée chaque nuit comme les primes hebdomadaires, validée par le comptable, puis versée avec la paie du mois où la semaine se termine.
+
 ---
 
 ## 9. Journée de travail — JOU

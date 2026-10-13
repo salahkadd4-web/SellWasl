@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { incentiveAmount, periodOf } from '@sellwasl/business-rules';
+import { dailyObjectiveAmount, incentiveAmount, periodOf } from '@sellwasl/business-rules';
 import type {
   calculateIncentivesSchema,
   IncentiveDto,
@@ -48,9 +48,10 @@ export class IncentivesService {
     private readonly auditService: AuditService,
   ) {}
 
+  /** Règles de prime ; les objectifs du jour sont gérés depuis les objectifs (BR-OBJ-06). */
   async rules(): Promise<IncentiveRuleDto[]> {
     const rows = await this.db.incentiveRule.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, kind: { not: 'DAILY_TARGET' } },
       include: RULE_DETAIL,
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
@@ -93,7 +94,8 @@ export class IncentivesService {
     await this.db.$transaction(async (tenantTx) => {
       const tx = tenantTx as unknown as Tx;
       const before = await tx.incentiveRule.findFirst({ where: { id, deletedAt: null } });
-      if (!before) throw notFound('Règle introuvable.');
+      // Objectif du jour : modifié depuis les objectifs (BR-OBJ-06)
+      if (!before || before.kind === 'DAILY_TARGET') throw notFound('Règle introuvable.');
       await this.checkRefs(tx, input);
       await tx.incentiveRule.update({
         where: { id },
@@ -300,6 +302,15 @@ export class IncentivesService {
           estimatedAmount: result.amount,
           unitName: unit?.name ?? base?.name ?? null,
           status: saved?.status ?? null,
+          daily:
+            r.kind === 'DAILY_TARGET'
+              ? {
+                  dailyTarget: r.dailyTarget ?? 0,
+                  minQty: r.minQty,
+                  capPercent: r.capPercent,
+                  days: result.days ?? [],
+                }
+              : null,
         });
       }
     }
@@ -339,6 +350,7 @@ export class IncentivesService {
   ) {
     const unit = r.unitId ? await tx.productUnit.findFirst({ where: { id: r.unitId } }) : null;
     const baseQty = unit?.baseQty ?? 1;
+    if (r.kind === 'DAILY_TARGET') return this.computeDaily(tx, r, u.id, baseQty, start, end);
     const sold = await this.sold(tx, u.id, u.role.code, r.productId, start, end);
     const quantity = Math.floor(sold.reduce((s, l) => s + l.baseQty, 0) / baseQty);
     const revenue = sold.reduce((s, l) => s + l.amount, 0);
@@ -358,7 +370,67 @@ export class IncentivesService {
       qty: Math.floor(l.baseQty / baseQty),
       amount: l.amount,
     }));
-    return { quantity, revenue, amount, unitAmount, details };
+    return { quantity, revenue, amount, unitAmount, details, days: null };
+  }
+
+  /**
+   * Objectif du jour (BR-OBJ-06, BR-OBJ-07) : quantités livrées du produit, rattachées au jour de
+   * la commande ou de la vente, comptées jour par jour ; la prime de la semaine en fait la somme.
+   */
+  private async computeDaily(
+    tx: Tx,
+    r: RuleRecord,
+    userId: string,
+    baseQty: number,
+    start: Date,
+    end: Date,
+  ) {
+    const lines = await tx.orderLine.findMany({
+      where: {
+        kind: 'NORMAL',
+        deliveredQty: { gt: 0 },
+        ...(r.productId && { productId: r.productId }),
+        order: {
+          deletedAt: null,
+          sellerUserId: userId,
+          status: { in: ['DELIVERED', 'PARTIALLY_DELIVERED'] },
+          orderDate: { gte: start, lte: end },
+        },
+      },
+      include: {
+        order: {
+          include: { deliveries: { where: { result: { not: 'FAILED' }, deletedAt: null } } },
+        },
+      },
+      orderBy: { order: { orderDate: 'asc' } },
+    });
+    const byDay = new Map<string, number>();
+    for (const l of lines) {
+      const day = dateOnly(l.order.orderDate);
+      byDay.set(day, (byDay.get(day) ?? 0) + (l.deliveredQty ?? 0));
+    }
+    const week = dailyObjectiveAmount(
+      {
+        dailyTarget: r.dailyTarget ?? 0,
+        bonusAmount: Number(r.amount ?? 0),
+        capPercent: r.capPercent,
+        minQty: r.minQty,
+      },
+      [...byDay.entries()].map(([date, base]) => ({ date, qty: Math.floor(base / baseQty) })),
+    );
+    return {
+      quantity: week.quantity,
+      revenue: lines.reduce((sum, l) => sum + Number(l.lineAmount), 0),
+      amount: week.amount,
+      unitAmount: null,
+      details: lines.map((l) => ({
+        orderNumber: l.order.number,
+        deliveryNumber: l.order.deliveries[0]?.number ?? '',
+        qty: Math.floor((l.deliveredQty ?? 0) / baseQty),
+        amount: Number(l.lineAmount),
+      })),
+      days: week.days,
+    };
   }
 
   /**

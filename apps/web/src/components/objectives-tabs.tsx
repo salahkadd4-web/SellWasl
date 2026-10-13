@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 import { CompanyAuth } from '@/lib/auth';
 
 const TABS = [
-  { href: '/app/objectifs', label: 'Vendeurs', permission: 'objectives.read' },
+  { href: '/app/objectifs', label: 'Vendeurs · du mois', permission: 'objectives.read' },
+  { href: '/app/objectifs/jour', label: 'Vendeurs · du jour', permission: 'objectives.read' },
   { href: '/app/objectifs/livreurs', label: 'Livreurs', permission: 'objectives.read' },
 ] as const;
 
-/** Onglets des objectifs : vendeurs et livreurs. */
+/** Onglets des objectifs : vendeurs (du mois, du jour) et livreurs. */
 export function ObjectivesTabs() {
   const { can } = CompanyAuth.useAuth();
   const pathname = usePathname();

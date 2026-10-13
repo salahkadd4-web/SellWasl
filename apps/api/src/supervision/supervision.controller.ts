@@ -10,6 +10,8 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  type DailyObjectiveDto,
+  dailyObjectiveSchema,
   decidePendingSchema,
   type DriverObjectiveDto,
   type DriverObjectivesSettings,
@@ -41,6 +43,7 @@ import { toDate } from '../field/field-errors';
 import { ObjectivesService } from '../field/objectives.service';
 import { OrderService } from '../field/order.service';
 import { DriverObjectivesService } from './driver-objectives.service';
+import { DailyObjectivesService } from './daily-objectives.service';
 import { ObjectivesAdminService } from './objectives-admin.service';
 import { PendingLinesService } from './pending-lines.service';
 import { QuotasService } from './quotas.service';
@@ -58,6 +61,7 @@ export class SupervisionController {
   constructor(
     private readonly quotas: QuotasService,
     private readonly objectives: ObjectivesAdminService,
+    private readonly daily: DailyObjectivesService,
     private readonly pending: PendingLinesService,
     private readonly orders: OrderService,
     private readonly workdays: WorkdaysAdminService,
@@ -195,6 +199,31 @@ export class SupervisionController {
     @Body(new ZodValidationPipe(objectiveCapSchema)) body: Out<typeof objectiveCapSchema>,
   ): Promise<{ capPercent: number | null }> {
     return this.objectives.setCap(actor, body.capPercent);
+  }
+
+  @RequirePermission('objectives.read')
+  @Get('objectives/daily')
+  dailyObjectives(): Promise<DailyObjectiveDto[]> {
+    return this.daily.list();
+  }
+
+  @RequirePermission('objectives.update')
+  @Post('objectives/daily')
+  createDailyObjective(
+    @CurrentUser() actor: AuthUser,
+    @Body(new ZodValidationPipe(dailyObjectiveSchema)) body: Out<typeof dailyObjectiveSchema>,
+  ): Promise<DailyObjectiveDto> {
+    return this.daily.create(actor, body);
+  }
+
+  @RequirePermission('objectives.update')
+  @Put('objectives/daily/:id')
+  updateDailyObjective(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(dailyObjectiveSchema)) body: Out<typeof dailyObjectiveSchema>,
+  ): Promise<DailyObjectiveDto> {
+    return this.daily.update(actor, id, body);
   }
 
   @RequirePermission('objectives.update')

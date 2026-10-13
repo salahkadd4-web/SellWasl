@@ -18,3 +18,4 @@ export * from './offline';
 export * from './notifications';
 export * from './pagination';
 export * from './audit';
+export * from './roles';

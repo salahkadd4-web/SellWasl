@@ -184,6 +184,13 @@ export const COMPANY_NAV: NavItem[] = [
     icon: 'clock',
   },
   {
+    href: '/app/permissions',
+    label: 'Permissions',
+    permission: 'roles.manage',
+    group: 'Administration',
+    icon: 'shield',
+  },
+  {
     href: '/app/parametres',
     label: 'Paramètres',
     permission: 'settings.read',

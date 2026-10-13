@@ -68,7 +68,7 @@ export class SettingsService {
           createdByUserId: actor.userId,
         },
       });
-      if (rulesChanged) await this.roles.applyPermissions(tx, actor.companyId, data.rules);
+      if (rulesChanged) await this.roles.applySettingPermissions(tx, actor.companyId, data.rules);
       await this.audit.write(
         {
           companyId: actor.companyId,

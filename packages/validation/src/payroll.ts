@@ -82,6 +82,8 @@ export const INCENTIVE_KINDS = [
   'TIERED',
   'REVENUE_TARGET',
 ] as const;
+/** Types de règle, objectif du jour compris (géré depuis les objectifs, BR-OBJ-06). */
+export type IncentiveRuleKind = (typeof INCENTIVE_KINDS)[number] | 'DAILY_TARGET';
 export const incentiveRuleSchema = z
   .object({
     name: z.string().trim().min(1, 'Nom obligatoire').max(120),
@@ -241,7 +243,7 @@ export interface IncentiveRuleDto {
   version: number;
   id: string;
   name: string;
-  kind: (typeof INCENTIVE_KINDS)[number];
+  kind: IncentiveRuleKind;
   frequency: 'WEEKLY' | 'MONTHLY';
   product: { id: string; name: string } | null;
   unit: { id: string; name: string } | null;
@@ -279,7 +281,7 @@ export interface IncentiveProgressDto {
   rule: {
     id: string;
     name: string;
-    kind: (typeof INCENTIVE_KINDS)[number];
+    kind: IncentiveRuleKind;
     frequency: 'WEEKLY' | 'MONTHLY';
     amount: number | null;
     threshold: number | null;
@@ -295,6 +297,13 @@ export interface IncentiveProgressDto {
   unitName: string | null;
   /** Prime déjà enregistrée pour la période (calculée, validée…), sinon null. */
   status: IncentiveDto['status'] | null;
+  /** Objectif du jour : cible, minimum, plafond et détail des jours de la semaine. */
+  daily: {
+    dailyTarget: number;
+    minQty: number | null;
+    capPercent: number | null;
+    days: { date: string; qty: number; amount: number }[];
+  } | null;
 }
 
 export type PayrollStatusCode = 'OPEN' | 'CALCULATED' | 'APPROVED' | 'PAID' | 'CLOSED';

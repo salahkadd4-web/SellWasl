@@ -118,6 +118,7 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   company('discrepancies.read', 'Consulter les écarts de stock et de caisse'),
   company('discrepancies.decide', 'Analyser les écarts et décider de la responsabilité'),
   company('pay.mine', 'Consulter sa propre rémunération, ses primes, acomptes, retenues et paies'),
+  company('roles.manage', 'Régler les permissions du superviseur'),
 ];
 
 const ADMIN_AND_SUPERVISOR_SHARED = [
@@ -187,6 +188,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'compensation.update',
     'payroll.read',
     'incentives.manage',
+    'roles.manage',
   ],
   SUPERVISEUR: [...ADMIN_AND_SUPERVISOR_SHARED],
   COMPTABLE: [
@@ -376,4 +378,19 @@ export function assertAllowedPermissions(role: RoleCode, permissions: readonly s
       `Permissions interdites pour ${role} : ${forbidden.join(', ')} (docs/rbac.md §8)`,
     );
   }
+}
+
+/** Jamais délégué : seul l'administrateur règle les permissions (docs/rbac.md §7 bis). */
+export const NON_DELEGABLE_PERMISSIONS: readonly string[] = ['roles.manage'];
+
+/**
+ * Permissions que l'administrateur peut accorder au superviseur (docs/rbac.md §7 bis) : les
+ * siennes, sauf les interdits absolus du superviseur (§8) et la gestion des permissions.
+ */
+export function delegablePermissions(): string[] {
+  return DEFAULT_ROLE_PERMISSIONS.COMPANY_ADMIN.filter(
+    (code) =>
+      !NON_DELEGABLE_PERMISSIONS.includes(code) &&
+      forbiddenPermissionsFor('SUPERVISEUR', [code]).length === 0,
+  );
 }

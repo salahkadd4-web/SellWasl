@@ -143,7 +143,8 @@ export class DriverObjectivesService {
         returnRate: rate,
         returnScore,
         score,
-        estimatedBonus: driverBonus(bonusAmount, score),
+        minPercent: objective?.minPercent ?? null,
+        estimatedBonus: driverBonus(bonusAmount, score, objective?.minPercent ?? null),
         paymentDate,
       };
     });
@@ -175,6 +176,7 @@ export class DriverObjectivesService {
             data: {
               bonusAmount: BigInt(e.bonusAmount),
               ratings: e.ratings,
+              minPercent: e.minPercent ?? null,
               version: { increment: 1 },
             },
           });
@@ -187,6 +189,7 @@ export class DriverObjectivesService {
               month,
               bonusAmount: BigInt(e.bonusAmount),
               ratings: e.ratings,
+              minPercent: e.minPercent ?? null,
               createdByUserId: actor.userId,
             },
           });

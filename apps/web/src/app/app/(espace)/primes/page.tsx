@@ -30,6 +30,9 @@ function ruleText(r: IncentiveRuleDto): string {
       return `${formatDA(r.amount ?? 0)} si CA ≥ ${formatDA(r.threshold ?? 0)}`;
     case 'TIERED':
       return (r.tiers ?? []).map((t) => `${t.minQty}+ : ${formatDA(t.unitAmount)}`).join(' · ');
+    case 'DAILY_TARGET':
+      // Objectif du jour : géré dans Objectifs, jamais listé ici (BR-OBJ-06)
+      return `${formatDA(r.amount ?? 0)} par jour`;
   }
 }
 

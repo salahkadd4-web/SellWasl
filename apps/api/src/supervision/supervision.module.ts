@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { FieldModule } from '../field/field.module';
 import { PlanningModule } from '../planning/planning.module';
 import { StockModule } from '../stock/stock.module';
+import { DailyObjectivesService } from './daily-objectives.service';
 import { DriverObjectivesService } from './driver-objectives.service';
 import { ObjectivesAdminService } from './objectives-admin.service';
 import { PendingLinesService } from './pending-lines.service';
@@ -19,6 +20,7 @@ import { SupervisionController } from './supervision.controller';
     PendingLinesService,
     WorkdaysAdminService,
     DriverObjectivesService,
+    DailyObjectivesService,
   ],
   exports: [DriverObjectivesService],
 })

@@ -140,6 +140,7 @@ export class ObjectivesAdminService {
           targetAmount: BigInt(e.targetAmount),
           bonusAmount: BigInt(e.bonusAmount),
           capPercent: cap,
+          minPercent: e.minPercent ?? null,
           deletedAt: null,
         };
         await tx.objective.upsert({

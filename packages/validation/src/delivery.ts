@@ -102,6 +102,8 @@ export const putDriverObjectivesSchema = z.object({
         userId: z.uuid(),
         bonusAmount: amount,
         ratings: z.record(z.uuid(), z.number().int().min(0).max(10)),
+        /** Seuil minimum en % : sous ce taux, aucune prime ; null ou absent : pas de seuil (BR-OBJ-05). */
+        minPercent: z.number().int().min(1).max(100).nullish(),
       }),
     )
     .min(1)
@@ -208,6 +210,8 @@ export interface DriverObjectiveDto {
   returnRate: number | null;
   returnScore: number;
   score: number;
+  /** Seuil minimum du score en % (BR-OBJ-05) ; null : pas de seuil. */
+  minPercent: number | null;
   estimatedBonus: number;
   paymentDate: string;
 }

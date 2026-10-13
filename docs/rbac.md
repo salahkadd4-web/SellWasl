@@ -26,7 +26,7 @@
 2. **Un utilisateur a un seul rôle** (BR-USR-01).
 3. **Refus par défaut.** Un endpoint qui ne déclare aucune permission est refusé, et un test le détecte (architecture §5.3). Les routes ouvertes à tout utilisateur connecté (son profil, sa déconnexion) portent `@AnyAuthenticated()`.
 4. **Permissions stockées en base**, par entreprise (`Role`, `RolePermission`), et non codées en dur dans le Web ou le mobile. À la création d'une entreprise, chaque rôle reçoit les permissions de la matrice du §5.
-5. **Pas d'éditeur de rôles dans le MVP.** Les permissions d'un rôle ne changent que par un paramètre de l'entreprise (§7). Les rôles personnalisés viendront après le MVP.
+5. **Un seul rôle réglable : le superviseur.** L'administrateur choisit ses permissions (§7 bis) ; les autres rôles ne changent que par un paramètre de l'entreprise (§7). Les rôles personnalisés viendront après le MVP.
 
 ---
 
@@ -253,6 +253,16 @@ Deux paramètres de BR-TEN-08 changent des permissions. Le serveur applique le c
 Comme tous les paramètres, le changement prend effet au prochain démarrage de journée pour les rôles mobiles (ARC-12). Pour les rôles Web, il prend effet à la prochaine requête.
 
 Les autres paramètres (P-01 à P-07, P-09) ne changent pas qui peut faire quoi, mais comment une opération est traitée. Ils sont lus par les règles métier, pas par les guards.
+
+---
+
+## 7 bis. Permissions du superviseur réglées par l'administrateur
+
+- Page Web **Permissions** (permission `roles.manage`, administrateur seul) ; API `GET` / `PUT /roles/supervisor/permissions`.
+- Déléguables : toutes les permissions de l'administrateur, sauf les interdits absolus du superviseur (§8) et `roles.manage`. Le serveur refuse le reste (`422`), sans rien changer.
+- Boutons « Comme l'administrateur » (tout) et « Par défaut » (matrice du §5 avec P-10).
+- Effet à la requête suivante du superviseur ; chaque changement est écrit dans le journal d'audit (`role.permissions.update`, avant et après).
+- Un changement de P-08 ou P-10 n'ajoute ou ne retire que ses propres permissions : les autres choix de l'administrateur restent.
 
 ---
 

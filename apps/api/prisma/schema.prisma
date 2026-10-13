@@ -837,6 +837,8 @@ model DriverObjective {
   bonusAmount     BigInt    @default(0) @map("bonus_amount")
   /// Notes sur 10 par critère : { criterionId: note }
   ratings         Json      @default("{}")
+  /// Seuil minimum du score en % : en dessous, aucune prime ; null : pas de seuil (BR-OBJ-05)
+  minPercent      Int?      @map("min_percent")
   companyId       String    @map("company_id") @db.Uuid
   userId          String    @map("user_id") @db.Uuid
   deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -1347,6 +1349,8 @@ model Objective {
   bonusAmount       BigInt       @map("bonus_amount")
   /// null : pas de plafond (choix de l'entreprise, BR-OBJ-01)
   capPercent        Int?         @default(120) @map("cap_percent")
+  /// Seuil minimum en % : sous ce taux, aucune prime ; null : pas de seuil (BR-OBJ-05)
+  minPercent        Int?         @map("min_percent")
   companyId         String       @map("company_id") @db.Uuid
   userId            String       @map("user_id") @db.Uuid
   rangeId           String       @map("range_id") @db.Uuid
@@ -2361,6 +2365,8 @@ enum IncentiveKind {
   THRESHOLD
   TIERED
   REVENUE_TARGET
+  /// Objectif du jour : compté chaque jour, payé à la semaine (BR-OBJ-06)
+  DAILY_TARGET
 }
 
 enum IncentiveFrequency {
@@ -2536,6 +2542,10 @@ model IncentiveRule {
   percentBp       Int?               @map("percent_bp")
   threshold       BigInt?
   tiers           Json?
+  /// Objectif du jour (DAILY_TARGET) : cible par jour, plafond en %, minimum du jour (BR-OBJ-06)
+  dailyTarget     Int?               @map("daily_target")
+  capPercent      Int?               @map("cap_percent")
+  minQty          Int?               @map("min_qty")
   roleCode        RoleCode?          @map("role_code")
   isActive        Boolean            @default(true) @map("is_active")
   validFrom       DateTime           @map("valid_from") @db.Date

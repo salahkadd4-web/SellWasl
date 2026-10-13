@@ -3,12 +3,22 @@ import type { IncentiveProgressDto } from '@sellwasl/validation';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { request } from '@/api/client';
+import { phoneDate } from '@/offline/ids';
 import { formatDA, formatDate } from '@/seller/format';
 import { Card } from '@/ui';
 
 /** Prochain palier à atteindre, pour motiver : « encore 20 cartons pour 20 DA le carton ». */
 function nextStep(p: IncentiveProgressDto): string | null {
   const unit = p.unitName ?? 'unité(s)';
+  if (p.daily) {
+    // Objectif du jour (BR-OBJ-06) : ce qu'il reste à faire aujourd'hui
+    const today = p.daily.days.find((d) => d.date === phoneDate())?.qty ?? 0;
+    if (p.daily.minQty !== null && today < p.daily.minQty)
+      return `Encore ${p.daily.minQty - today} ${unit} aujourd'hui pour que la journée compte.`;
+    if (today < p.daily.dailyTarget)
+      return `Encore ${p.daily.dailyTarget - today} ${unit} aujourd'hui pour la prime entière.`;
+    return null;
+  }
   if (p.rule.kind === 'THRESHOLD' && p.rule.threshold && p.quantity < p.rule.threshold)
     return `Encore ${p.rule.threshold - p.quantity} ${unit} pour ${formatDA(p.rule.amount ?? 0)}.`;
   if (p.rule.kind === 'REVENUE_TARGET' && p.rule.threshold && p.revenue < p.rule.threshold)
@@ -49,6 +59,14 @@ export function IncentiveProgress() {
               {p.rule.frequency === 'WEEKLY' ? 'Semaine' : 'Mois'} du {formatDate(p.periodStart)} au{' '}
               {formatDate(p.periodEnd)} · {p.quantity} {p.unitName ?? ''}
             </Text>
+            {p.daily ? (
+              <Text style={styles.muted}>
+                Aujourd'hui : {p.daily.days.find((d) => d.date === phoneDate())?.qty ?? 0} /{' '}
+                {p.daily.dailyTarget} {p.unitName ?? ''}
+                {p.daily.minQty !== null ? ` · compté dès ${p.daily.minQty}` : ''} · payé en fin de
+                semaine
+              </Text>
+            ) : null}
             {hint ? <Text style={styles.hint}>{hint}</Text> : null}
           </View>
         );

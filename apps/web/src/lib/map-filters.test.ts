@@ -45,9 +45,7 @@ describe('filtres de la carte du suivi', () => {
     expect(ids(v09.parts)).toEqual(['P3']);
     expect(ids(v09.customers)).toEqual(['c3']);
     // Vendeur hors du secteur choisi : rien
-    expect(filterMap(data, { territoryId: 'S1', partId: '', userId: 'V09' }).customers).toEqual(
-      [],
-    );
+    expect(filterMap(data, { territoryId: 'S1', partId: '', userId: 'V09' }).customers).toEqual([]);
   });
 
   it('choix proposés : parties du secteur, vendeurs du secteur et de la partie', () => {

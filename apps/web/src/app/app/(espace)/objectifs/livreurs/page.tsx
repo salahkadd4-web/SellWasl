@@ -11,6 +11,8 @@ import { formatDA, formatDate, todayDate } from '@/lib/labels';
 interface Row {
   bonusAmount: string;
   ratings: Record<string, string>;
+  /** Seuil minimum du score en % (BR-OBJ-05) ; vide : pas de seuil. */
+  minPercent: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export default function DriverObjectivesPage() {
             o.user.id,
             {
               bonusAmount: o.bonusAmount ? String(o.bonusAmount) : '',
+              minPercent: o.minPercent === null ? '' : String(o.minPercent),
               ratings: Object.fromEntries(
                 Object.entries(o.ratings).map(([id, v]) => [id, String(v)]),
               ),
@@ -96,6 +99,7 @@ export default function DriverObjectivesPage() {
     const entries = Object.entries(rows).map(([userId, r]) => ({
       userId,
       bonusAmount: Number(r.bonusAmount || '0'),
+      minPercent: r.minPercent ? Number(r.minPercent) : null,
       ratings: Object.fromEntries(
         Object.entries(r.ratings)
           .filter(([, v]) => v !== '')
@@ -107,10 +111,14 @@ export default function DriverObjectivesPage() {
         (e) =>
           !Number.isInteger(e.bonusAmount) ||
           e.bonusAmount < 0 ||
-          Object.values(e.ratings).some((v) => !Number.isInteger(v) || v < 0 || v > 10),
+          Object.values(e.ratings).some((v) => !Number.isInteger(v) || v < 0 || v > 10) ||
+          (e.minPercent !== null &&
+            (!Number.isInteger(e.minPercent) || e.minPercent < 1 || e.minPercent > 100)),
       )
     )
-      return setError('Les primes sont des montants entiers, les notes vont de 0 à 10.');
+      return setError(
+        'Les primes sont des montants entiers, les notes vont de 0 à 10, le seuil de 1 à 100 %.',
+      );
     if (entries.length === 0) return setError('Aucun livreur actif.');
     void run(
       () =>
@@ -125,7 +133,7 @@ export default function DriverObjectivesPage() {
   const setRow = (userId: string, patch: Partial<Row>) =>
     setRows((r) => ({
       ...r,
-      [userId]: { bonusAmount: '', ratings: {}, ...r[userId], ...patch },
+      [userId]: { bonusAmount: '', ratings: {}, minPercent: '', ...r[userId], ...patch },
     }));
 
   return (
@@ -345,6 +353,16 @@ export default function DriverObjectivesPage() {
               disabled={!editable}
               onChange={(e) => setRow(o.user.id, { bonusAmount: e.target.value })}
             />
+            <Field
+              label="Compté à partir de (%)"
+              hint="Score minimum ; vide : dès 0 %"
+              type="number"
+              min={1}
+              max={100}
+              value={rows[o.user.id]?.minPercent ?? ''}
+              disabled={!editable}
+              onChange={(e) => setRow(o.user.id, { minPercent: e.target.value })}
+            />
             {rules?.criteria.map((c) => (
               <Field
                 key={c.id}
@@ -366,7 +384,8 @@ export default function DriverObjectivesPage() {
             {o.returnRate === null
               ? 'Aucun chargement ce mois-ci'
               : `Taux de retour ${o.returnRate} % (chargé ${o.loaded}, revenu ${o.returned})`}{' '}
-            · score du taux {o.returnScore} % · score total {o.score} % · prime due{' '}
+            · score du taux {o.returnScore} % · score total {o.score} %
+            {o.minPercent === null ? '' : ` (compté dès ${o.minPercent} %)`} · prime due{' '}
             {formatDA(o.estimatedBonus)} · versée le {formatDate(o.paymentDate)}
           </p>
         </Card>

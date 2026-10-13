@@ -11,6 +11,8 @@ import { formatDA, formatDate, todayDate } from '@/lib/labels';
 interface Row {
   targetAmount: string;
   bonusAmount: string;
+  /** Seuil minimum en % (BR-OBJ-05) ; vide : pas de seuil. */
+  minPercent: string;
 }
 
 const key = (userId: string, rangeId: string) => `${userId}:${rangeId}`;
@@ -70,6 +72,7 @@ export default function ObjectivesPage() {
             {
               targetAmount: String(o.targetAmount),
               bonusAmount: String(o.bonusAmount),
+              minPercent: o.minPercent === null ? '' : String(o.minPercent),
             },
           ]),
         ),
@@ -94,9 +97,18 @@ export default function ObjectivesPage() {
           rangeId,
           targetAmount: Number(r.targetAmount),
           bonusAmount: Number(r.bonusAmount || '0'),
+          minPercent: r.minPercent ? Number(r.minPercent) : null,
         };
       });
     if (entries.length === 0) return setError('Saisissez au moins une cible.');
+    if (
+      entries.some(
+        (e) =>
+          e.minPercent !== null &&
+          (!Number.isInteger(e.minPercent) || e.minPercent < 1 || e.minPercent > 100),
+      )
+    )
+      return setError('Le seuil minimum est un pourcentage entier entre 1 et 100.');
     setBusy(true);
     try {
       await api('company', '/objectives', {
@@ -156,16 +168,21 @@ export default function ObjectivesPage() {
       const next = { ...current };
       for (const s of sellers) {
         const k = key(s.id, rangeId);
-        next[k] = { targetAmount: next[k]?.targetAmount ?? '', bonusAmount: bonus };
+        next[k] = {
+          targetAmount: next[k]?.targetAmount ?? '',
+          bonusAmount: bonus,
+          minPercent: next[k]?.minPercent ?? '',
+        };
       }
       return next;
     });
   }
 
   const editable = can('objectives.update');
-  const field = (k: string, name: keyof Row, label: string) => (
+  const field = (k: string, name: keyof Row, label: string, hint?: string) => (
     <Field
       label={label}
+      hint={hint}
       type="number"
       min={0}
       value={rows[k]?.[name] ?? ''}
@@ -176,6 +193,7 @@ export default function ObjectivesPage() {
           [k]: {
             targetAmount: '',
             bonusAmount: '',
+            minPercent: '',
             ...r[k],
             [name]: e.target.value,
           },
@@ -188,7 +206,7 @@ export default function ObjectivesPage() {
     <div className="flex flex-col gap-4">
       <PageTitle
         title="Objectifs du mois"
-        subtitle="Cible par vendeur et par gamme, sur le chiffre d'affaires livré ; prime plafonnée."
+        subtitle="Cible par vendeur et par gamme, sur le chiffre d'affaires livré ; prime plafonnée, comptée à partir d'un seuil facultatif."
         action={
           editable && (
             <Button onClick={() => void save()} disabled={busy}>
@@ -289,14 +307,15 @@ export default function ObjectivesPage() {
                 return (
                   <div
                     key={r.id}
-                    className="grid gap-2 border-b border-border px-3 py-2 last:border-0 lg:grid-cols-[1fr_1fr_1fr_2fr] lg:items-end"
+                    className="grid gap-2 border-b border-border px-3 py-2 last:border-0 lg:grid-cols-[1fr_1fr_1fr_1fr_2fr] lg:items-end"
                   >
                     <span className="font-medium text-text-dark">{r.name}</span>
                     {field(k, 'targetAmount', 'Cible (DA)')}
                     {field(k, 'bonusAmount', 'Prime (DA)')}
+                    {field(k, 'minPercent', 'Compté à partir de (%)', 'Vide : dès 0 %')}
                     <span className="text-sm text-muted">
                       {o
-                        ? `Réalisé ${formatDA(o.realizedAmount)} · ${o.rate} % · prime due ${formatDA(o.estimatedBonus)} (${o.capPercent === null ? 'sans plafond' : `plafond ${o.capPercent} %`}) · versée le ${formatDate(o.paymentDate)}`
+                        ? `Réalisé ${formatDA(o.realizedAmount)} · ${o.rate} % · prime due ${formatDA(o.estimatedBonus)} (${o.capPercent === null ? 'sans plafond' : `plafond ${o.capPercent} %`}${o.minPercent === null ? '' : `, compté dès ${o.minPercent} %`}) · versée le ${formatDate(o.paymentDate)}`
                         : 'Pas d’objectif'}
                     </span>
                   </div>

@@ -12,6 +12,8 @@ Phase 21 bis. Les objectifs mensuels existants (`Objective`, `DriverObjective`) 
 | `TIERED` | quantité × montant du palier atteint | 0–49 → 0 ; 50–99 → 10 DA ; 100+ → 20 DA par carton |
 | `REVENUE_TARGET` | montant si CA ≥ seuil | 10 000 DA si CA ≥ 1 000 000 DA |
 
+**Objectif du jour** (`DAILY_TARGET`, BR-OBJ-06 et 07) : porté par une règle hebdomadaire, mais créé et modifié par le superviseur dans Objectifs → « Vendeurs · du jour » (`/objectives/daily`, droits `objectives.*`) ; il n'apparaît pas dans la liste des règles de prime. Chaque jour compte à part (0 sous le minimum), la semaine en fait la somme ; la progression (`/me/incentives/progress`) donne le détail des jours.
+
 Une règle cible un employé ou un rôle (pré-vendeurs, vendeurs cash van, livreurs), un produit (facultatif pour les primes sur le CA) et une unité de comptage (défaut : unité de base). Fréquence : semaine (début réglable, samedi par défaut) ou mois. Les objectifs d'équipe ne sont pas implémentés ; une règle par rôle s'en approche et le modèle peut accueillir une cible d'équipe plus tard.
 
 ## Ventes valides

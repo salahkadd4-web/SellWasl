@@ -2,6 +2,7 @@ import type {
   AdvanceDto,
   CompensationDto,
   CustomerDto,
+  DailyObjectiveDto,
   DeductionDto,
   DeliveryPreviewDto,
   DiscrepancyDto,
@@ -830,6 +831,91 @@ describe('paie : scénario E2E du livreur', () => {
       ).toEqual([]);
       const advance = await raw.salaryAdvance.findFirstOrThrow({ where: { companyId } });
       expect((await post(`/advances/${advance.id}/approve`, {}, otherAccountant)).status).toBe(404);
+    });
+  });
+
+  describe('objectif du jour, payé à la semaine (BR-OBJ-06)', () => {
+    let objectiveId: string;
+    let v07Id: string;
+    const objective = () => ({
+      userId: v07Id,
+      productId: couscous.id,
+      unitId: carton().unitId,
+      dailyTarget: 50,
+      bonusAmount: 1000,
+      capPercent: 100,
+      minQty: 30,
+      validFrom: '2027-08-01',
+    });
+
+    it('le superviseur fixe 50 cartons par jour, prime 1 000 DA, minimum 30 ; pas le livreur', async () => {
+      v07Id = (await raw.user.findFirstOrThrow({ where: { companyId, code: 'V07' } })).id;
+      expect((await post('/objectives/daily', objective(), driver.token)).status).toBe(403);
+      // Un livreur n'a pas d'objectif du jour
+      expect(
+        (await post('/objectives/daily', { ...objective(), userId: driverId }, sup)).status,
+      ).toBe(422);
+      const created = await post<DailyObjectiveDto>('/objectives/daily', objective(), sup);
+      expect(created.status, JSON.stringify(created.body)).toBe(201);
+      expect(created.body).toMatchObject({
+        user: { code: 'V07' },
+        product: { name: 'Couscous' },
+        unit: { name: 'carton' },
+        dailyTarget: 50,
+        bonusAmount: 1000,
+        minQty: 30,
+      });
+      objectiveId = created.body.id;
+      const list = await get<DailyObjectiveDto[]>('/objectives/daily', sup);
+      expect(list.body.map((o) => o.id)).toContain(objectiveId);
+      // Hors des règles de prime de l'administrateur : ni listé, ni modifiable par elles
+      const rules = await get<IncentiveRuleDto[]>('/incentive-rules', admin);
+      expect(rules.body.map((r) => r.id)).not.toContain(objectiveId);
+    });
+
+    it('fin de semaine : 80 cartons commandés le 7 août et livrés → 1 000 DA (plafond 100 %)', async () => {
+      const calc = await post<IncentiveDto[]>('/incentives/calculate', {
+        date: DAY,
+        frequency: 'WEEKLY',
+      });
+      expect(calc.status, JSON.stringify(calc.body)).toBe(200);
+      const mine = calc.body.find((i) => i.rule.id === objectiveId)!;
+      expect(mine).toMatchObject({ user: { id: v07Id }, quantity: 80, amount: 1000 });
+      const v07 = await phones.get('V07');
+      const progress = await call<IncentiveProgressDto[]>(
+        t.url,
+        'GET',
+        `/me/incentives/progress?date=${DAY}`,
+        { token: v07.token },
+      );
+      const daily = progress.body.find((p) => p.rule.id === objectiveId)!;
+      expect(daily.daily).toEqual({
+        dailyTarget: 50,
+        minQty: 30,
+        capPercent: 100,
+        days: [{ date: DAY, qty: 80, amount: 1000 }],
+      });
+    });
+
+    it('minimum relevé à 100 cartons : le jour ne compte plus', async () => {
+      const updated = await call<DailyObjectiveDto>(
+        t.url,
+        'PUT',
+        `/objectives/daily/${objectiveId}`,
+        {
+          token: sup,
+          body: { ...objective(), minQty: 100 },
+        },
+      );
+      expect(updated.status, JSON.stringify(updated.body)).toBe(200);
+      const calc = await post<IncentiveDto[]>('/incentives/calculate', {
+        date: DAY,
+        frequency: 'WEEKLY',
+      });
+      expect(calc.body.find((i) => i.rule.id === objectiveId)).toMatchObject({ amount: 0 });
+      // Données de la suite rétablies
+      await raw.incentive.deleteMany({ where: { ruleId: objectiveId } });
+      await raw.incentiveRule.delete({ where: { id: objectiveId } });
     });
   });
 });

@@ -16,3 +16,4 @@ export * from './returns';
 export * from './payroll';
 export * from './reprice';
 export * from './ip-allowlist';
+export * from './objectives';

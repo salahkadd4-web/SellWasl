@@ -57,6 +57,10 @@ export function driverScore(x: {
   return Math.round((x.returnWeight * x.returnScore + criteria) / 100);
 }
 
-/** Prime due au livreur : prime du mois × score. */
-export const driverBonus = (bonusAmount: number, score: number): number =>
-  Math.round((bonusAmount * score) / 100);
+/** Prime due au livreur : prime du mois × score ; 0 sous le seuil minimum (BR-OBJ-05). */
+export const driverBonus = (
+  bonusAmount: number,
+  score: number,
+  minPercent: number | null = null,
+): number =>
+  minPercent !== null && score < minPercent ? 0 : Math.round((bonusAmount * score) / 100);

@@ -183,6 +183,8 @@ export const putObjectivesSchema = z.object({
         bonusAmount: amount,
         /** Ignoré : le plafond est celui de l'entreprise (BR-OBJ-01). */
         capPercent: z.number().int().min(100).max(500).optional(),
+        /** Seuil minimum en % : sous ce taux, aucune prime ; null ou absent : pas de seuil (BR-OBJ-05). */
+        minPercent: z.number().int().min(1).max(100).nullish(),
       }),
     )
     .min(1)
@@ -200,6 +202,45 @@ export const objectivePaymentSchema = z.object({
 export interface ObjectiveDto extends MyObjective {
   id: string;
   user: { id: string; code: string; name: string };
+}
+
+// --- Objectifs du jour (BR-OBJ-06, BR-OBJ-07) : comptés chaque jour, payés à la semaine ---
+export const dailyObjectiveSchema = z
+  .object({
+    userId: z.uuid(),
+    productId: z.uuid(),
+    unitId: z.uuid(),
+    /** Cible du jour, dans l'unité choisie. */
+    dailyTarget: z.number().int().min(1).max(100_000),
+    /** Prime d'un jour où la cible est atteinte. */
+    bonusAmount: z.number().int().min(1, 'La prime doit être positive.').max(10_000_000),
+    /** null : pas de plafond. */
+    capPercent: z.number().int().min(100).max(500).nullable(),
+    /** Minimum du jour : en dessous, le jour ne rapporte rien ; null : pas de minimum. */
+    minQty: z.number().int().min(1).max(100_000).nullish(),
+    validFrom: date,
+    validTo: date.nullish(),
+    isActive: z.boolean().default(true),
+  })
+  .superRefine((o, ctx) => {
+    if (o.validTo && o.validTo < o.validFrom)
+      ctx.addIssue({ code: 'custom', message: 'La fin précède le début.', path: ['validTo'] });
+  });
+export type DailyObjectiveInput = z.output<typeof dailyObjectiveSchema>;
+
+export interface DailyObjectiveDto {
+  id: string;
+  version: number;
+  user: { id: string; code: string; name: string };
+  product: { id: string; name: string };
+  unit: { id: string; name: string };
+  dailyTarget: number;
+  bonusAmount: number;
+  capPercent: number | null;
+  minQty: number | null;
+  validFrom: string;
+  validTo: string | null;
+  isActive: boolean;
 }
 
 // --- Commandes (historique) ---

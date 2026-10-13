@@ -94,6 +94,7 @@ export class ObjectivesService {
         realizedAmount: realized.get(key(o.userId, o.rangeId)) ?? 0,
         bonusAmount: Number(o.bonusAmount),
         capPercent: o.capPercent,
+        minPercent: o.minPercent,
       };
       return {
         id: o.id,
