@@ -125,6 +125,13 @@ describe('rapports (phase 21)', () => {
     const mine = reply.body.customers.filter((c) => c.userId === v07Id);
     expect(mine.find((c) => c.id === dayCustomers[0])?.visited).toBe(true);
     expect(mine.find((c) => c.id === dayCustomers[2])?.visited).toBe(false);
+    // Filtres de la carte : vendeur du jour avec son secteur et sa partie, reprise par ses clients
+    const v07 = reply.body.sellers.find((u) => u.id === v07Id)!;
+    expect(v07).toMatchObject({ code: 'V07', territoryId: expect.any(String) });
+    expect(v07.partId).not.toBeNull();
+    const part = reply.body.parts.find((p) => p.id === v07.partId)!;
+    expect(part.territoryId).toBe(v07.territoryId);
+    expect(mine.every((c) => c.partId === v07.partId)).toBe(true);
   });
 
   it("fiche d'un vendeur en lecture seule", async () => {

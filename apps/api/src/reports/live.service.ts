@@ -148,9 +148,17 @@ export class LiveService {
     ]);
     const partIds = new Set<string>();
     const customers: SupervisorMapDto['customers'] = [];
+    const sellerRows: SupervisorMapDto['sellers'] = [];
     for (const u of sellers) {
       const plan = await this.planning.day(u.id, day);
       if (plan.part) partIds.add(plan.part.id);
+      sellerRows.push({
+        id: u.id,
+        code: u.code,
+        name: fullName(u),
+        territoryId: plan.territory?.id ?? null,
+        partId: plan.part?.id ?? null,
+      });
       for (const c of plan.customers)
         if (c.latitude != null && c.longitude != null)
           customers.push({
@@ -160,6 +168,7 @@ export class LiveService {
             longitude: c.longitude,
             visited: visits.some((v) => v.userId === u.id && v.customerId === c.id),
             userId: u.id,
+            partId: plan.part?.id ?? null,
           });
     }
     const parts = await this.db.territoryPart.findMany({
@@ -172,6 +181,7 @@ export class LiveService {
         id: p.id,
         name: p.name,
         territory: `${p.territory.code} · ${p.territory.name}`,
+        territoryId: p.territoryId,
         geojson: p.geojson,
       })),
       customers,
@@ -185,6 +195,7 @@ export class LiveService {
           at: p.recordedAt.toISOString(),
         };
       }),
+      sellers: sellerRows,
     };
   }
 }

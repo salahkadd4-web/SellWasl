@@ -186,7 +186,7 @@ export interface TodayRowDto {
 
 export interface SupervisorMapDto {
   date: string;
-  parts: { id: string; name: string; territory: string; geojson: unknown }[];
+  parts: { id: string; name: string; territory: string; territoryId: string; geojson: unknown }[];
   customers: {
     id: string;
     name: string;
@@ -194,8 +194,18 @@ export interface SupervisorMapDto {
     longitude: number;
     visited: boolean;
     userId: string;
+    /** Partie du jour du vendeur (filtre de la carte), null hors partie. */
+    partId: string | null;
   }[];
   positions: { userId: string; name: string; latitude: number; longitude: number; at: string }[];
+  /** Vendeurs du jour avec leur secteur et leur partie (filtres de la carte). */
+  sellers: {
+    id: string;
+    code: string;
+    name: string;
+    territoryId: string | null;
+    partId: string | null;
+  }[];
 }
 
 export interface UserSheetDto {

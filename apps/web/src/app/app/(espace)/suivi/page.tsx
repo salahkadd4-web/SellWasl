@@ -3,10 +3,11 @@
 import type { SupervisorMapDto, TodayRowDto } from '@sellwasl/validation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Badge, Card, PageTitle } from '@/components/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Badge, Button, Card, PageTitle, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { formatDA, formatDateTime } from '@/lib/labels';
+import { filterMap, filterOptions, type MapFilters, NO_FILTER } from '@/lib/map-filters';
 
 const SupervisorMap = dynamic(() => import('./map'), {
   ssr: false,
@@ -28,6 +29,9 @@ export default function LivePage() {
   const [map, setMap] = useState<SupervisorMapDto | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<MapFilters>(NO_FILTER);
+  const shown = useMemo(() => (map ? filterMap(map, filters) : null), [map, filters]);
+  const options = useMemo(() => (map ? filterOptions(map, filters) : null), [map, filters]);
 
   const load = useCallback(async () => {
     try {
@@ -126,7 +130,45 @@ export default function LivePage() {
             Parties du jour, clients visités en vert et à visiter en rouge, dernière position des
             équipes.
           </p>
-          <SupervisorMap data={map} />
+          {options && (
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-48 flex-1">
+                <Select
+                  label="Secteur"
+                  value={filters.territoryId}
+                  onChange={(e) =>
+                    // Un autre secteur : partie et vendeur choisis ne s'y trouvent plus
+                    setFilters({ territoryId: e.target.value, partId: '', userId: '' })
+                  }
+                  options={[{ value: '', label: 'Tous les secteurs' }, ...options.territories]}
+                />
+              </div>
+              <div className="min-w-48 flex-1">
+                <Select
+                  label="Partie du jour"
+                  value={filters.partId}
+                  onChange={(e) =>
+                    setFilters((f) => ({ ...f, partId: e.target.value, userId: '' }))
+                  }
+                  options={[{ value: '', label: 'Toutes les parties' }, ...options.parts]}
+                />
+              </div>
+              <div className="min-w-48 flex-1">
+                <Select
+                  label="Vendeur"
+                  value={filters.userId}
+                  onChange={(e) => setFilters((f) => ({ ...f, userId: e.target.value }))}
+                  options={[{ value: '', label: 'Tous les vendeurs' }, ...options.sellers]}
+                />
+              </div>
+              {(filters.territoryId || filters.partId || filters.userId) && (
+                <Button variant="secondary" onClick={() => setFilters(NO_FILTER)}>
+                  Tout afficher
+                </Button>
+              )}
+            </div>
+          )}
+          <SupervisorMap data={shown ?? map} />
         </Card>
       )}
     </div>
