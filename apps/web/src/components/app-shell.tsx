@@ -140,17 +140,21 @@ export function AppShell({
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
-        {brand(collapsed)}
+        {/* Bouton toujours visible en haut : déplier (icônes et libellés) ou replier (icônes) */}
+        <div className={`flex items-center gap-2 ${collapsed ? 'flex-col' : 'justify-between'}`}>
+          {brand(collapsed)}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Déplier le menu' : 'Replier le menu'}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Déplier le menu' : 'Replier le menu'}
+            className="flex size-11 shrink-0 items-center justify-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            <Icon name={collapsed ? 'menu' : 'collapse'} className="size-5" />
+          </button>
+        </div>
         <div className="flex-1">{menu(collapsed)}</div>
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-label={collapsed ? 'Déplier le menu' : 'Replier le menu'}
-          className="flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm text-white/70 hover:bg-white/10"
-        >
-          <Icon name="collapse" className={`size-5 transition ${collapsed ? 'rotate-180' : ''}`} />
-          {!collapsed && 'Replier'}
-        </button>
       </aside>
 
       <div className={collapsed ? 'lg:pl-20' : 'lg:pl-64'}>
