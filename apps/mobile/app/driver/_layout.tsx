@@ -16,11 +16,10 @@ export default function DriverLayout() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'SellWasl' }} />
+        {/* Accueil, Tournée, Bons du jour, Map : onglets (refonte mobile) */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="receive" options={{ title: 'Pointer le camion' }} />
-        <Stack.Screen name="route" options={{ title: 'Ma tournée' }} />
         <Stack.Screen name="truck" options={{ title: 'Stock du camion' }} />
-        <Stack.Screen name="receipts" options={{ title: 'Bons du jour' }} />
         <Stack.Screen name="delivery/[orderId]" options={{ title: 'Livraison' }} />
         <Stack.Screen name="objectives" options={{ title: 'Objectifs' }} />
         <Stack.Screen name="pay" options={{ title: 'Ma paie' }} />

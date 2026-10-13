@@ -19,6 +19,8 @@ import { useLocal, useSync } from '@/offline/SyncProvider';
 import { printAfter } from '@/printing/printer';
 import { errorMessage, formatDA } from '@/seller/format';
 import { newId, nextDeliveryNumber, sendOperation } from '@/sync/operations';
+import { ConfirmCancel, parseQty, QuantityField } from '@/components/QuantityStepper';
+import { SwipeRow } from '@/components/SwipeRow';
 import { Card, Input, Message, PrimaryButton, Screen, Title } from '@/ui';
 
 interface Reason {
@@ -61,6 +63,9 @@ export default function DeliveryScreen() {
   const [refusalId, setRefusalId] = useState<string | null>(null);
   const [refusedFailure, setRefusedFailure] = useState<Reason | null>(null);
   const [qty, setQty] = useState<Record<string, string>>({});
+  /** Ligne en cours de correction (refonte mobile) : ✓ applique, ✕ abandonne. */
+  const [editLine, setEditLine] = useState<{ lineId: string; value: string } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [added, setAdded] = useState<Added[]>([]);
   const [adding, setAdding] = useState(false);
   const [preview, setPreview] = useState<{ key: string; value: DeliveryPreviewDto } | null>(null);
@@ -229,33 +234,104 @@ export default function DeliveryScreen() {
 
       <Card title="Quantités livrées">
         {open && working ? (
-          <Text style={styles.muted}>Mettez 0 pour retirer un produit de la commande.</Text>
+          <Text style={styles.muted}>
+            Glissez une ligne vers la gauche, ou touchez-la, pour corriger la quantité livrée ; 0
+            retire le produit. La commande d'origine n'est pas modifiée.
+          </Text>
         ) : null}
-        {delivery.lines.map((l) => (
-          <View key={l.lineId} style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.name}>
-                {label(l)}
-                {l.kind === 'BONUS' ? ' (offert)' : ''}
+        {delivery.lines.map((l) => {
+          const editable = l.kind === 'NORMAL' && open && working;
+          const shown =
+            l.kind === 'NORMAL' && open ? parseQty(qty[l.lineId] ?? '') : l.deliveredQty;
+          const state =
+            l.kind !== 'NORMAL' || shown === null || shown === undefined
+              ? null
+              : shown === 0
+                ? 'Non livré'
+                : shown < l.preparedQty
+                  ? 'Partiel'
+                  : 'Complet';
+          const row = (
+            <Pressable
+              accessibilityRole={editable ? 'button' : undefined}
+              accessibilityLabel={`${label(l)}, livré ${shown ?? '—'} sur ${l.preparedQty}`}
+              disabled={!editable}
+              onPress={() =>
+                setEditLine(
+                  editLine?.lineId === l.lineId
+                    ? null
+                    : { lineId: l.lineId, value: qty[l.lineId] ?? String(l.preparedQty) },
+                )
+              }
+              style={styles.row}
+            >
+              <View style={styles.rowText}>
+                <Text style={styles.name}>
+                  {label(l)}
+                  {l.kind === 'BONUS' ? ' (offert)' : ''}
+                </Text>
+                <Text style={styles.muted}>
+                  Préparé {l.preparedQty} {l.unitName}
+                  {l.kind === 'NORMAL' ? ` · ${formatDA(l.unitPrice)}` : ' · recalculé'}
+                </Text>
+                {state ? (
+                  <Text style={state === 'Complet' ? styles.complete : styles.partial}>
+                    {state}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={styles.value}>
+                {shown ?? (l.kind === 'BONUS' ? '' : '—')}
+                {l.kind === 'NORMAL' ? ` / ${l.preparedQty}` : ''}
               </Text>
-              <Text style={styles.muted}>
-                Préparé {l.preparedQty} {l.unitName}
-                {l.kind === 'NORMAL' ? ` · ${formatDA(l.unitPrice)}` : ' · recalculé'}
-              </Text>
+            </Pressable>
+          );
+          return (
+            <View key={l.lineId} style={styles.lineBox}>
+              {editable ? (
+                <SwipeRow
+                  openLabel="Livré"
+                  onOpen={() =>
+                    setEditLine({ lineId: l.lineId, value: qty[l.lineId] ?? String(l.preparedQty) })
+                  }
+                >
+                  {row}
+                </SwipeRow>
+              ) : (
+                row
+              )}
+              {editable && editLine?.lineId === l.lineId ? (
+                <View style={styles.editor}>
+                  <QuantityField
+                    label={`Livré (${l.unitName})`}
+                    value={editLine.value}
+                    onChange={(value) => setEditLine({ lineId: l.lineId, value })}
+                    max={l.preparedQty}
+                    hint={`Au plus ${l.preparedQty} : le préparé`}
+                  />
+                  {editError ? <Message>{editError}</Message> : null}
+                  <ConfirmCancel
+                    confirmLabel="Valider la quantité livrée"
+                    cancelLabel="Annuler la correction"
+                    onCancel={() => {
+                      setEditError(null);
+                      setEditLine(null);
+                    }}
+                    onConfirm={() => {
+                      const value = parseQty(editLine.value);
+                      if (value === null) return setEditError('Saisissez un nombre entier.');
+                      if (value > l.preparedQty)
+                        return setEditError(`Au plus ${l.preparedQty} : le préparé.`);
+                      setEditError(null);
+                      setQty((q) => ({ ...q, [l.lineId]: String(value) }));
+                      setEditLine(null);
+                    }}
+                  />
+                </View>
+              ) : null}
             </View>
-            {l.kind === 'NORMAL' && open ? (
-              <TextInput
-                accessibilityLabel={`Livré pour ${label(l)}`}
-                keyboardType="number-pad"
-                value={qty[l.lineId] ?? ''}
-                onChangeText={(v) => setQty((q) => ({ ...q, [l.lineId]: v }))}
-                style={styles.qty}
-              />
-            ) : (
-              <Text style={styles.value}>{l.deliveredQty ?? (l.kind === 'BONUS' ? '' : '—')}</Text>
-            )}
-          </View>
-        ))}
+          );
+        })}
       </Card>
 
       {open && working ? (
@@ -471,7 +547,17 @@ export default function DeliveryScreen() {
 const styles = StyleSheet.create({
   loader: { flex: 1 },
   refusal: { gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  lineBox: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  editor: { gap: 12, paddingVertical: 12 },
+  complete: { fontSize: 13, fontWeight: '700', color: colors.successText },
+  partial: { fontSize: 13, fontWeight: '700', color: colors.status.error },
   rowText: { flex: 1, gap: 4 },
   item: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   name: { fontSize: 16, fontWeight: '600', color: colors.textDark },

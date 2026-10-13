@@ -13,6 +13,6 @@ module.exports = {
   collectCoverage: true,
   collectCoverageFrom: ['app/**/*.tsx', 'src/**/*.{ts,tsx}', '!**/*.d.ts'],
   coverageReporters: ['text-summary', 'html'],
-  // Seuils un peu sous le niveau atteint (phase 28)
-  coverageThreshold: { global: { statements: 18, branches: 17, functions: 16, lines: 19 } },
+  // Seuils un peu sous le niveau atteint (phase 28, relevés à la refonte mobile)
+  coverageThreshold: { global: { statements: 25, branches: 24, functions: 24, lines: 26 } },
 };

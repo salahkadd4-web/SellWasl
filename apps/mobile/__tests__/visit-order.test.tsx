@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { useLocalSearchParams } from 'expo-router';
 import OrderScreen from '../app/seller/order/[visitId]';
 import VisitScreen from '../app/seller/visit/[customerId]';
+import { clearCartDraft } from '@/seller/cart';
 import { sendOperation } from '@/sync/operations';
 import { TodayProvider } from '@/today/TodayContext';
 import { fakeSync } from './fake-sync';
@@ -51,6 +52,7 @@ describe('commande', () => {
   beforeEach(() => {
     jest.mocked(useLocalSearchParams).mockReturnValue({ visitId: 'v1', customerId: 'c1' });
     jest.mocked(sendOperation).mockClear();
+    clearCartDraft('v1:new');
   });
 
   it('8 cartons de thon : total au prix de la grille, commande confirmée', async () => {
@@ -62,6 +64,8 @@ describe('commande', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Ajouter au panier' }));
     // 8 × 5 800 DA (sous le palier de 10 cartons)
     expect(await screen.findByText(/Total : 46\s400 DA/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Récapitulatif' }));
+    expect(screen.getByText('8 carton × 5 800 DA')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Confirmer la commande' }));
     await waitFor(() =>
       expect(sendOperation).toHaveBeenCalledWith(
@@ -73,5 +77,31 @@ describe('commande', () => {
         'w1',
       ),
     );
+  });
+
+  it('✕ annule la saisie en cours sans toucher au panier ; panier retrouvé au retour', async () => {
+    const router = jest.requireMock<{ __router: { back: jest.Mock } }>('expo-router').__router;
+    fakeSync.local = applyOps(loadState(sellerRows()), visiting());
+    const first = await withToday(<OrderScreen />);
+    await fireEvent.press(screen.getByText('Thon tomate'));
+    await fireEvent.press(screen.getByRole('button', { name: 'carton' }));
+    await fireEvent.changeText(screen.getByLabelText('Quantité'), '8');
+    await fireEvent.press(screen.getByRole('button', { name: 'Ajouter au panier' }));
+    expect(await screen.findByText(/Total : 46\s400 DA/)).toBeOnTheScreen();
+    // Nouvelle saisie, abandonnée : le panier ne bouge pas
+    await fireEvent.press(screen.getByText('Thon tomate'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Plus Quantité' }));
+    expect(screen.getByLabelText('Quantité').props.value).toBe('9');
+    await fireEvent.press(screen.getByRole('button', { name: 'Annuler la saisie' }));
+    expect(screen.queryByLabelText('Quantité')).toBeNull();
+    expect(screen.getByText(/Total : 46\s400 DA/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Récapitulatif' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Retour à la visite' }));
+    expect(router.back).toHaveBeenCalled();
+    // Commande rouverte depuis la visite : le panier est là
+    await first.unmount();
+    await withToday(<OrderScreen />);
+    expect(screen.getByText(/Total : 46\s400 DA/)).toBeOnTheScreen();
+    expect(screen.getByText('8 carton')).toBeOnTheScreen();
   });
 });

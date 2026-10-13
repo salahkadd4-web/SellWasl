@@ -1,10 +1,10 @@
+import { Feather } from '@expo/vector-icons';
 import type { LatLng } from '@sellwasl/business-rules';
-import { colors } from '@sellwasl/config';
-import { Camera, GeoJSONSource, Layer, Map } from '@maplibre/maplibre-react-native';
+import { colors, radius } from '@sellwasl/config';
+import { Camera, GeoJSONSource, Images, Layer, Map } from '@maplibre/maplibre-react-native';
 import type { ComponentProps } from 'react';
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
-import type { FieldCustomer } from './customers';
+import { StyleSheet, Text, View } from 'react-native';
 
 /** Tuiles OpenStreetMap, fournisseur remplaçable (ARC-13). */
 const OSM_STYLE: ComponentProps<typeof Map>['mapStyle'] = {
@@ -21,38 +21,82 @@ const OSM_STYLE: ComponentProps<typeof Map>['mapStyle'] = {
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
 };
 
+/** Punaises MapPin (refonte mobile) : rouge à faire, verte faite. */
+const PIN_IMAGES = {
+  'pin-red': require('../../assets/map/pin-red.png'),
+  'pin-green': require('../../assets/map/pin-green.png'),
+};
+
 /** Centre par défaut (Oran) quand ni le téléphone ni les clients n'ont de position. */
 const DEFAULT_CENTER: LatLng = { latitude: 35.6971, longitude: -0.6308 };
 const DEFAULT_ZOOM = 13;
-const MARKER_RADIUS = 9;
+
+/** Point de la carte : un client (vendeur) ou une livraison (livreur). */
+export interface MapPoint {
+  id: string;
+  latitude: number | null;
+  longitude: number | null;
+  /** Vert : visite réalisée (vendeur) ou livraison faite (livreur) ; sinon rouge. */
+  done: boolean;
+}
+
+/** Points placés sur la carte : sans position valide, un client n'y figure pas. */
+export function placed<T extends MapPoint>(points: T[]): T[] {
+  return points.filter(
+    (p) =>
+      p.latitude != null &&
+      p.longitude != null &&
+      Math.abs(p.latitude) <= 90 &&
+      Math.abs(p.longitude) <= 180,
+  );
+}
+
+/** Légende des punaises, toujours visible. */
+export function MapPinLegend({ todo, done }: { todo: string; done: string }) {
+  return (
+    <View
+      style={styles.legend}
+      accessibilityLabel={`Punaise rouge : ${todo}. Punaise verte : ${done}.`}
+    >
+      <View style={styles.legendItem}>
+        <Feather name="map-pin" size={18} color={colors.status.toVisit} />
+        <Text style={styles.legendText}>{todo}</Text>
+      </View>
+      <View style={styles.legendItem}>
+        <Feather name="map-pin" size={18} color={colors.status.visited} />
+        <Text style={styles.legendText}>{done}</Text>
+      </View>
+    </View>
+  );
+}
 
 /**
- * Carte des clients (UC-10) : rouge à visiter, vert visité (BR-VIS-06), regroupés quand ils sont
- * nombreux. Un appui sur un client le sélectionne.
+ * Carte des clients (UC-10) : punaise MapPin rouge (à faire) ou verte (faite) selon le statut
+ * réel, regroupées quand elles sont nombreuses. Le cadrage initial ne change pas quand la liste
+ * change (changement de filtre). Un appui sur une punaise la sélectionne.
  */
-export function CustomerMap({
-  customers,
+export function CustomerMap<T extends MapPoint>({
+  points,
   position,
   onSelect,
 }: {
-  customers: FieldCustomer[];
+  points: T[];
   position: LatLng | null;
-  onSelect: (customer: FieldCustomer) => void;
+  onSelect: (point: T) => void;
 }) {
+  const shown = useMemo(() => placed(points), [points]);
   const data = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: customers
-        .filter((c) => c.latitude != null && c.longitude != null)
-        .map((c) => ({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [c.longitude!, c.latitude!] },
-          properties: { id: c.id, visited: c.visited },
-        })),
+      features: shown.map((p) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [p.longitude!, p.latitude!] },
+        properties: { id: p.id, done: p.done },
+      })),
     }),
-    [customers],
+    [shown],
   );
-  const first = customers.find((c) => c.latitude != null && c.longitude != null);
+  const first = shown[0];
   const center: LatLng =
     position ??
     (first ? { latitude: first.latitude!, longitude: first.longitude! } : DEFAULT_CENTER);
@@ -62,6 +106,7 @@ export function CustomerMap({
       <Camera
         initialViewState={{ center: [center.longitude, center.latitude], zoom: DEFAULT_ZOOM }}
       />
+      <Images images={PIN_IMAGES} />
       <GeoJSONSource
         id="customers"
         data={data}
@@ -69,8 +114,8 @@ export function CustomerMap({
         clusterRadius={40}
         onPress={(event) => {
           const id = event.nativeEvent.features[0]?.properties?.id as string | undefined;
-          const customer = id ? customers.find((c) => c.id === id) : undefined;
-          if (customer) onSelect(customer);
+          const point = id ? shown.find((p) => p.id === id) : undefined;
+          if (point) onSelect(point);
         }}
       >
         <Layer
@@ -79,24 +124,26 @@ export function CustomerMap({
           filter={['has', 'point_count']}
           paint={{
             'circle-color': colors.deepBlue,
-            'circle-opacity': 0.8,
+            'circle-opacity': 0.85,
             'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 50, 28],
           }}
         />
         <Layer
-          id="customers-points"
-          type="circle"
+          id="clusters-count"
+          type="symbol"
+          filter={['has', 'point_count']}
+          layout={{ 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 13 }}
+          paint={{ 'text-color': colors.background }}
+        />
+        <Layer
+          id="customers-pins"
+          type="symbol"
           filter={['!', ['has', 'point_count']]}
-          paint={{
-            'circle-color': [
-              'case',
-              ['get', 'visited'],
-              colors.status.visited,
-              colors.status.toVisit,
-            ],
-            'circle-radius': MARKER_RADIUS,
-            'circle-stroke-width': 2,
-            'circle-stroke-color': colors.background,
+          layout={{
+            'icon-image': ['case', ['get', 'done'], 'pin-green', 'pin-red'],
+            'icon-size': 0.45,
+            'icon-anchor': 'bottom',
+            'icon-allow-overlap': true,
           }}
         />
       </GeoJSONSource>
@@ -127,4 +174,16 @@ export function CustomerMap({
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
+  legend: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendText: { fontSize: 13, fontWeight: '600', color: colors.textDark },
 });

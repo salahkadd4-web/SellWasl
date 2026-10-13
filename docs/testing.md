@@ -13,7 +13,7 @@
 | Droits | `apps/api/test/rbac-matrix.test.ts` | Vitest | Matrice générée : chaque route protégée × 8 profils (refus sans le droit, `MODULE_DISABLED`, lectures autorisées) |
 | Composants Web | `apps/web/src/**/*.test.tsx` | Vitest + jsdom + Testing Library | Menu filtré, « Afficher plus », formulaires, utilitaires |
 | Parcours Web | `apps/web/e2e` | Playwright (Chromium) | 14 parcours dans un vrai navigateur, sur l'API et le Web compilés |
-| Écrans mobiles | `apps/mobile/__tests__` | jest-expo + React Native Testing Library | Connexion, association, journée, visite et commande, livraison, stock, synchronisation, notifications |
+| Écrans mobiles | `apps/mobile/__tests__` | jest-expo + React Native Testing Library | Connexion, association, journée, visite et commande (saisie ✓/✕, panier gardé au retour à la visite), livraison (quantité livrée corrigée, partielle avec motif), clients (filtres, recherche, actions Visiter/Localiser/Appeler), carte (MapPin rouge/vert, clients sans position), stock, synchronisation, notifications |
 
 Principes :
 
@@ -71,4 +71,4 @@ Le Web et le mobile ont des seuils bas : leurs pages et écrans sont couverts pa
 - **Route de l'API** : un fichier `apps/api/test/<domaine>.test.ts`, `startApp()` et `call()` de `test/helpers.ts`, connexion par `webLogin` ou un téléphone par `Phones` (`test/phone.ts`). La matrice des droits couvre déjà la nouvelle route si elle déclare son droit.
 - **Règle métier** : un test à côté de la fonction dans `packages/business-rules`, avec l'exemple chiffré de la règle.
 - **Écran Web** : un test de composant si la logique est locale ; un parcours dans `apps/web/e2e` pour un enchaînement de pages (`test.use({ account: 'A-ADM' })`).
-- **Écran mobile** : `apps/mobile/__tests__`, état local construit avec `loadState` et `applyOps` de `@sellwasl/offline`, posé dans `fakeSync.local`.
+- **Écran mobile** : `apps/mobile/__tests__`, état local construit avec `loadState` et `applyOps` de `@sellwasl/offline`, posé dans `fakeSync.local`. Les gestes de glissement sont simulés (gesture-handler, reanimated) : les actions dévoilées sont rendues, et chaque action reste accessible par un bouton (« ⋯ », appui sur la ligne). La carte MapLibre se simule en gardant les propriétés reçues (`__tests__/customers-map.test.tsx`).

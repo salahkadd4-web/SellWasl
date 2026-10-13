@@ -18,15 +18,14 @@ export default function SellerLayout() {
             contentStyle: { backgroundColor: colors.background },
           }}
         >
-          <Stack.Screen name="index" options={{ title: 'SellWasl' }} />
+          {/* Accueil, Visites, Commandes, Map : onglets (refonte mobile) */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="close" options={{ title: 'Clôturer la journée' }} />
-          <Stack.Screen name="customers" options={{ title: 'Clients' }} />
           <Stack.Screen name="customer/[id]" options={{ title: 'Fiche client' }} />
           <Stack.Screen name="customer-new" options={{ title: 'Ajouter un client' }} />
           <Stack.Screen name="visit/[customerId]" options={{ title: 'Visite' }} />
           <Stack.Screen name="debt/[customerId]" options={{ title: 'Encaisser une dette' }} />
           <Stack.Screen name="order/[visitId]" options={{ title: 'Commande' }} />
-          <Stack.Screen name="orders" options={{ title: 'Commandes du jour' }} />
           <Stack.Screen name="orders/[id]" options={{ title: 'Commande' }} />
           <Stack.Screen name="objectives" options={{ title: 'Objectifs' }} />
           <Stack.Screen name="catalog" options={{ title: 'Catalogue' }} />

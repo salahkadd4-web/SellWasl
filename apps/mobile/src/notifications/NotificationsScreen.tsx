@@ -61,10 +61,15 @@ export function NotificationsScreen() {
   );
 }
 
+/** Nombre de notifications non lues (cloche de l'en-tête, carte des accueils). */
+export function useUnreadCount(): number {
+  const { data: list } = useLocal(notificationsView, []);
+  return (list ?? []).filter((n) => !n.readAt).length;
+}
+
 /** Carte des accueils : nombre de notifications non lues. */
 export function NotificationsCard({ onOpen }: { onOpen: () => void }) {
-  const { data: list } = useLocal(notificationsView, []);
-  const unread = (list ?? []).filter((n) => !n.readAt).length;
+  const unread = useUnreadCount();
   return (
     <Card title="Notifications">
       <Text style={unread > 0 ? styles.unread : styles.muted}>

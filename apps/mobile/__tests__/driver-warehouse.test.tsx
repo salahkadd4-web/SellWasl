@@ -4,7 +4,7 @@ import type { DriverRouteDto, StockRowDto } from '@sellwasl/validation';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { useLocalSearchParams } from 'expo-router';
 import DeliveryScreen from '../app/driver/delivery/[orderId]';
-import DriverHome from '../app/driver/index';
+import DriverHome from '../app/driver/(tabs)/index';
 import WarehouseHome from '../app/warehouse/index';
 import WarehouseStock from '../app/warehouse/stock';
 import { request } from '@/api/client';
@@ -103,6 +103,38 @@ describe('livreur', () => {
     expect(screen.getByRole('button', { name: 'Ma tournée' })).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Démarrer la journée' }));
     await waitFor(() => expect(startWorkday).toHaveBeenCalled());
+  });
+
+  it('livraison partielle : quantité corrigée (✓), annulation (✕), motif de refus exigé', async () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({ orderId: 'o9' });
+    fakeSync.local = driverState();
+    await render(<DeliveryScreen />);
+    expect(screen.getByText('12 / 12')).toBeOnTheScreen();
+    // Correction abandonnée : rien ne change
+    await fireEvent.press(screen.getByRole('button', { name: 'Thon tomate, livré 12 sur 12' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Moins Livré (carton)' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Annuler la correction' }));
+    expect(screen.getByText('12 / 12')).toBeOnTheScreen();
+    expect(screen.getByText('Complet')).toBeOnTheScreen();
+    // Correction validée : 10 cartons sur 12 préparés
+    await fireEvent.press(screen.getByRole('button', { name: 'Thon tomate, livré 12 sur 12' }));
+    await fireEvent.changeText(screen.getByLabelText('Quantité Livré (carton)'), '10');
+    await fireEvent.press(screen.getByRole('button', { name: 'Plus Livré (carton)' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Plus Livré (carton)' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Plus Livré (carton)' }));
+    // Jamais au-delà du préparé
+    expect(screen.getByLabelText('Quantité Livré (carton)').props.value).toBe('12');
+    await fireEvent.changeText(screen.getByLabelText('Quantité Livré (carton)'), '10');
+    await fireEvent.press(screen.getByRole('button', { name: 'Valider la quantité livrée' }));
+    expect(screen.getByText('10 / 12')).toBeOnTheScreen();
+    expect(screen.getByText('Partiel')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Calculer le montant' }));
+    expect(await screen.findByText(/Total : 56\s000 DA/)).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText('Montant encaissé (DA)'), '56000');
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirmer la livraison' }));
+    // Sous le préparé : pas d'envoi sans motif (BR-RET-01)
+    expect(screen.getByText('Choisissez le motif du refus.')).toBeOnTheScreen();
+    expect(sendOperation).not.toHaveBeenCalled();
   });
 
   it('livraison complète : montant calculé au palier, encaissement, action en file', async () => {

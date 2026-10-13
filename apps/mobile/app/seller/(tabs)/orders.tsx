@@ -1,4 +1,4 @@
-import { colors } from '@sellwasl/config';
+import { colors, radius } from '@sellwasl/config';
 import { ordersView } from '@sellwasl/offline';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -20,7 +20,6 @@ export default function OrdersScreen() {
       data={orders ?? []}
       keyExtractor={(o) => o.id}
       contentContainerStyle={styles.list}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
       ListHeaderComponent={
         <View style={styles.header}>
           {error ? <Message>{error}</Message> : null}
@@ -51,10 +50,19 @@ export default function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 16, gap: 16, backgroundColor: colors.background },
+  list: { flexGrow: 1, padding: 16, gap: 12, backgroundColor: colors.surface },
   header: { gap: 8 },
-  separator: { height: 1, backgroundColor: colors.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  // Carte de commande, comme les cartes des clients (refonte mobile)
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
   rowText: { flex: 1, gap: 2 },
   name: { fontSize: 17, fontWeight: '600', color: colors.textDark },
   muted: { fontSize: 14, color: colors.muted },

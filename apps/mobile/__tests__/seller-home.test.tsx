@@ -1,7 +1,7 @@
 import { loadState } from '@sellwasl/offline';
 import { sellerRows } from '@sellwasl/offline/src/fixtures';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import SellerDashboard from '../app/seller/index';
+import SellerDashboard from '../app/seller/(tabs)/index';
 import { useAuth } from '@/auth/AuthContext';
 import { startWorkday } from '@/offline/workday';
 import { TodayProvider } from '@/today/TodayContext';
@@ -37,7 +37,7 @@ describe('accueil du vendeur', () => {
     expect(screen.getByText('Bonjour Ahmed')).toBeOnTheScreen();
     expect(screen.getByText('V07 · Secteur S1 · Partie 1')).toBeOnTheScreen();
     expect(screen.getByText('Journée non démarrée')).toBeOnTheScreen();
-    expect(screen.getByText(/Clients du jour : 0 \/ 1/)).toBeOnTheScreen();
+    expect(screen.getByLabelText(/^Visites réalisées : 0\/1/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Démarrer la journée' }));
     await waitFor(() => expect(startWorkday).toHaveBeenCalled());
   });

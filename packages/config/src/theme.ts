@@ -13,6 +13,10 @@ export const colors = {
   surface: '#F4F7FB',
   border: '#D9E1EC',
   muted: '#5B6B82',
+  /** Corail : actions fortes du terrain (clôturer la journée) ; texte blanc lisible (5:1). */
+  coral: '#C8401C',
+  /** Vert lisible pour du texte sur fond blanc (5:1) : « Connecté », synchronisé. */
+  successText: '#15803D',
   /** États communs au Web et au mobile. */
   status: {
     synced: '#16A34A',

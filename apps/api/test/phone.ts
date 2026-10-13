@@ -103,9 +103,8 @@ export class Phones {
   }
 
   async closeDay(p: Phone, workdayId: string): Promise<void> {
-    expect(await this.send(p, 'workday.close', { workdayId })).toMatchObject({
-      status: 'APPLIED',
-    });
+    const result = await this.send(p, 'workday.close', { workdayId });
+    expect(result, JSON.stringify(result)).toMatchObject({ status: 'APPLIED' });
   }
 
   /** Commence une visite et renvoie son identifiant. */

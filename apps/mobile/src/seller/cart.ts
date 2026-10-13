@@ -5,7 +5,7 @@ import {
   splitByQuota,
 } from '@sellwasl/business-rules';
 import type { OrderLineDto, VisitCatalog } from '@sellwasl/validation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 /** Un produit du panier : l'unité choisie et une quantité par parfum (BR-CAT-16). */
 export interface CartEntry {
@@ -32,12 +32,32 @@ export function entriesFromOrder(lines: OrderLineDto[]): CartEntry[] {
 }
 
 /**
- * Panier de la visite, calculé sur le téléphone avec la grille du client (`priceCart`, BR-CAT-04
- * à 09). Le serveur recalcule et fige à la confirmation : son résultat fait foi.
+ * Paniers en cours, par visite (refonte mobile) : revenir à la visite puis rouvrir la commande
+ * retrouve le panier. Gardés en mémoire jusqu'à l'enregistrement de la commande.
  */
-export function useCart(catalog: VisitCatalog | null, initial: CartEntry[] = []) {
-  const [entries, setEntries] = useState<CartEntry[]>(initial);
-  const [freeChoices, setFreeChoices] = useState<Record<string, string>>({});
+const drafts = new Map<string, { entries: CartEntry[]; freeChoices: Record<string, string> }>();
+
+/** Panier enregistré (commande confirmée ou modifiée) : le brouillon de la visite disparaît. */
+export function clearCartDraft(key: string): void {
+  drafts.delete(key);
+}
+
+/**
+ * Panier de la visite, calculé sur le téléphone avec la grille du client (`priceCart`, BR-CAT-04
+ * à 09). Le serveur recalcule et fige à la confirmation : son résultat fait foi. `draftKey` garde
+ * le panier en cours quand le vendeur revient à la visite.
+ */
+export function useCart(
+  catalog: VisitCatalog | null,
+  initial: CartEntry[] = [],
+  draftKey?: string,
+) {
+  const draft = draftKey ? drafts.get(draftKey) : undefined;
+  const [entries, setEntries] = useState<CartEntry[]>(draft?.entries ?? initial);
+  const [freeChoices, setFreeChoices] = useState<Record<string, string>>(draft?.freeChoices ?? {});
+  useEffect(() => {
+    if (draftKey) drafts.set(draftKey, { entries, freeChoices });
+  }, [draftKey, entries, freeChoices]);
 
   const lines: CartLineInput[] = useMemo(
     () =>

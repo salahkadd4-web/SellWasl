@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { SplashIntro } from '@/splash/SplashIntro';
 
@@ -58,31 +59,34 @@ function Intro() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
-      <AuthGate />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.primary },
-          headerTintColor: colors.background,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="activation" options={{ title: 'Associer ce téléphone' }} />
-        <Stack.Screen name="scan" options={{ title: 'Scanner le QR code' }} />
-        <Stack.Screen name="login" options={{ title: 'Connexion' }} />
-        <Stack.Screen
-          name="change-password"
-          options={{ title: 'Nouveau mot de passe', headerBackVisible: false }}
-        />
-        <Stack.Screen name="home" options={{ title: 'SellWasl' }} />
-        <Stack.Screen name="seller" options={{ headerShown: false }} />
-        <Stack.Screen name="warehouse" options={{ headerShown: false }} />
-        <Stack.Screen name="driver" options={{ headerShown: false }} />
-        <Stack.Screen name="printer-test" options={{ title: "Test d'impression" }} />
-      </Stack>
-      <Intro />
-    </AuthProvider>
+    // Gestes de glissement des listes (refonte mobile)
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <AuthGate />
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.primary },
+            headerTintColor: colors.background,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="activation" options={{ title: 'Associer ce téléphone' }} />
+          <Stack.Screen name="scan" options={{ title: 'Scanner le QR code' }} />
+          <Stack.Screen name="login" options={{ title: 'Connexion' }} />
+          <Stack.Screen
+            name="change-password"
+            options={{ title: 'Nouveau mot de passe', headerBackVisible: false }}
+          />
+          <Stack.Screen name="home" options={{ title: 'SellWasl' }} />
+          <Stack.Screen name="seller" options={{ headerShown: false }} />
+          <Stack.Screen name="warehouse" options={{ headerShown: false }} />
+          <Stack.Screen name="driver" options={{ headerShown: false }} />
+          <Stack.Screen name="printer-test" options={{ title: "Test d'impression" }} />
+        </Stack>
+        <Intro />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

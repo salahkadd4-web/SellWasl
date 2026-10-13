@@ -1,3 +1,5 @@
+import { Feather } from '@expo/vector-icons';
+import { priceCart } from '@sellwasl/business-rules';
 import { colors, radius } from '@sellwasl/config';
 import { type BuiltOrder, buildOrder, customerView, visitCatalogView } from '@sellwasl/offline';
 import type { OrderDto, VisitCatalog } from '@sellwasl/validation';
@@ -6,21 +8,26 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { photoUri } from '@/catalog/photos';
+import { Chips, SearchField } from '@/components/Filters';
+import { SwipeRow } from '@/components/SwipeRow';
 import { useLocal, useSync } from '@/offline/SyncProvider';
 import { printAfter } from '@/printing/printer';
-import { type CartEntry, entriesFromOrder, useCart } from '@/seller/cart';
+import { type CartEntry, clearCartDraft, entriesFromOrder, useCart } from '@/seller/cart';
 import { errorMessage, formatDA } from '@/seller/format';
-import { ProductSheet } from '@/seller/ProductSheet';
+import { ProductEditor } from '@/seller/ProductEditor';
 import { WorkdayGuard } from '@/seller/WorkdayGuard';
 import { newId, nextOrderNumber } from '@/sync/operations';
 import { useToday } from '@/today/TodayContext';
-import { Card, Input, Message, PrimaryButton, Title } from '@/ui';
+import { Input, Message, PrimaryButton } from '@/ui';
 
 /**
  * Commande prise pendant la visite (UC-14) ou modifiée (UC-17) : produits proposables au client,
@@ -43,6 +50,8 @@ export default function OrderScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const date = params.date ?? today?.date;
+  // Panier gardé quand le vendeur revient à la visite (refonte mobile)
+  const draftKey = `${params.visitId}:${params.orderId ?? 'new'}`;
 
   // Catalogue, client et commande gardés sur le téléphone (phase 23)
   const { data: catalog, error: catalogError } = useLocal(
@@ -74,6 +83,8 @@ export default function OrderScreen() {
       customerName={customer?.name ?? 'Commande'}
       existing={existing ?? null}
       visitId={params.visitId}
+      draftKey={draftKey}
+      onBackToVisit={() => router.back()}
       query={query}
       setQuery={setQuery}
       editing={editing}
@@ -128,6 +139,7 @@ export default function OrderScreen() {
               online,
             });
             printAfter(number);
+            clearCartDraft(draftKey);
             router.dismissTo('/seller');
             return;
           }
@@ -144,6 +156,7 @@ export default function OrderScreen() {
             });
           }
           showResult(number, built, catalog, existing !== null, online);
+          clearCartDraft(draftKey);
           router.dismissTo('/seller');
         } catch (e) {
           setError(errorMessage(e));
@@ -208,10 +221,73 @@ function showResult(
   );
 }
 
+type CatalogProduct = VisitCatalog['products'][number];
+
+/** Une ligne de la liste des produits (maquette « Commande ») : photo, nom, gamme, prix, panier. */
+function ProductRow({
+  product,
+  price,
+  inCart,
+  onOpen,
+}: {
+  product: CatalogProduct;
+  price: string | null;
+  /** Quantité au panier, déjà mise en forme (« 8 carton »). */
+  inCart: string | null;
+  onOpen: () => void;
+}) {
+  const uri = photoUri(product.id);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={product.name}
+      accessibilityHint="Ouvre la saisie de la quantité"
+      onPress={onOpen}
+      style={({ pressed }) => [styles.productRow, pressed && { opacity: 0.7 }]}
+    >
+      {uri ? (
+        <Image source={{ uri }} style={styles.photo} />
+      ) : (
+        <View style={[styles.photo, styles.noPhoto]}>
+          <Feather name="package" size={24} color={colors.muted} />
+        </View>
+      )}
+      <View style={styles.productText}>
+        <Text style={styles.name} numberOfLines={2}>
+          {product.name}
+        </Text>
+        <Text style={styles.muted} numberOfLines={1}>
+          {[
+            product.range.name,
+            product.hasFlavors
+              ? `${product.variants.length} parfum${product.variants.length > 1 ? 's' : ''}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+        {price ? <Text style={styles.price}>{price}</Text> : null}
+        {product.variants.some((v) => v.quotaReached) ? (
+          <Text style={styles.quota}>Quota atteint</Text>
+        ) : null}
+      </View>
+      {inCart ? (
+        <View style={styles.qtyBadge}>
+          <Text style={styles.qtyBadgeText}>{inCart}</Text>
+        </View>
+      ) : (
+        <Feather name="chevron-left" size={22} color={colors.muted} />
+      )}
+    </Pressable>
+  );
+}
+
 function OrderForm({
   catalog,
   customerName,
   existing,
+  draftKey,
+  onBackToVisit,
   query,
   setQuery,
   editing,
@@ -225,6 +301,8 @@ function OrderForm({
   customerName: string;
   existing: OrderDto | null;
   visitId: string;
+  draftKey: string;
+  onBackToVisit: () => void;
   query: string;
   setQuery: (q: string) => void;
   editing: string | null;
@@ -240,13 +318,14 @@ function OrderForm({
   onLostDemand: (variantId: string, baseQty: number) => Promise<string | null>;
 }) {
   const initial = useMemo(() => (existing ? entriesFromOrder(existing.lines) : []), [existing]);
-  const cart = useCart(catalog, initial);
+  const cart = useCart(catalog, initial, draftKey);
   const cashVan = catalog.truckStock !== undefined;
+  const [step, setStep] = useState<'products' | 'summary'>('products');
+  const [range, setRange] = useState('all');
   const [paying, setPaying] = useState(false);
   const [cash, setCash] = useState('');
   const [cashError, setCashError] = useState<string | null>(null);
   const total = cart.priced?.total ?? 0;
-
   // Noms : catalogue du client, sinon lignes de la commande modifiée
   const variantName = (variantId: string) =>
     catalog.products.flatMap((p) => p.variants).find((v) => v.id === variantId)?.name ??
@@ -258,102 +337,171 @@ function OrderForm({
     existing?.lines.find((l) => l.unitId === unitId)?.unitName ??
     '';
 
-  const inCart = new Set(cart.entries.map((e) => e.productId));
+  // Prix applicable au client pour une unité de la première unité (grille, BR-CAT-04)
+  const prices = useMemo(() => {
+    const result = new Map<string, string>();
+    for (const p of catalog.products) {
+      const variant = p.variants[0];
+      const unit = p.units[0];
+      if (!variant || !unit) continue;
+      const priced = priceCart(
+        catalog.catalog,
+        [{ variantId: variant.id, unitId: unit.id, qty: 1 }],
+        { customerTypeId: catalog.customerTypeId, date: catalog.date },
+      );
+      const line = priced.lines[0];
+      if (line) result.set(p.id, `${formatDA(line.unitPrice)} / ${unit.name}`);
+    }
+    return result;
+  }, [catalog]);
+
+  const ranges = useMemo(() => {
+    const byId = new Map(catalog.products.map((p) => [p.range.id, p.range.name]));
+    return [...byId.entries()].map(([value, label]) => ({ value, label }));
+  }, [catalog]);
   const q = query.trim().toLowerCase();
-  const available = catalog.products.filter(
-    (p) => !inCart.has(p.id) && (!q || `${p.name} ${p.reference}`.toLowerCase().includes(q)),
+  const products = catalog.products.filter(
+    (p) =>
+      (range === 'all' || p.range.id === range) &&
+      (!q || `${p.name} ${p.reference}`.toLowerCase().includes(q)),
   );
-  const editingProduct = editing ? catalog.products.find((p) => p.id === editing) : undefined;
-
-  if (editingProduct)
-    return (
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <ProductSheet
-          product={editingProduct}
-          initial={cart.entries.find((e) => e.productId === editingProduct.id)}
-          onDone={(entry: CartEntry) => {
-            cart.put(entry);
-            setEditing(null);
-            setQuery('');
-          }}
-          onCancel={() => setEditing(null)}
-          truckStock={catalog.truckStock}
-          onLostDemand={cashVan ? onLostDemand : undefined}
-        />
-      </ScrollView>
-    );
-
+  const cartQty = (productId: string) => {
+    const entry = cart.entries.find((e) => e.productId === productId);
+    if (!entry) return null;
+    const qty = Object.values(entry.qtyByVariant).reduce((a, b) => a + b, 0);
+    return `${qty} ${unitName(entry.unitId)}`;
+  };
   const sellerChoiceRules = (cart.priced?.freeLines ?? [])
     .map((f) => catalog.catalog.bonusRules.find((r) => r.id === f.ruleId))
     .filter((r): r is NonNullable<typeof r> => r?.freeVariantMode === 'SELLER_CHOICE');
+  const subtitle = existing
+    ? `Modification de ${existing.number}`
+    : cashVan
+      ? 'Vente depuis le camion'
+      : 'Nouvelle commande';
+
+  if (step === 'products')
+    return (
+      <View style={styles.screen}>
+        <FlatList
+          data={products}
+          keyExtractor={(p) => p.id}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <Text style={styles.customer}>{customerName}</Text>
+              <Text style={styles.muted}>{subtitle}</Text>
+              <SearchField value={query} onChange={setQuery} placeholder="Rechercher un produit" />
+              {ranges.length > 1 ? (
+                <Chips
+                  value={range}
+                  onChange={setRange}
+                  options={[{ value: 'all', label: 'Toutes les gammes' }, ...ranges]}
+                />
+              ) : null}
+              <Text style={styles.muted}>
+                Glissez un produit vers la gauche, ou touchez-le, pour saisir sa quantité.
+              </Text>
+            </View>
+          }
+          ListEmptyComponent={<Message tone="info">Aucun produit proposable.</Message>}
+          renderItem={({ item }) => (
+            <View style={styles.productCard}>
+              <SwipeRow onOpen={() => setEditing(item.id)} openLabel="Quantité">
+                <ProductRow
+                  product={item}
+                  price={prices.get(item.id) ?? null}
+                  inCart={cartQty(item.id)}
+                  onOpen={() => setEditing(editing === item.id ? null : item.id)}
+                />
+              </SwipeRow>
+              {editing === item.id ? (
+                <ProductEditor
+                  product={item}
+                  initial={cart.entries.find((e) => e.productId === item.id)}
+                  onDone={(entry: CartEntry) => {
+                    cart.put(entry);
+                    setEditing(null);
+                  }}
+                  onCancel={() => setEditing(null)}
+                  onRemove={
+                    cart.entries.some((e) => e.productId === item.id)
+                      ? () => {
+                          cart.remove(item.id);
+                          setEditing(null);
+                        }
+                      : undefined
+                  }
+                  truckStock={catalog.truckStock}
+                  onLostDemand={cashVan ? onLostDemand : undefined}
+                />
+              ) : null}
+            </View>
+          )}
+        />
+        <View style={styles.cartBar}>
+          <Feather name="shopping-cart" size={24} color={colors.primary} />
+          <View style={styles.cartText}>
+            <Text style={styles.muted}>
+              {cart.entries.length} produit{cart.entries.length > 1 ? 's' : ''}
+            </Text>
+            <Text style={styles.cartTotal}>Total : {formatDA(total)}</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Récapitulatif"
+            accessibilityState={{ disabled: cart.lines.length === 0 }}
+            disabled={cart.lines.length === 0}
+            onPress={() => {
+              setEditing(null);
+              setStep('summary');
+            }}
+            style={({ pressed }) => [
+              styles.next,
+              (pressed || cart.lines.length === 0) && { opacity: 0.5 },
+            ]}
+          >
+            <Text style={styles.nextText}>Récapitulatif</Text>
+            <Feather name="chevron-right" size={20} color={colors.background} />
+          </Pressable>
+        </View>
+      </View>
+    );
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Title
-        subtitle={
-          existing
-            ? `Modification de ${existing.number}`
-            : cashVan
-              ? 'Vente depuis le camion'
-              : 'Nouvelle commande'
-        }
-      >
-        {customerName}
-      </Title>
-
-      <Card title="Panier">
-        {cart.entries.length === 0 ? (
-          <Text style={styles.muted}>Choisissez les produits ci-dessous.</Text>
-        ) : null}
+    <ScrollView contentContainerStyle={styles.summary} keyboardShouldPersistTaps="handled">
+      <View style={styles.header}>
+        <Text style={styles.customer}>{customerName}</Text>
+        <Text style={styles.muted}>Récapitulatif · {subtitle}</Text>
+      </View>
+      <View style={styles.panel}>
         {cart.priced?.lines.map((l) => (
-          <View key={l.variantId} style={styles.cartLine}>
-            <Text style={styles.line}>
-              {variantName(l.variantId)} : {l.qty} {unitName(l.unitId)} × {formatDA(l.unitPrice)}
-              {l.tierMinQty !== null ? ' (palier)' : ''}
-            </Text>
-            <Text style={styles.amount}>{formatDA(l.total)}</Text>
-            {cart.pending.get(l.variantId) ? (
-              <Text style={styles.warning}>
-                {cashVan
-                  ? 'Quota dépassé : réduisez la quantité.'
-                  : `${cart.pending.get(l.variantId)} en attente (quota atteint)`}
+          <View key={l.variantId} style={styles.summaryLine}>
+            <View style={styles.summaryText}>
+              <Text style={styles.line}>{variantName(l.variantId)}</Text>
+              <Text style={styles.muted}>
+                {l.qty} {unitName(l.unitId)} × {formatDA(l.unitPrice)}
+                {l.tierMinQty !== null ? ' (palier)' : ''}
               </Text>
-            ) : null}
-          </View>
-        ))}
-        {cart.entries.map((e) => (
-          <View key={e.productId} style={styles.actions}>
-            <Text style={styles.muted}>
-              {catalog.products.find((p) => p.id === e.productId)?.name ??
-                variantName(Object.keys(e.qtyByVariant)[0]!)}
-            </Text>
-            <View style={styles.actionButtons}>
-              {catalog.products.some((p) => p.id === e.productId) ? (
-                <View style={styles.actionButton}>
-                  <PrimaryButton
-                    title="Modifier"
-                    variant="secondary"
-                    onPress={() => setEditing(e.productId)}
-                  />
-                </View>
+              {cart.pending.get(l.variantId) ? (
+                <Text style={styles.warning}>
+                  {cashVan
+                    ? 'Quota dépassé : réduisez la quantité.'
+                    : `${cart.pending.get(l.variantId)} en attente (quota atteint)`}
+                </Text>
               ) : null}
-              <View style={styles.actionButton}>
-                <PrimaryButton
-                  title="Retirer"
-                  variant="secondary"
-                  onPress={() => cart.remove(e.productId)}
-                />
-              </View>
             </View>
+            <Text style={styles.amount}>{formatDA(l.total)}</Text>
           </View>
         ))}
         {cart.priced?.unpriced.length ? (
           <Message>Un article n'est plus proposable à ce client : retirez-le.</Message>
         ) : null}
-      </Card>
-
+      </View>
       {cart.priced?.freeLines.length ? (
-        <Card title="Gratuit">
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Gratuit</Text>
           {cart.priced.freeLines.map((f) => (
             <Text key={`${f.ruleId}-${f.variantId}`} style={styles.line}>
               {variantName(f.variantId)} : {f.qty} {unitName(f.unitId)}
@@ -365,7 +513,7 @@ function OrderForm({
             if (!product) return null;
             return (
               <View key={rule.id} style={styles.choice}>
-                <Text style={styles.label}>Parfum offert : {rule.name}</Text>
+                <Text style={styles.panelTitle}>Parfum offert : {rule.name}</Text>
                 {product.variants.map((v) => (
                   <PrimaryButton
                     key={v.id}
@@ -377,16 +525,20 @@ function OrderForm({
               </View>
             );
           })}
-        </Card>
+        </View>
       ) : null}
-
-      <View style={styles.total}>
-        <Text style={styles.totalText}>Total : {formatDA(total)}</Text>
-        <Text style={styles.muted}>Le serveur confirme les prix, les quotas et le stock.</Text>
+      <View style={styles.totalBox}>
+        <Feather name="dollar-sign" size={26} color={colors.muted} />
+        <View style={styles.summaryText}>
+          <Text style={styles.panelTitle}>Montant de la commande</Text>
+          <Text style={styles.totalText}>Total : {formatDA(total)}</Text>
+          <Text style={styles.muted}>Le serveur confirme les prix, les quotas et le stock.</Text>
+        </View>
       </View>
       {error ? <Message>{error}</Message> : null}
       {cashVan && paying ? (
-        <Card title="Encaissement">
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Encaissement</Text>
           <Input
             label="Montant encaissé (DA)"
             value={cash}
@@ -415,7 +567,7 @@ function OrderForm({
             variant="secondary"
             onPress={() => setPaying(false)}
           />
-        </Card>
+        </View>
       ) : cashVan ? (
         <WorkdayGuard>
           <PrimaryButton
@@ -437,64 +589,98 @@ function OrderForm({
           />
         </WorkdayGuard>
       )}
-
-      <Input label="Rechercher un produit" value={query} onChangeText={setQuery} />
-      {available.length === 0 ? (
-        <Message tone="info">Aucun autre produit proposable.</Message>
-      ) : null}
-      {available.map((p) => (
-        <Pressable
-          key={p.id}
-          onPress={() => setEditing(p.id)}
-          style={({ pressed }) => [styles.product, pressed && { opacity: 0.7 }]}
-        >
-          <View style={styles.productText}>
-            <Text style={styles.name}>{p.name}</Text>
-            <Text style={styles.muted}>
-              {[
-                p.range.name,
-                p.hasFlavors
-                  ? `${p.variants.length} parfum${p.variants.length > 1 ? 's' : ''}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </Text>
-          </View>
-          {p.variants.some((v) => v.quotaReached) ? (
-            <Text style={styles.quota}>Quota atteint</Text>
-          ) : null}
-        </Pressable>
-      ))}
+      <PrimaryButton
+        title="Modifier les produits"
+        variant="secondary"
+        onPress={() => setStep('products')}
+      />
+      <PrimaryButton title="Retour à la visite" variant="secondary" onPress={onBackToVisit} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, padding: 16, justifyContent: 'center', backgroundColor: colors.background },
-  container: { padding: 16, gap: 16, backgroundColor: colors.background },
-  cartLine: { gap: 2 },
-  line: { fontSize: 15, color: colors.textDark },
-  amount: { fontSize: 15, fontWeight: '700', color: colors.textDark },
-  warning: { fontSize: 14, fontWeight: '600', color: colors.status.error },
-  muted: { fontSize: 14, color: colors.muted },
-  label: { fontWeight: '600', color: colors.textDark },
-  actions: { gap: 4 },
-  actionButtons: { flexDirection: 'row', gap: 8 },
-  actionButton: { flex: 1 },
-  choice: { gap: 8 },
-  total: { gap: 4 },
-  totalText: { fontSize: 20, fontWeight: '700', color: colors.primary },
-  product: {
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+  screen: { flex: 1, backgroundColor: colors.surface },
+  list: { padding: 16, gap: 12 },
+  header: { gap: 8, marginBottom: 4 },
+  customer: { fontSize: 22, fontWeight: '700', color: colors.primary },
+  productCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  productRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 12,
+    backgroundColor: colors.background,
+  },
+  photo: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: colors.surface },
+  noPhoto: { alignItems: 'center', justifyContent: 'center' },
+  productText: { flex: 1, gap: 2 },
+  name: { fontSize: 16, fontWeight: '700', color: colors.textDark },
+  price: { fontSize: 15, fontWeight: '700', color: colors.successText },
+  quota: { fontSize: 13, fontWeight: '600', color: colors.status.error },
+  qtyBadge: {
+    minWidth: 56,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
   },
-  productText: { flex: 1, gap: 2 },
-  name: { fontSize: 16, fontWeight: '600', color: colors.textDark },
-  quota: { fontSize: 13, fontWeight: '700', color: colors.status.error },
+  qtyBadgeText: { fontSize: 14, fontWeight: '700', color: colors.textDark, textAlign: 'center' },
+  cartBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  cartText: { flex: 1, gap: 2 },
+  cartTotal: { fontSize: 18, fontWeight: '700', color: colors.textDark },
+  next: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  nextText: { fontSize: 15, fontWeight: '700', color: colors.background },
+  summary: { padding: 16, gap: 16, backgroundColor: colors.surface },
+  panel: {
+    gap: 12,
+    padding: 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  panelTitle: { fontSize: 16, fontWeight: '700', color: colors.textDark },
+  summaryLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  summaryText: { flex: 1, gap: 2 },
+  line: { fontSize: 15, fontWeight: '600', color: colors.textDark },
+  amount: { fontSize: 15, fontWeight: '700', color: colors.textDark },
+  warning: { fontSize: 13, fontWeight: '600', color: colors.status.error },
+  choice: { gap: 8 },
+  totalBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: radius.lg,
+    backgroundColor: colors.border,
+  },
+  totalText: { fontSize: 22, fontWeight: '700', color: colors.successText },
+  muted: { fontSize: 14, color: colors.muted },
 });
