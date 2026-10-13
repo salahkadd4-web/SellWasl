@@ -76,6 +76,16 @@ describe('cash van (phase 20)', () => {
     expect(started.status, JSON.stringify(started)).toBe('APPLIED');
   });
   afterAll(async () => {
+    // Visite laissée ouverte par une vente refusée (C02) : elle bloquerait la clôture de la
+    // journée de C02 dans les autres suites (notifications)
+    await raw.visit.updateMany({
+      where: {
+        company: { code: 'CASHVAN-EST' },
+        date: new Date(`${DAY}T00:00:00Z`),
+        status: 'IN_PROGRESS',
+      },
+      data: { status: 'COMPLETED', endedAt: new Date() },
+    });
     await raw.workday.updateMany({
       where: { company: { code: 'CASHVAN-EST' }, date: new Date(`${DAY}T00:00:00Z`) },
       data: { status: 'CLOSED', closedAt: new Date() },
