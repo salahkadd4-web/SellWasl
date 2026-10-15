@@ -13,6 +13,7 @@ describe('soldes d’ouverture', () => {
   let sup: string;
   let companyId: string;
   let detailTypeId: string;
+  const created: string[] = [];
 
   async function newCustomer(code: string): Promise<string> {
     const r = await call<{ id: string }>(t.url, 'POST', '/customers', {
@@ -20,6 +21,7 @@ describe('soldes d’ouverture', () => {
       body: { code, name: `Client ${code}`, customerTypeId: detailTypeId },
     });
     expect(r.status).toBe(201);
+    created.push(r.body.id);
     return r.body.id;
   }
   const setOpening = (token: string, id: string, amount: number) =>
@@ -66,7 +68,15 @@ describe('soldes d’ouverture', () => {
       await prisma.customerType.findFirstOrThrow({ where: { companyId, code: 'DETAIL' } })
     ).id;
   });
-  afterAll(() => t.close());
+  afterAll(async () => {
+    // Clients de test retirés : sans position, ils fausseraient les « clients à revoir » comptés
+    // par d'autres suites
+    await prisma.customer.updateMany({
+      where: { id: { in: created } },
+      data: { deletedAt: new Date() },
+    });
+    await t.close();
+  });
 
   it('saisit, corrige, remet à zéro, sans écriture si le montant ne change pas', async () => {
     const id = await newCustomer('OUV-1');
