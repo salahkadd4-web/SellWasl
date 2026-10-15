@@ -13,7 +13,7 @@ import { decodeCsv, parseCsv } from './csv';
 import { type CheckedImport, MAX_ROWS, SAMPLE_SIZE } from './import-types';
 import { ProductImportService } from './product-import.service';
 
-export type ImportKindValue = 'CUSTOMERS' | 'PRODUCTS';
+export type ImportKindValue = 'CUSTOMERS' | 'PRODUCTS' | 'OPENING_DEBTS';
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 

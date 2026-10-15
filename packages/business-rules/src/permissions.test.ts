@@ -49,6 +49,13 @@ describe('matrice des permissions (docs/rbac.md §5)', () => {
     ]);
   });
 
+  it('donne les soldes d’ouverture à l’admin et au comptable seulement (BR-PAY-09)', () => {
+    expect(DEFAULT_ROLE_PERMISSIONS.COMPANY_ADMIN).toContain('debts.opening');
+    expect(DEFAULT_ROLE_PERMISSIONS.COMPTABLE).toContain('debts.opening');
+    for (const role of ['SUPERVISEUR', 'PRE_VENDEUR', 'VENDEUR_CASH_VAN', 'LIVREUR'] as const)
+      expect(DEFAULT_ROLE_PERMISSIONS[role]).not.toContain('debts.opening');
+  });
+
   it('applique P-08 au livreur et P-10 au superviseur (§7)', () => {
     expect(rolePermissions('LIVREUR', DEFAULT_RULES)).toContain('payments.collect_debt');
     expect(

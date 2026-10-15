@@ -151,9 +151,22 @@ export interface AmbiguousPartDetails {
 }
 
 /** Import CSV (BR-IO-01). */
+/** Solde d'ouverture d'un client, en DA (BR-PAY-09). */
+export const openingDebtSchema = z.object({
+  amount: z.number().int('Montant entier en DA').min(0).max(1_000_000_000),
+});
+export type OpeningDebtInput = z.input<typeof openingDebtSchema>;
+
+export interface OpeningDebtState {
+  openingDebtAmount: number;
+  /** Faux dès que le client a une autre écriture de dette (BR-PAY-09). */
+  openingDebtEditable: boolean;
+  debtAmount: number;
+}
+
 export interface ImportPreview {
   id: string;
-  kind: 'CUSTOMERS' | 'PRODUCTS';
+  kind: 'CUSTOMERS' | 'PRODUCTS' | 'OPENING_DEBTS';
   status: 'PREVIEW' | 'IMPORTED' | 'FAILED';
   filename: string;
   totalRows: number;

@@ -98,6 +98,7 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   company('payments.collect_debt', 'Encaisser une dette'),
   company('settlements.read', 'Consulter les versements'),
   company('settlements.create', 'Enregistrer un versement'),
+  company('debts.opening', "Inscrire les soldes d'ouverture des dettes"),
 
   company('reports.read', 'Tableau du jour, carte du superviseur, fiches', 'ANALYTICS'),
   company('reports.export', 'Exports CSV', 'ANALYTICS'),
@@ -184,6 +185,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'price_tiers.update',
     'bonuses.update',
     'settlements.create',
+    'debts.opening',
     'compensation.read',
     'compensation.update',
     'payroll.read',
@@ -206,6 +208,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, readonly string[]> = {
     'payments.read',
     'settlements.read',
     'settlements.create',
+    'debts.opening',
     'reports.read',
     'reports.export',
     'compensation.read',

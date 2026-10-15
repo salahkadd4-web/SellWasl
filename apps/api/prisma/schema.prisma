@@ -285,6 +285,7 @@ enum DebtEntryKind {
   DEBT_PAYMENT
   ADVANCE
   ADVANCE_USED
+  OPENING_BALANCE
 }
 
 enum PrintDocumentType {
@@ -309,6 +310,7 @@ enum FileKind {
 enum ImportKind {
   CUSTOMERS
   PRODUCTS
+  OPENING_DEBTS
 }
 
 enum ImportStatus {

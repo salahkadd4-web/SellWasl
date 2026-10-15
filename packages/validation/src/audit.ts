@@ -41,6 +41,7 @@ export const AUDIT_ACTIONS = {
   'warehouse.update': 'Entrepôt modifié',
   'import.customers': 'Import de clients',
   'import.products': 'Import de produits',
+  'import.opening_debts': "Import des soldes d'ouverture",
   // Catalogue et prix
   'product.create': 'Produit créé',
   'product.update': 'Produit modifié',
@@ -100,6 +101,7 @@ export const AUDIT_ACTIONS = {
   'order.update': 'Commande modifiée',
   'order.cancel': 'Commande annulée',
   'payment.debt': 'Dette encaissée',
+  'debt.opening': "Solde d'ouverture inscrit",
   'receipt.reprint': 'Bon réimprimé',
   // Préparation, livraison et cash van
   'route.prepare': 'Préparation lancée',
