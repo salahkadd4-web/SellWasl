@@ -21,6 +21,26 @@ describe('purge des positions', () => {
   async function ping(companyCode: string, now: Date, daysAgo: number): Promise<string> {
     const company = await prisma.company.findUniqueOrThrow({ where: { code: companyCode } });
     const user = await prisma.user.findFirstOrThrow({ where: { companyId: company.id } });
+    // Comme dans la suite complète : l'utilisateur a déjà un appareil actif (un seul permis)
+    await prisma.device
+      .upsert({
+        where: {
+          companyId_userId_series: {
+            companyId: company.id,
+            userId: user.id,
+            series: 'PURGE-ACTIF',
+          },
+        },
+        update: {},
+        create: {
+          id: uuidv7(),
+          series: 'PURGE-ACTIF',
+          activatedAt: now,
+          companyId: company.id,
+          userId: user.id,
+        },
+      })
+      .catch(() => undefined); // un autre appareil actif existe déjà : c'est le cas visé
     const device = await prisma.device.upsert({
       where: {
         companyId_userId_series: { companyId: company.id, userId: user.id, series: 'PURGE-TEST' },
@@ -29,6 +49,8 @@ describe('purge des positions', () => {
       create: {
         id: uuidv7(),
         series: 'PURGE-TEST',
+        // Révoqué : il porte les positions sans occuper la place de l'appareil actif
+        status: 'REVOKED',
         activatedAt: now,
         companyId: company.id,
         userId: user.id,
