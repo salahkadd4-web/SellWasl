@@ -1,4 +1,4 @@
-import type { OpeningDebtState } from '@sellwasl/validation';
+import type { ImportPreview, OpeningDebtState } from '@sellwasl/validation';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { uuidv7 } from '../src/common/uuid';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -43,6 +43,17 @@ describe('soldes d’ouverture', () => {
       data: { debtAmount: { increment: amount } },
     });
   };
+
+  async function uploadOpening(token: string, csv: string) {
+    const form = new FormData();
+    form.append('file', new Blob([csv], { type: 'text/csv' }), 'soldes.csv');
+    const r = await fetch(`${t.url}/opening-debts/imports`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    return { status: r.status, body: (await r.json()) as ImportPreview };
+  }
 
   beforeAll(async () => {
     t = await startApp();
@@ -119,5 +130,68 @@ describe('soldes d’ouverture', () => {
     expect(
       (await call(t.url, 'GET', `/customers/${other.id}/opening-debt`, { token: admin })).status,
     ).toBe(404);
+  });
+
+  it('importe les soldes : aperçu, erreurs, revérification, audit unique', async () => {
+    const a = await newCustomer('IMPO-A');
+    const b = await newCustomer('IMPO-B');
+    await newCustomer('IMPO-C');
+    const template = await fetch(`${t.url}/opening-debts/template`, {
+      headers: { Authorization: `Bearer ${compta}` },
+    });
+    expect(template.status).toBe(200);
+    expect(await template.text()).toContain('code;nom;dette');
+
+    const csv = [
+      'code;nom;dette',
+      'impo-a;Client A;12 000',
+      'IMPO-B;;3500',
+      'IMPO-C;;12000,50',
+      'INCONNU;;100',
+      'IMPO-A;;1',
+    ].join('\r\n');
+    const { status, body: preview } = await uploadOpening(compta, csv);
+    expect(status).toBe(201);
+    expect(preview).toMatchObject({ kind: 'OPENING_DEBTS', totalRows: 5, validRows: 2 });
+    expect(preview.errors.map((e) => e.line)).toEqual([4, 5, 6]);
+    expect(preview.columns).toEqual(['Code', 'Client', 'Solde actuel', 'Nouveau solde']);
+    const [code, name, before, after] = preview.sample[0]!.values;
+    expect([code, name, before]).toEqual(['IMPO-A', 'Client IMPO-A', '0 DA']);
+    expect(after).toMatch(/^12\s000 DA$/);
+
+    // B est figé entre l'aperçu et la confirmation : sa ligne passe en erreur
+    await creditSale(b, 100n);
+    const confirmed = await call<ImportPreview>(
+      t.url,
+      'POST',
+      `/opening-debts/imports/${preview.id}/confirm`,
+      { token: compta },
+    );
+    expect(confirmed.body).toMatchObject({ status: 'IMPORTED', importedRows: 1 });
+    expect(confirmed.body.errors.some((e) => e.message.includes('figé'))).toBe(true);
+    expect((await prisma.customer.findUniqueOrThrow({ where: { id: a } })).debtAmount).toBe(12000n);
+    const audit = await prisma.auditLog.findMany({ where: { entityId: preview.id } });
+    expect(audit.map((x) => x.action)).toEqual(['import.opening_debts']);
+  });
+
+  it('cloisonne les imports : soldes et clients ne se croisent pas', async () => {
+    const { body: opening } = await uploadOpening(admin, 'code;dette\r\nIMPO-A;5\r\n');
+    expect((await call(t.url, 'GET', `/imports/${opening.id}`, { token: admin })).status).toBe(404);
+    expect(
+      (await call(t.url, 'POST', `/imports/${opening.id}/confirm`, { token: admin })).status,
+    ).toBe(404);
+    expect((await uploadOpening(sup, 'code;dette\r\n')).status).toBe(403);
+    const form = new FormData();
+    form.append('kind', 'OPENING_DEBTS');
+    form.append('file', new Blob(['code;dette\r\n'], { type: 'text/csv' }), 'x.csv');
+    const viaImports = await fetch(`${t.url}/imports`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${admin}` },
+      body: form,
+    });
+    expect(viaImports.status).toBe(400);
+    expect(
+      (await call(t.url, 'GET', `/opening-debts/imports/${opening.id}`, { token: compta })).status,
+    ).toBe(200);
   });
 });

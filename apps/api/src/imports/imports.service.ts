@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { assignPart, type GeoJsonPolygon, type PartCandidate } from '@sellwasl/business-rules';
-import type { Frequency, ImportPreview } from '@sellwasl/validation';
+import type { AuditAction, Frequency, ImportPreview } from '@sellwasl/validation';
 import { AuditService } from '../audit/audit.service';
 import { ApiError, notFound } from '../common/api-error';
 import type { AuthUser } from '../common/auth-context';
@@ -11,11 +11,18 @@ import type { Prisma } from '../generated/prisma/client';
 import { TENANT_PRISMA, type TenantPrisma } from '../tenancy/tenant-prisma';
 import { decodeCsv, parseCsv } from './csv';
 import { type CheckedImport, MAX_ROWS, SAMPLE_SIZE } from './import-types';
+import { OpeningDebtImportService } from './opening-debt-import.service';
 import { ProductImportService } from './product-import.service';
 
 export type ImportKindValue = 'CUSTOMERS' | 'PRODUCTS' | 'OPENING_DEBTS';
 
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
+const IMPORT_AUDIT_ACTIONS = {
+  CUSTOMERS: 'import.customers',
+  PRODUCTS: 'import.products',
+  OPENING_DEBTS: 'import.opening_debts',
+} as const satisfies Record<ImportKindValue, AuditAction>;
 
 /** Colonnes du modèle d'import des clients (BR-IO-01). */
 export const CUSTOMER_COLUMNS = [
@@ -97,6 +104,7 @@ export class ImportsService {
     private readonly files: FileStorageService,
     private readonly placement: PlacementService,
     private readonly products: ProductImportService,
+    private readonly openingDebts: OpeningDebtImportService,
   ) {}
 
   /** Lit et vérifie chaque ligne ; les lignes en erreur sont listées avec leur motif. */
@@ -257,6 +265,7 @@ export class ImportsService {
   /** Vérification d'un fichier selon son type. */
   private async checkFile(kind: ImportKindValue, content: Buffer): Promise<CheckedImport> {
     if (kind === 'PRODUCTS') return this.products.check(content);
+    if (kind === 'OPENING_DEBTS') return this.openingDebts.check(content);
     const checked = await this.check(content);
     return {
       totalRows: checked.totalRows,
@@ -344,22 +353,30 @@ export class ImportsService {
     return this.toPreview(job, checked);
   }
 
-  private async findJob(id: string) {
-    const job = await this.db.importJob.findFirst({ where: { id }, include: { file: true } });
+  /** Import d'un des types demandés : la route d'un type n'ouvre pas les imports des autres. */
+  private async findJob(id: string, kinds: readonly ImportKindValue[]) {
+    const job = await this.db.importJob.findFirst({
+      where: { id, kind: { in: [...kinds] } },
+      include: { file: true },
+    });
     if (!job) throw notFound('Import introuvable.');
     return job;
   }
 
-  async get(id: string): Promise<ImportPreview> {
-    return this.toPreview(await this.findJob(id), null);
+  async get(id: string, kinds: readonly ImportKindValue[]): Promise<ImportPreview> {
+    return this.toPreview(await this.findJob(id, kinds), null);
   }
 
   /**
    * Étape 2 : import des lignes valides, dans une transaction. Le fichier est vérifié de
    * nouveau : un code utilisé entre-temps passe dans les erreurs.
    */
-  async confirm(actor: AuthUser, id: string): Promise<ImportPreview> {
-    const job = await this.findJob(id);
+  async confirm(
+    actor: AuthUser,
+    id: string,
+    kinds: readonly ImportKindValue[],
+  ): Promise<ImportPreview> {
+    const job = await this.findJob(id, kinds);
     if (job.status !== 'PREVIEW') {
       throw new ApiError(HttpStatus.CONFLICT, 'INVALID_STATE', 'Cet import est déjà terminé.');
     }
@@ -379,7 +396,7 @@ export class ImportsService {
           {
             companyId: actor.companyId,
             actorUserId: actor.userId,
-            action: job.kind === 'PRODUCTS' ? 'import.products' : 'import.customers',
+            action: IMPORT_AUDIT_ACTIONS[job.kind],
             entity: 'ImportJob',
             entityId: id,
             after: { imported, errors: checked.errors.length },

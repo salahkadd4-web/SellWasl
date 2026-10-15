@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ImportsController } from '../imports/imports.controller';
 import { ImportsService } from '../imports/imports.service';
+import { OpeningDebtImportService } from '../imports/opening-debt-import.service';
 import { ProductImportService } from '../imports/product-import.service';
 import { CustomersController } from './customers.controller';
 import { CustomersService } from './customers.service';
@@ -20,6 +21,7 @@ import { PlacementService } from './placement.service';
     ImportsService,
     ProductImportService,
     OpeningDebtService,
+    OpeningDebtImportService,
   ],
   exports: [PlacementService, CustomersService],
 })

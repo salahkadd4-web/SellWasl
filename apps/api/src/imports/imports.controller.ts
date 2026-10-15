@@ -24,6 +24,8 @@ import {
 import { ProductImportService } from './product-import.service';
 
 const kindSchema = z.object({ kind: z.enum(['CUSTOMERS', 'PRODUCTS']).default('CUSTOMERS') });
+/** Imports ouverts par `imports.run` ; les soldes d'ouverture ont leurs routes (BR-PAY-09). */
+const CATALOG_IMPORTS = ['CUSTOMERS', 'PRODUCTS'] as const;
 
 /** Import CSV des clients et des produits (docs/api.md §8.1). */
 @Controller('imports')
@@ -65,7 +67,7 @@ export class ImportsController {
   @RequirePermission('imports.run')
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<ImportPreview> {
-    return this.imports.get(id);
+    return this.imports.get(id, CATALOG_IMPORTS);
   }
 
   @RequirePermission('imports.run')
@@ -75,6 +77,6 @@ export class ImportsController {
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ImportPreview> {
-    return this.imports.confirm(user, id);
+    return this.imports.confirm(user, id, CATALOG_IMPORTS);
   }
 }
