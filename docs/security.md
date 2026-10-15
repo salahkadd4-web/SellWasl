@@ -39,7 +39,7 @@ Un compte bloqué révèle qu'il existe (il faut déjà connaître le code de l'
 | Droits et modules | Garde globale : chaque route déclare son droit ou son accès, sinon refus (`routes.test.ts`) ; module actif vérifié (rbac.md, modules.md) |
 | Isolation par entreprise | Client Prisma filtré par entreprise sur toutes les lectures et écritures ; client non filtré réservé à une liste de fichiers vérifiée par test (`routes.test.ts`) ; `tenant-isolation.test.ts` |
 | IDOR | Une ressource d'une autre entreprise, ou hors du périmètre de l'utilisateur, répond `404` (rbac.md §3) |
-| IP réelle | `TRUST_PROXY` : nombre de proxys de confiance devant l'API (0 par défaut : `X-Forwarded-For` ignoré). Sert à l'audit, aux sessions, à la limite de débit et à la liste de la plateforme. Sur le Web, `TRUST_PROXY` compte les proxys devant Next.js ; l'API, derrière le Web, compte aussi Next.js |
+| IP réelle | `TRUST_PROXY` : nombre de proxys de confiance devant l'API (0 par défaut : `X-Forwarded-For` ignoré). Sert à l'audit, aux sessions, à la limite de débit et à la liste de la plateforme. Sur le Web, `TRUST_PROXY` compte les proxys devant Next.js. Requêtes transmises par le Web : il pose l'adresse du client (`x-sellwasl-client-ip`) avec la clé partagée `WEB_PROXY_SECRET` (`x-sellwasl-proxy-key`, comparée à temps constant) ; l'API ne la croit qu'avec cette clé, sinon elle suit `TRUST_PROXY` (chemin du mobile). Le Web retire toujours ces en-têtes s'ils viennent du visiteur. Mesure : `GET /api/v1/health/ip` (`docs/deployment.md` §9) |
 | HTTPS | Terminé par le proxy de l'hébergeur ; HSTS par helmet (API) et par Next.js en production (Web) ; en-têtes `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` |
 | Chiffrement en base | Secrets TOTP en AES-256-GCM (`apps/api/src/common/crypto.ts`, clé `DATA_ENCRYPTION_KEY`). Les autres données (clients, positions, salaires) reposent sur le chiffrement du disque de la base gérée et sur les droits ; pas de chiffrement champ par champ dans le MVP |
 | Téléphone | Base locale chiffrée par SQLCipher (expo-sqlite), clé de 256 bits dans expo-secure-store ; une ancienne base en clair est recopiée puis effacée. Vérifié le 2026-10-11 sur un téléphone (build de développement EAS) : synchronisation, puis début du fichier illisible (`adb shell run-as com.sellwasl.app head -c 16 files/SQLite/sellwasl-offline-v2.db`) |
@@ -58,6 +58,7 @@ Un compte bloqué révèle qu'il existe (il faut déjà connaître le code de l'
 | `JWT_ACCESS_SECRET` | Signature des jetons d'accès |
 | `DATA_ENCRYPTION_KEY` | Chiffrement des données sensibles en base |
 | `TRUST_PROXY` | Proxys de confiance (API et Web) |
+| `WEB_PROXY_SECRET` | Clé partagée entre le Web et l'API (32 caractères au moins, même valeur des deux côtés) |
 | `PLATFORM_ALLOWED_IPS` | Liste d'IP de la plateforme (API et Web) |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | Supervision des erreurs (facultatif) |
 | `CLOUDINARY_URL` | Photos des produits (facultatif) |

@@ -1,4 +1,6 @@
-import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { Controller, Get, Req, ServiceUnavailableException } from '@nestjs/common';
+import type { Request } from 'express';
+import { webProxyClientIp } from '../common/client-ip';
 import { Public } from '../common/auth-context';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,5 +18,17 @@ export class HealthController {
       throw new ServiceUnavailableException({ code: 'DATABASE_UNAVAILABLE' });
     }
     return { status: 'ok', database: 'ok', time: new Date().toISOString() };
+  }
+
+  /**
+   * Adresse du client vue par l'API, pour régler TRUST_PROXY après le déploiement
+   * (docs/deployment.md §9). Ne renvoie que ce que l'appelant a lui-même envoyé ou montré.
+   */
+  @Get('ip')
+  ip(@Req() req: Request): { ip: string | null; viaWeb: boolean } {
+    return {
+      ip: req.ip ?? null,
+      viaWeb: webProxyClientIp(req.headers, process.env.WEB_PROXY_SECRET) !== undefined,
+    };
   }
 }

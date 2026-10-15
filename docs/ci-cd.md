@@ -72,7 +72,7 @@ En staging et en production, l'API refuse de démarrer sans `JWT_ACCESS_SECRET` 
 
 - Les deux images tournent sans droits administrateur (utilisateur `node`) et sont construites à partir du monorepo réduit par `turbo prune` : une modification du mobile ne les recompile pas.
 - **Figé à la compilation du Web** : `API_URL` (par défaut `http://api:3001`, le nom du service dans Docker) et les `NEXT_PUBLIC_*` (dont la clé MapTiler) — d'où une image par environnement.
-- **Lu au démarrage** : `TRUST_PROXY`, `PLATFORM_ALLOWED_IPS`, `SENTRY_DSN` (Web et API) et toute la configuration de l'API — vérifié par le démarrage d'essai.
+- **Lu au démarrage** : `TRUST_PROXY`, `PLATFORM_ALLOWED_IPS`, `WEB_PROXY_SECRET`, `SENTRY_DSN` (Web et API) et toute la configuration de l'API — vérifié par le démarrage d'essai.
 
 Compiler et essayer en local (Docker Desktop lancé) :
 

@@ -1,8 +1,6 @@
 # Déploiement — SellWasl
 
 > **Phase 30 — rédigé le 2026-10-15.** Mise en ligne gratuite pour l'entreprise pilote (15 vendeurs, 15 livreurs, 1 magasinier, 1 comptable, 2 superviseurs). Images et CI : [ci-cd.md](ci-cd.md). Sécurité : [security.md](security.md). Notifications : [notifications.md](notifications.md).
->
-> Les étapes marquées **🔧** dépendent de code pas encore écrit (§1.1) : les faire après lui.
 
 ## 0. Vue d'ensemble
 
@@ -29,23 +27,18 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : Vercel Pro ou un serveur 
 
 ## 1. Avant de commencer
 
-### 1.1 Code à terminer 🔧
-
-| Sujet | Pourquoi |
-|---|---|
-| Lecture de l'IP du client derrière Vercel et Render (§9) | Le Web passe par Vercel puis Render, le mobile par Render seul : un même `TRUST_PROXY` peut ne pas convenir aux deux chemins |
-
-### 1.2 Comptes à créer
+### 1.1 Comptes à créer
 
 GitHub (déjà fait), Supabase, Render, Vercel (**compte séparé de vos autres projets** : quotas et règle « non commercial » s'appliquent à tout le compte), Cloudinary, cron-job.org, Expo, MapTiler (déjà fait), Firebase (notifications Android), Sentry (facultatif).
 
-### 1.3 Secrets
+### 1.2 Secrets
 
 Générer une fois, dans un terminal :
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"   # JWT_ACCESS_SECRET
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # DATA_ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"      # WEB_PROXY_SECRET
 ```
 
 Les garder dans un gestionnaire de mots de passe, **jamais dans le dépôt**. Perdre `DATA_ENCRYPTION_KEY` rend illisibles les secrets de double authentification enregistrés en base.
@@ -55,8 +48,9 @@ Les garder dans un gestionnaire de mots de passe, **jamais dans le dépôt**. Pe
 | `NODE_ENV` | `production` | (posé par Vercel) | — |
 | `PORT` | `3001` | — | — |
 | `DATABASE_URL` | §2 | — | — |
-| `JWT_ACCESS_SECRET` | §1.3 | — | — |
-| `DATA_ENCRYPTION_KEY` | §1.3 | — | — |
+| `JWT_ACCESS_SECRET` | §1.2 | — | — |
+| `DATA_ENCRYPTION_KEY` | §1.2 | — | — |
+| `WEB_PROXY_SECRET` | §1.2 | §1.2 (même valeur) | — |
 | `CLOUDINARY_URL` | §3 | — | — |
 | `PLATFORM_ALLOWED_IPS` | §7 | §7 (même valeur) | — |
 | `TRUST_PROXY` | §9 | §9 | — |
@@ -102,7 +96,7 @@ Créer le compte, puis copier **API Environment variable** (`cloudinary://<clé>
 | Health Check Path | `/api/v1/health` |
 | Auto-Deploy | **After CI Checks Pass** (le service ne se met à jour que si la CI est verte) |
 
-Variables : celles de la colonne « API » du §1.3. `PLATFORM_ALLOWED_IPS` : §7. `TRUST_PROXY` : `1` en attendant le §9.
+Variables : celles de la colonne « API » du §1.2. `PLATFORM_ALLOWED_IPS` : §7. `TRUST_PROXY` : `1` en attendant le §9.
 
 La première compilation prend une dizaine de minutes. Les migrations s'appliquent seules à chaque démarrage (`prisma migrate deploy` dans le Dockerfile). Vérifier : `https://<service>.onrender.com/api/v1/health` répond `"status":"ok"` et `"database":"ok"`.
 
@@ -120,7 +114,7 @@ Le même appel interroge la base, ce qui évite la mise en pause de Supabase.
 
 1. **Add New → Project**, importer le même dépôt.
 2. **Root Directory** : `apps/web` (Next.js et pnpm sont détectés seuls).
-3. Variables : colonne « Web » du §1.3 ; `API_URL` = `https://<service>.onrender.com` (sans `/api` à la fin).
+3. Variables : colonne « Web » du §1.2 ; `API_URL` = `https://<service>.onrender.com` (sans `/api` à la fin).
 4. **Settings → Functions → Function Region** : Frankfurt (`fra1`).
 5. **Settings → Git → Ignored Build Step**, commande : `git diff --quiet HEAD^ HEAD -- . ../../packages ../../pnpm-lock.yaml` (pas de nouveau déploiement si seuls l'API ou le mobile ont changé).
 6. Si la clé MapTiler est limitée à certains domaines, y ajouter le domaine Vercel.
@@ -152,23 +146,27 @@ Pour éviter les mises à jour fréquentes, on peut lister la plage de votre fou
 4. Avec le compte administrateur de l'entreprise : utilisateurs (15 vendeurs, 15 livreurs, magasinier, comptable, 2 superviseurs), paramètres, import CSV du catalogue et des clients, secteurs et parties sur la carte, planning.
 5. **Le soir de la bascule**, après la dernière tournée dans l'ancien système et avant la première journée dans SellWasl : inventaire du dépôt (stock initial), puis Comptabilité → **Soldes d'ouverture** (import CSV `code;nom;dette`, ou fiche du client). Un solde se corrige tant que le client n'a ni vente à crédit ni encaissement.
 
-## 9. Vérifier l'IP du client — `TRUST_PROXY` 🔧
+## 9. Vérifier l'IP du client — `TRUST_PROXY`
 
-L'IP sert à la liste du §7, à la limite de tentatives de connexion et au journal d'audit. Chaque proxy ajoute une adresse à `X-Forwarded-For` ; `TRUST_PROXY` dit combien en ignorer en partant de la droite. Trop bas : l'application voit l'adresse d'un proxy (tout le bureau partage alors la même limite de tentatives). Trop haut : un client peut se faire passer pour une autre adresse.
+L'IP sert à la liste du §7, à la limite de tentatives de connexion et au journal d'audit. Deux chemins :
 
-1. Sur un téléphone en 4G, relever l'adresse sur <https://api.ipify.org>.
-2. Depuis ce téléphone : se connecter au Web, puis à l'application mobile.
-3. Dans le journal d'audit (Web → Audit), les deux connexions doivent montrer **cette** adresse, pas celle de Vercel ou de Render.
-4. Essai d'usurpation, depuis un réseau **hors** de la liste du §7 (PowerShell) :
+- **Web** : navigateur → Vercel → Render → API. Le Web pose lui-même l'adresse du client, que Vercel a vérifiée, avec la clé `WEB_PROXY_SECRET` ; l'API ne la croit qu'avec cette clé. Rien à régler, sinon la même clé des deux côtés.
+- **Mobile** : téléphone → Render → API. Ici, `TRUST_PROXY` dit combien d'adresses ignorer à droite de `X-Forwarded-For`. Trop bas : l'API voit une adresse de Render (tous les téléphones partagent alors la même limite de tentatives). Trop haut : un client peut se faire passer pour une autre adresse.
+
+Mesure, une fois l'API en ligne (`TRUST_PROXY=1` sur Render) :
+
+1. Sur un téléphone **en 4G**, ouvrir <https://api.ipify.org> : noter l'adresse.
+2. Sur ce même téléphone, ouvrir `https://<service>.onrender.com/api/v1/health/ip` : `ip` doit être **cette** adresse.
+   - Adresse d'un autre réseau (Render, Cloudflare) : mettre `TRUST_PROXY=2` sur Render, recommencer.
+3. Essai d'usurpation, depuis le PC (PowerShell) :
 
    ```powershell
-   curl.exe -i -H "X-Forwarded-For: <une IP de la liste>" https://<service>.onrender.com/api/v1/platform/companies
-   curl.exe -i -H "X-Forwarded-For: <une IP de la liste>" https://<projet>.vercel.app/api/v1/platform/companies
+   curl.exe -H "X-Forwarded-For: 198.51.100.7" https://<service>.onrender.com/api/v1/health/ip
+   curl.exe -H "X-Sellwasl-Client-Ip: 198.51.100.7" -H "X-Sellwasl-Proxy-Key: inventee" https://<service>.onrender.com/api/v1/health/ip
    ```
 
-   Réponse attendue : **404** (401 voudrait dire que l'en-tête falsifié a été cru).
-
-Si le Web et le mobile demandent des valeurs différentes, l'ajustement se fait dans le code (§1.1).
+   `ip` ne doit **jamais** valoir `198.51.100.7`. S'il la vaut au premier essai : `TRUST_PROXY` est trop haut, le baisser d'un.
+4. Web : se connecter depuis le téléphone en 4G, puis Web → Audit : la connexion montre l'adresse du point 1. Sinon, vérifier que `WEB_PROXY_SECRET` est identique sur Render et Vercel (et refaire un *Redeploy* sur Vercel).
 
 ## 10. Application Android — EAS
 

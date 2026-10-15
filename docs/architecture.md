@@ -489,7 +489,7 @@ Le détail est dans [security.md](security.md) (phase 27).
 
 - **Erreurs** : Sentry sur l'API, le Web et le mobile, avec l'entreprise et l'utilisateur en contexte, mais sans données personnelles.
 - **Journaux** : JSON structurés (pino), avec un identifiant de requête et l'entreprise.
-- **Santé** : endpoint `/api/v1/health` (API et base), surveillé par un service de surveillance de disponibilité externe.
+- **Santé** : endpoint `/api/v1/health` (API et base), surveillé par un service de surveillance de disponibilité externe ; `/api/v1/health/ip` renvoie l'adresse du client vue par l'API (réglage de `TRUST_PROXY`).
 - **Synchronisation** : les opérations refusées et les appareils qui n'ont pas synchronisé depuis plus d'une journée remontent dans le journal de synchronisation (BR-SYN-07).
 
 ---

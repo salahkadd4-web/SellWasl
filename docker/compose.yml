@@ -4,7 +4,7 @@
 #
 # Obligatoires : POSTGRES_PASSWORD, JWT_ACCESS_SECRET, DATA_ENCRYPTION_KEY.
 # Facultatives (transmises seulement si elles sont définies) : PLATFORM_ALLOWED_IPS, SENTRY_DSN,
-# CLOUDINARY_URL, EXPO_ACCESS_TOKEN.
+# CLOUDINARY_URL, EXPO_ACCESS_TOKEN, WEB_PROXY_SECRET (même valeur pour l'API et le Web).
 name: sellwasl
 
 services:
@@ -36,6 +36,7 @@ services:
       # Le Web est le seul proxy devant l'API
       TRUST_PROXY: ${API_TRUST_PROXY:-1}
       PLATFORM_ALLOWED_IPS:
+      WEB_PROXY_SECRET:
       SENTRY_DSN:
       CLOUDINARY_URL:
       EXPO_ACCESS_TOKEN:
@@ -52,6 +53,7 @@ services:
       # Proxys de confiance devant le Web (répartiteur, Caddy…) : 0 sans proxy
       TRUST_PROXY: ${WEB_TRUST_PROXY:-0}
       PLATFORM_ALLOWED_IPS:
+      WEB_PROXY_SECRET:
       SENTRY_DSN:
     ports:
       - '${WEB_PORT:-3000}:3000'

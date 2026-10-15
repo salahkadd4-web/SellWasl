@@ -85,3 +85,10 @@ export function clientIp(
     .filter(Boolean);
   return chain[Math.max(0, chain.length - trustProxy)] ?? remote;
 }
+
+/**
+ * En-têtes posés par le Web (proxy Next.js) sur les requêtes qu'il transmet à l'API : adresse du
+ * client lue derrière Vercel, et clé partagée (`WEB_PROXY_SECRET`) sans laquelle l'API l'ignore.
+ */
+export const WEB_PROXY_IP_HEADER = 'x-sellwasl-client-ip';
+export const WEB_PROXY_KEY_HEADER = 'x-sellwasl-proxy-key';
