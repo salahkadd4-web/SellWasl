@@ -12,6 +12,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
+    "platform:bootstrap": "tsx scripts/bootstrap-platform.ts",
     "platform:reset-2fa": "tsx scripts/reset-platform-2fa.ts",
     "prisma:reset": "prisma migrate reset --force && prisma generate && prisma db seed",
     "test": "prisma generate && vitest run",

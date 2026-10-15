@@ -24,9 +24,10 @@ Un compte bloqué révèle qu'il existe (il faut déjà connaître le code de l'
 - **Invisible hors de la liste d'IP** : `PLATFORM_ALLOWED_IPS` (adresses ou plages CIDR, IPv4 et IPv6, séparées par des virgules). Hors liste, `/api/v1/platform/*` (connexion comprise) et `/admin` répondent **404**, comme s'ils n'existaient pas, et la documentation OpenAPI ne les montre pas. Sans liste : ouvert en développement et en test, **fermé en staging et en production**.
 - Règle partagée par l'API (middleware) et le Web (proxy Next.js) : `packages/business-rules/src/ip-allowlist.ts`.
 - **Deuxième facteur** (TOTP, RFC 6238 : 6 chiffres, pas de 30 s, tolérance d'un pas), compatible avec Google Authenticator, Microsoft Authenticator, etc. Première connexion : QR code d'enrôlement (`TOTP_SETUP`) ; ensuite code exigé (`TOTP_REQUIRED`). Un code faux compte comme un échec (blocage) ; un code ne sert qu'une fois. Secret chiffré en base (§3).
-- **Téléphone perdu** : `pnpm --filter @sellwasl/api platform:reset-2fa <email>`, sur le serveur ; nouvel enrôlement à la connexion suivante.
+- **Premier Super Admin** : `pnpm --filter @sellwasl/api platform:bootstrap <email> ["Nom"]`, avec `DATABASE_URL` de la base visée (depuis un poste : l'offre gratuite de Render n'a pas de terminal) ; catalogue des permissions, puis compte créé avec un mot de passe saisi deux fois sans s'afficher (règle des mots de passe, §1). Relançable ; refuse un second compte (`docs/deployment.md` §8).
+- **Téléphone perdu** : `pnpm --filter @sellwasl/api platform:reset-2fa <email>`, avec `DATABASE_URL` de la base visée ; nouvel enrôlement à la connexion suivante.
 - Lien « Administration plateforme » retiré de la page d'accueil publique.
-- Tests : `security.test.ts` (toutes les routes plateforme hors liste, enrôlement, rejeu), `totp.test.ts`, `ip-allowlist.test.ts`.
+- Tests : `security.test.ts` (toutes les routes plateforme hors liste, enrôlement, rejeu), `totp.test.ts`, `ip-allowlist.test.ts`, `bootstrap-platform.test.ts` (premier Super Admin, saisie masquée).
 
 ## 3. API et données
 

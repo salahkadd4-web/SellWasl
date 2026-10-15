@@ -1500,6 +1500,7 @@ development → staging → production
 - [ ] Frontend Web (Vercel ou équivalent)
 - [ ] API (VPS, cloud ou containers)
 - [ ] PostgreSQL (managé ou serveur dédié)
+- [x] Initialisation d'une base neuve : permissions et premier Super Admin (`platform:bootstrap`)
 - [ ] Redis si nécessaire
 - [ ] Stockage objet
 - [ ] Monitoring et logs

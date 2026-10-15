@@ -12,7 +12,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import {
   assertAllowedPermissions,
   modulesForMode,
-  PERMISSIONS,
   ROLE_CHANNEL,
   ROLE_CODES,
   rolePermissions,
@@ -21,6 +20,7 @@ import {
 } from '@sellwasl/business-rules';
 import { defaultCompanySettings } from '@sellwasl/validation';
 import { DEFAULT_REASONS as REASONS, ROLE_NAMES } from '../src/companies/defaults';
+import { syncPermissions } from '../scripts/bootstrap-platform';
 import { uuidv7 } from '../src/common/uuid';
 import {
   type Prisma,
@@ -302,13 +302,7 @@ function rectangle(minLat: number, minLng: number, maxLat: number, maxLng: numbe
 }
 
 async function seedPermissions(): Promise<void> {
-  for (const p of PERMISSIONS) {
-    await prisma.permission.upsert({
-      where: { code: p.code },
-      update: { description: p.description, scope: p.scope },
-      create: { code: p.code, description: p.description, scope: p.scope },
-    });
-  }
+  await syncPermissions(prisma);
 }
 
 async function seedCompany(spec: CompanySpec, passwordHash: string): Promise<void> {

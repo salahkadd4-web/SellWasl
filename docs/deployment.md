@@ -33,7 +33,6 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : Vercel Pro ou un serveur 
 
 | Sujet | Pourquoi |
 |---|---|
-| Script d'initialisation de production : catalogue des permissions et premier Super Admin | Le seed refuse la production ([seed.ts](../apps/api/prisma/seed.ts)) : sans ce script, la base est vide et personne ne peut se connecter |
 | Purge des positions de plus de 90 jours (BR-JOU-09) | Règle non codée ; la table `device_ping` grossit d'environ 60 Mo par mois, la limite est de 500 Mo |
 | Sauvegarde nocturne par GitHub Actions | Supabase Free ne fournit pas de sauvegarde exploitable |
 | Lecture de l'IP du client derrière Vercel et Render (§9) | Le Web passe par Vercel puis Render, le mobile par Render seul : un même `TRUST_PROXY` peut ne pas convenir aux deux chemins |
@@ -140,10 +139,17 @@ L'espace plateforme (`/admin`, `/api/v1/platform/*`) n'est visible que depuis le
 
 Pour éviter les mises à jour fréquentes, on peut lister la plage de votre fournisseur (par exemple `105.96.0.0/16`) : moins strict, mais le mot de passe et la double authentification restent exigés.
 
-## 8. Initialiser la plateforme 🔧
+## 8. Initialiser la plateforme
 
-1. Lancer le script d'initialisation sur Supabase (§1.1) : permissions et compte Super Admin à votre e-mail.
-2. `https://<projet>.vercel.app/admin/login` : se connecter, activer la double authentification.
+1. Depuis votre poste, à la racine du dépôt, sur la base Supabase (après les migrations : §2 ou premier démarrage de Render) :
+
+   ```powershell
+   $env:DATABASE_URL = "<adresse du §2>"
+   pnpm --filter @sellwasl/api platform:bootstrap vous@exemple.com "Votre Nom"
+   ```
+
+   Le mot de passe est demandé deux fois, sans s'afficher (8 caractères au moins, une lettre et un chiffre ; 12 ou plus conseillés). Le script inscrit le catalogue des permissions puis crée le Super Admin. Relancé, il remet les permissions à jour sans toucher au compte ; il refuse de créer un second compte. **Il n'y a pas d'écran pour changer ce mot de passe : rangez-le dans un gestionnaire de mots de passe.** Fermer ensuite le terminal.
+2. `https://<projet>.vercel.app/admin/login` (votre IP dans `PLATFORM_ALLOWED_IPS`, §7) : e-mail et mot de passe, puis QR code à scanner avec une application d'authentification (Google Authenticator, Microsoft Authenticator, 2FAS), et le code à 6 chiffres. Téléphone perdu : même terminal, `pnpm --filter @sellwasl/api platform:reset-2fa vous@exemple.com`.
 3. Créer l'entreprise pilote, son mode et son administrateur.
 4. Avec le compte administrateur de l'entreprise : utilisateurs (15 vendeurs, 15 livreurs, magasinier, comptable, 2 superviseurs), paramètres, import CSV du catalogue et des clients, secteurs et parties sur la carte, planning.
 5. **Le soir de la bascule**, après la dernière tournée dans l'ancien système et avant la première journée dans SellWasl : inventaire du dépôt (stock initial), puis Comptabilité → **Soldes d'ouverture** (import CSV `code;nom;dette`, ou fiche du client). Un solde se corrige tant que le client n'a ni vente à crédit ni encaissement.
