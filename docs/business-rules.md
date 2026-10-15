@@ -329,7 +329,7 @@ NOT_STARTED ──Démarrer──▶ IN_PROGRESS ──Clôturer──▶ CLOSED
 
 Après une réouverture, les commandes `LOCKED` du pré-vendeur redeviennent `CONFIRMED`.
 
-**BR-JOU-09** — La position de l'utilisateur n'est enregistrée que pendant une journée `IN_PROGRESS` : à chaque action, et toutes les 5 minutes tant que l'application est ouverte. Chaque envoi indique aussi le niveau de batterie et le nombre d'opérations en attente de synchronisation. Il n'y a pas de suivi en arrière-plan dans le MVP.
+**BR-JOU-09** — La position de l'utilisateur n'est enregistrée que pendant une journée `IN_PROGRESS` : à chaque action, et toutes les 5 minutes tant que l'application est ouverte. Chaque envoi indique aussi le niveau de batterie et le nombre d'opérations en attente de synchronisation. Il n'y a pas de suivi en arrière-plan dans le MVP. Les positions sont conservées 90 jours : une tâche de nuit (2 h 45) supprime les plus anciennes, dans toutes les entreprises.
 
 **BR-JOU-10** — **Clôture d'office** par le superviseur, quand une journée reste ouverte parce que le téléphone est perdu, cassé ou inutilisable. Le motif est obligatoire, et l'action est auditée.
 - La journée passe `CLOSED`, avec les mêmes effets qu'une clôture normale (BR-JOU-07), calculés sur les opérations déjà reçues.

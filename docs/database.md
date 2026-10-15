@@ -145,7 +145,7 @@ Les tables `SubscriptionPlan`, `PlanModule` et `Subscription` ne sont **pas cré
 | `Session` | `user_id`, `device_id` (rôles terrain), `channel` (`WEB`, `MOBILE`), `refresh_token_hash`, `family_id`, `expires_at`, `last_used_at`, `revoked_at`, `revoked_reason`, `ip`, `user_agent` | Index `(company_id, user_id)` ; `UNIQUE (refresh_token_hash)` |
 | `Device` | `user_id`, `series` (lettre `A`, `B`…, ARC-11), `status` (`ACTIVE`, `REVOKED`, `BLOCKED`), `name`, `model`, `os_version`, `app_version`, `push_token`, `activated_at`, `revoked_at`, `last_seen_at`, `last_sync_at`, `battery_level`, `pending_ops`, `last_device_seq`, `last_latitude`, `last_longitude`, `last_position_at` | Un seul appareil `ACTIVE` par utilisateur : index unique partiel `(company_id, user_id) WHERE status = 'ACTIVE'` (BR-USR-06). `UNIQUE (company_id, user_id, series)` |
 | `DeviceActivationCode` | `user_id`, `code_hash`, `expires_at` (10 min), `used_at`, `used_by_device_id`, `created_by_user_id` | Usage unique (ARC-04) |
-| `DevicePing` | `user_id`, `device_id`, `workday_id`, `latitude`, `longitude`, `accuracy_m`, `battery_level`, `pending_ops`, `recorded_at` | Index `(company_id, user_id, recorded_at)`. Enregistré **seulement pendant une journée en cours** (BR-JOU-09). Conservé 90 jours, puis supprimé |
+| `DevicePing` | `user_id`, `device_id`, `workday_id`, `latitude`, `longitude`, `accuracy_m`, `battery_level`, `pending_ops`, `recorded_at` | Index `(company_id, user_id, recorded_at)`. Enregistré **seulement pendant une journée en cours** (BR-JOU-09). Conservé 90 jours, puis supprimé par la purge de nuit (`DevicePingPurgeService`, 2 h 45) |
 
 Un utilisateur a **un seul rôle** (BR-USR-01) : `User.role_id` remplace la table `UserRole` du plan.
 

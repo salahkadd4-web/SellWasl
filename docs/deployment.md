@@ -33,7 +33,6 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : Vercel Pro ou un serveur 
 
 | Sujet | Pourquoi |
 |---|---|
-| Purge des positions de plus de 90 jours (BR-JOU-09) | Règle non codée ; la table `device_ping` grossit d'environ 60 Mo par mois, la limite est de 500 Mo |
 | Sauvegarde nocturne par GitHub Actions | Supabase Free ne fournit pas de sauvegarde exploitable |
 | Lecture de l'IP du client derrière Vercel et Render (§9) | Le Web passe par Vercel puis Render, le mobile par Render seul : un même `TRUST_PROXY` peut ne pas convenir aux deux chemins |
 

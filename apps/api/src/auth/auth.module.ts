@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { DevicePingPurgeService } from '../devices/device-ping-purge.service';
 import { DevicesController } from '../devices/devices.controller';
 import { DevicesService } from '../devices/devices.service';
 import { AuthController } from './auth.controller';
@@ -23,7 +24,15 @@ import { TokensService } from './tokens.service';
     }),
   ],
   controllers: [AuthController, PlatformAuthController, DevicesController],
-  providers: [TokensService, AuthService, AuthGuard, DevicesService, LockoutService, DataCipher],
+  providers: [
+    TokensService,
+    AuthService,
+    AuthGuard,
+    DevicesService,
+    DevicePingPurgeService,
+    LockoutService,
+    DataCipher,
+  ],
   exports: [AuthGuard, TokensService],
 })
 export class AuthModule {}

@@ -69,6 +69,7 @@ describe('couverture des routes', () => {
       'auth/platform-auth.controller.ts',
       'auth/tokens.service.ts',
       'companies/provisioning.service.ts',
+      'devices/device-ping-purge.service.ts',
       'health/health.controller.ts',
       'modules/modules.service.ts',
       // Envoi push : parcourt les notifications de toutes les entreprises
