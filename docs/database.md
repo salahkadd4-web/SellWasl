@@ -329,7 +329,7 @@ delivered_qty  livrée (ou vendue, en cash van)
 | Table | Colonnes principales | Contraintes |
 |---|---|---|
 | `Payment` **S T** | `number` (reçu ou bon), `kind` (`DELIVERY_PAYMENT`, `DEBT_PAYMENT`), `customer_id`, `user_id`, `workday_id`, `order_id`, `delivery_id`, `due_amount`, `cash_amount`, `credit_amount`, `occurred_at` | `CHECK (cash_amount >= 0 AND credit_amount >= 0)` ; `due_amount = cash_amount + credit_amount` pour un paiement de livraison |
-| `CustomerDebtEntry` | `customer_id`, `kind` (`CREDIT_SALE`, `DEBT_PAYMENT`, `ADVANCE`, `ADVANCE_USED`), `amount` (positif : la dette augmente ; négatif : elle baisse), `payment_id`, `occurred_at` | Ajout seul ; index `(company_id, customer_id, occurred_at)` |
+| `CustomerDebtEntry` | `customer_id`, `kind` (`CREDIT_SALE`, `DEBT_PAYMENT`, `ADVANCE`, `ADVANCE_USED`, `OPENING_BALANCE` — solde d'ouverture, BR-PAY-09), `amount` (positif : la dette augmente ; négatif : elle baisse), `payment_id`, `occurred_at` | Ajout seul ; index `(company_id, customer_id, occurred_at)` |
 | `Settlement` (versement) | `workday_id`, `accountant_user_id`, `expected_amount`, `remitted_amount`, `gap_amount`, `validated_at`, `is_recalculated` | `UNIQUE (company_id, workday_id)` (BR-PAY-08) |
 | `PrintLog` **T** | `document_type` (`DELIVERY_NOTE`, `SALE_NOTE`, `DEBT_RECEIPT`, `DAY_SUMMARY`), `document_id`, `copy_number` (1 = original ; 2 et plus = DUPLICATA), `user_id`, `device_id`, `printed_at` | (BR-IMP-03) |
 
@@ -346,7 +346,7 @@ delivered_qty  livrée (ou vendue, en cash van)
 | `Notification` **S** | `user_id`, `type`, `title`, `body`, `data` (`jsonb`), `read_at`, `pushed_at` | Index `(company_id, user_id, read_at)` |
 | `AuditLog` | `actor_user_id`, `device_id`, `action`, `entity`, `entity_id`, `before`, `after` (`jsonb`), `reason`, `ip`, `user_agent`, `created_at` | **Ajout seul** : l'utilisateur de base de l'application n'a pas les droits `UPDATE` ni `DELETE` sur cette table. Index `(company_id, entity, entity_id)` |
 | `StoredFile` | `kind` (`IMPORT`, `EXPORT`, `LOGO`), `storage_key` (`companies/<company_id>/…`), `filename`, `content_type`, `size_bytes`, `created_by_user_id` | |
-| `ImportJob` | `kind` (`CUSTOMERS`, `PRODUCTS`), `file_id`, `status` (`PREVIEW`, `IMPORTED`, `FAILED`), `total_rows`, `imported_rows`, `errors` (`jsonb` : ligne et motif) | (BR-IO-01, BR-IO-02) |
+| `ImportJob` | `kind` (`CUSTOMERS`, `PRODUCTS`, `OPENING_DEBTS`), `file_id`, `status` (`PREVIEW`, `IMPORTED`, `FAILED`), `total_rows`, `imported_rows`, `errors` (`jsonb` : ligne et motif) | (BR-IO-01, BR-IO-02) |
 
 ---
 

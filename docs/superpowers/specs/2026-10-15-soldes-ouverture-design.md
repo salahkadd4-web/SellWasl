@@ -28,7 +28,7 @@ BR-PAY-04 devient : `Dette du client = solde d'ouverture + somme des restes à c
 
 - `DebtEntryKind` : nouvelle valeur `OPENING_BALANCE`. Écriture sans paiement (`payment_id` nul), `occurred_at` = moment de la saisie.
 - `ImportKind` : nouvelle valeur `OPENING_DEBTS`.
-- Permission `debts.opening` (« Inscrire les soldes d'ouverture des dettes ») : ajoutée au catalogue, donnée aux rôles `COMPANY_ADMIN` et `COMPTABLE` des entreprises existantes par une migration de données, et aux nouveaux rôles par `apps/api/src/companies/defaults.ts`.
+- Permission `debts.opening` (« Inscrire les soldes d'ouverture des dettes ») : ajoutée au catalogue, donnée aux rôles `COMPANY_ADMIN` et `COMPTABLE` des entreprises existantes par une migration de données, et aux nouveaux rôles par `DEFAULT_ROLE_PERMISSIONS` (`packages/business-rules/src/permissions.ts`).
 - Une migration Prisma pour les deux valeurs d'enum et la permission.
 
 ## 5. Serveur
@@ -49,7 +49,7 @@ BR-PAY-04 devient : `Dette du client = solde d'ouverture + somme des restes à c
 ### 5.2 Fiche client
 
 - `PUT /customers/:id/opening-debt`, corps `{ amount: entier ≥ 0, ≤ 1 000 000 000 }` (schéma Zod dans `@sellwasl/validation`), permission `debts.opening`. Renvoie le client mis à jour avec ses deux nouveaux champs.
-- Le détail du client (`GET /customers/:id`) ajoute `openingDebtAmount` et `openingDebtEditable`.
+- `GET /customers/:id/opening-debt` (permission `debts.opening`) renvoie `{ openingDebtAmount, openingDebtEditable, debtAmount }` ; `CustomerDto` ne change pas (il sert aussi à la synchronisation mobile).
 
 ### 5.3 Import des soldes
 

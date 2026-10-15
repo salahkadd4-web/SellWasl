@@ -512,7 +512,7 @@ Selon le paramètre P-07 (BR-TEN-08), il y a un seul chargement par jour, ou plu
 
 Si le client ne peut pas payer le minimum, il peut réduire les quantités (livraison partielle). Sinon, la livraison est en échec avec le motif « refus ».
 
-**BR-PAY-04** — `Dette du client = somme des restes à crédit − somme des paiements de dette`. Elle ne peut pas devenir négative : il n'y a pas d'avance client dans le MVP. Seule exception : si deux personnes ont encaissé la même dette hors connexion, l'excédent est accepté à la synchronisation, puisque l'argent a été remis. Il devient une avance du client, signalée au superviseur et déduite de son prochain bon.
+**BR-PAY-04** — `Dette du client = solde d'ouverture (BR-PAY-09) + somme des restes à crédit − somme des paiements de dette`. Elle ne peut pas devenir négative : il n'y a pas d'avance client dans le MVP. Seule exception : si deux personnes ont encaissé la même dette hors connexion, l'excédent est accepté à la synchronisation, puisque l'argent a été remis. Il devient une avance du client, signalée au superviseur et déduite de son prochain bon.
 
 **BR-PAY-05** — **Encaissement de dette** : en espèces, pour un montant au plus égal à la dette. Il est fait par le pré-vendeur (en prévente), par le vendeur cash van et, si l'entreprise l'autorise (P-08, BR-TEN-08), par le livreur. Un reçu est imprimé si une imprimante est connectée.
 
@@ -528,6 +528,8 @@ Si le client ne peut pas payer le minimum, il peut réduire les quantités (livr
 Il s'imprime sur le téléphone et se consulte sur le Web.
 
 **BR-PAY-08** — **Versement** : le comptable choisit la journée et saisit le montant remis. On calcule `écart = remis − attendu`. Le versement est validé et audité, et un écart non nul est signalé au superviseur. Il n'y a qu'un versement par journée dans le MVP.
+
+**BR-PAY-09** — **Solde d'ouverture** : à la mise en service, l'admin ou le comptable (`debts.opening`) inscrit la dette que chaque client avait dans l'ancien système, en DA, entier positif ou nul, sur la fiche du client ou par un import CSV (`code;nom;dette`). Le solde d'ouverture est la somme des écritures `OPENING_BALANCE` du client : une correction ajoute l'écart. Il reste modifiable tant que le client n'a aucune autre écriture de dette (vente à crédit, encaissement) ; ensuite il est figé. Chaque saisie est auditée ; un import l'est une fois, avec le nombre de clients modifiés.
 
 ---
 

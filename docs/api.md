@@ -234,6 +234,7 @@ Chaque ligne indique la permission requise ; les modules de ces permissions sont
 | `POST` | `/customers/{id}/validate` | `customers.update` — valide un client créé par un vendeur : il n'est plus « nouveau » ni limité au comptant (BR-CLI-03) |
 | `POST` | `/customers/{id}/disable`, `/customers/{id}/enable` | `customers.disable` |
 | `GET` | `/customers/{id}/history` | `customers.read` — visites, commandes, paiements, dette |
+| `GET`, `PUT` | `/customers/{id}/opening-debt` | `debts.opening` — solde d'ouverture `{ amount }` (DA, entier ≥ 0), modifiable tant que le client n'a pas d'autre écriture de dette, sinon `422` (BR-PAY-09) ; renvoie `{ openingDebtAmount, openingDebtEditable, debtAmount }` |
 | `GET` | `/customers/{id}/reschedules`, `/planning/reschedules?userId=…` | `customers.read`, `territories.read` — reprogrammations à venir |
 | `POST` | `/customers/{id}/reschedules` | `customers.reschedule` — `{ date }` : jour ouvré à venir, ni chômé ni férié (BR-PLA-04, BR-PLA-05) ; déjà reprogrammé ce jour : `409` |
 | `DELETE` | `/customers/{id}/reschedules/{date}` | `customers.reschedule` |
@@ -601,6 +602,17 @@ Fichier limité à 5 Mo et 10 000 lignes. Le champ `kind` du formulaire vaut `CU
 Colonnes du fichier des clients : `code`, `nom`*, `telephone`, `adresse`, `type`* (code ou nom du type), `latitude`, `longitude` (degrés décimaux, virgule acceptée), `frequence` (1, 2 ou 4 semaines), `credit_autorise` (oui ou non), `plafond_credit` (DA). Les en-têtes acceptent accents et majuscules. Un client sans position, ou dont la position est dans aucune ou plusieurs parties, est importé hors partie et rejoint les clients à revoir. Le fichier est vérifié de nouveau à la confirmation.
 
 Fichier des produits : une ligne par produit (`reference_produit`*, `nom_produit`*, `gamme`*, `categorie`, `unite_base`*, `conditionnements` au format `carton=24|pack=6`), puis une ligne par parfum avec la même `reference_produit`, `reference_parfum` et `nom_parfum`. Prix en DA dans les colonnes `prix_<TYPE>_<unité>` : sur la ligne du produit, son prix ; sur la ligne d'un parfum, son prix propre (vide : prix du produit). Une gamme ou une catégorie inconnue est créée. Un produit dont une ligne est en erreur n'est pas importé ; l'import ne modifie pas un produit existant.
+
+### 8.1 bis Import des soldes d'ouverture (BR-PAY-09)
+
+```text
+GET  /opening-debts/template              → modèle code;nom;dette
+POST /opening-debts/imports               (multipart : fichier) → aperçu
+GET  /opening-debts/imports/{id}          → résultat
+POST /opening-debts/imports/{id}/confirm  → inscrit les soldes valides, dans une transaction
+```
+
+Permission : `debts.opening`. Même déroulé que §8.1. Une ligne par client, repéré par son `code` (sans tenir compte de la casse) ; `dette` en DA, entier ≥ 0 ; `nom` facultatif. Lignes refusées : code inconnu ou en double, montant invalide, client figé. Les clients absents du fichier ne changent pas. Les routes `/imports/{id}` ne donnent pas accès à un import de soldes, et inversement.
 
 ### 8.2 Exports CSV (BR-IO-03)
 

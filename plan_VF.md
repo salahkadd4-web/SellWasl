@@ -1513,6 +1513,14 @@ development → staging → production
 - [ ] Publication sur les stores si nécessaire
 - [ ] iOS ultérieurement
 
+## Reprise des données de l'entreprise
+
+- [x] Soldes d'ouverture des dettes : fiche client et import CSV (BR-PAY-09)
+- [ ] Import Excel (.xlsx) des clients et des produits *(après le MVP)*
+- [ ] Correspondance des colonnes à l'import, retenue pour la fois suivante *(après le MVP)*
+- [ ] Pack de migration : un classeur, une feuille par sujet, essai à blanc *(après le MVP)*
+- [ ] Import KML / GeoJSON des secteurs et des parties *(après le MVP)*
+
 ## Livrable
 
 - [ ] `docs/deployment.md`

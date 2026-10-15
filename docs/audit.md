@@ -58,6 +58,7 @@
 | `warehouse.update` | Entrepôt modifié |
 | `import.customers` | Import de clients |
 | `import.products` | Import de produits |
+| `import.opening_debts` | Import des soldes d'ouverture |
 
 ### Catalogue et prix
 
@@ -131,6 +132,7 @@
 | `order.update` | Commande modifiée |
 | `order.cancel` | Commande annulée |
 | `payment.debt` | Dette encaissée |
+| `debt.opening` | Solde d'ouverture inscrit |
 | `receipt.reprint` | Bon réimprimé |
 
 ### Préparation, livraison et cash van
@@ -253,6 +255,6 @@
 | Polygones et planning | `territory.parts`, `territory.schedule`, `customer.reschedule` |
 | Lignes en attente, lancement de la préparation | `pending_line.accept`, `pending_line.refuse`, `route.prepare`, `route.launch` |
 | Stock, inventaires, écarts | `stock.receive`, `inventory.validate`, `load.*`, `unload.validate`, `truck.check`, `discrepancy.*` |
-| Encaissements, versements, écarts | `delivery.confirm`, `sale.confirm`, `payment.debt`, `settlement.create`, `discrepancy.*` |
+| Encaissements, versements, écarts | `delivery.confirm`, `sale.confirm`, `payment.debt`, `debt.opening`, `settlement.create`, `discrepancy.*` |
 | Réimpressions | `receipt.reprint` |
 | Rôle, affectation de secteur, modules (plan_VF) | `user.update`, `territory.update`, `company.mode.change` |

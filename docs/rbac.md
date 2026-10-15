@@ -145,6 +145,7 @@ Format `ressource.action`. Le suffixe `.own` signifie « sur ses propres donnée
 | | `payments.collect_debt` | Encaisser une dette | Socle |
 | | `settlements.read` | Consulter les versements | Socle |
 | | `settlements.create` | Enregistrer un versement (UC-70) | Socle |
+| | `debts.opening` | Inscrire les soldes d'ouverture des dettes (BR-PAY-09) | Socle |
 | Analyse | `reports.read` | Tableau du jour, carte du superviseur, fiches en consultation | `ANALYTICS` |
 | | `reports.export` | Exports CSV (UC-63) | `ANALYTICS` |
 | Paie (phase 21 bis) | `compensation.read`, `compensation.update` | Rémunérations et historique ; fixer un salaire (administrateur) | Socle |
@@ -213,6 +214,7 @@ Chacun lit et marque comme lues ses propres notifications sans permission partic
 | `payments.collect_debt` | — | — | — | ✓ | ✓ | ⚙ P-08 | — |
 | `settlements.read` | ✓ | ✓ | ✓ | — | — | — | — |
 | `settlements.create` | ✓ | — | ✓ | — | — | — | — |
+| `debts.opening` | ✓ | — | ✓ | — | — | — | — |
 | `reports.read` | ✓ | ✓ | ✓ | — | — | — | — |
 | `reports.export` | ✓ | ✓ | ✓ | — | — | — | — |
 
