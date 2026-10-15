@@ -20,5 +20,13 @@ if [ "$tables" != "0" ]; then
   exit 1
 fi
 
+# Archive d'un seul schéma (BACKUP_SCHEMA=public, Supabase) : elle recrée « public », qui existe
+# déjà dans toute base neuve. La cible étant vide (vérifié ci-dessus), son « public » est retiré.
+# Table des matières lue en entier : « grep -q » couperait le tuyau (échec avec pipefail)
+toc=$(run pg_restore --list < "$file")
+if grep -q ' SCHEMA - public ' <<< "$toc"; then
+  run psql "$TARGET_DATABASE_URL" -qc 'drop schema public cascade' > /dev/null
+fi
+
 run pg_restore --no-owner --no-privileges --exit-on-error --dbname="$TARGET_DATABASE_URL" < "$file"
 echo "Restauration terminée depuis $file"

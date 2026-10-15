@@ -33,7 +33,6 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : Vercel Pro ou un serveur 
 
 | Sujet | Pourquoi |
 |---|---|
-| Sauvegarde nocturne par GitHub Actions | Supabase Free ne fournit pas de sauvegarde exploitable |
 | Lecture de l'IP du client derrière Vercel et Render (§9) | Le Web passe par Vercel puis Render, le mobile par Render seul : un même `TRUST_PROXY` peut ne pas convenir aux deux chemins |
 
 ### 1.2 Comptes à créer
@@ -188,11 +187,29 @@ Si le Web et le mobile demandent des valeurs différentes, l'ajustement se fait 
 
 Changer d'adresse d'API demande une nouvelle compilation : l'adresse est figée dans l'APK.
 
-## 11. Sauvegardes 🔧
+## 11. Sauvegardes
 
-1. GitHub → Settings → Secrets and variables → Actions : secret `PRODUCTION_DATABASE_URL` (adresse du §2).
-2. Le workflow nocturne fait un `pg_dump` et le garde en artefact GitHub.
-3. Avant le premier jour : restaurer une sauvegarde sur une base locale et vérifier les données ([scripts/test-backup-restore.sh](../scripts/test-backup-restore.sh)).
+Chaque nuit à 2 h 30, le workflow [backup.yml](../.github/workflows/backup.yml) copie le schéma `public` de Supabase, **restaure la copie dans une base vide** (échec si elle ne se relit pas : GitHub vous prévient par e-mail), la **chiffre** (AES-256) et la garde **30 jours** (onglet Actions → « Sauvegarde » → une exécution → *Artifacts*). Le dépôt est public : sans chiffrement, n'importe qui pourrait télécharger les données de l'entreprise.
+
+1. Choisir une phrase secrète longue (5 mots ou plus), la ranger dans le gestionnaire de mots de passe. **Perdue, les sauvegardes sont illisibles.**
+2. GitHub → dépôt → **Settings → Secrets and variables → Actions → New repository secret** :
+   - `PRODUCTION_DATABASE_URL` : l'adresse Session pooler du §2 (les machines de GitHub n'ont pas d'IPv6) ;
+   - `BACKUP_PASSPHRASE` : la phrase secrète.
+3. **Actions → Sauvegarde → Run workflow** : la première sauvegarde se fait tout de suite ; vérifier qu'elle finit en vert. Sans les secrets, la tâche s'arrête avec un avertissement, sans rien copier.
+4. Restaurer (Git Bash, Docker de développement lancé) :
+
+   ```bash
+   unzip sauvegarde-<n°>.zip                                    # fichier téléchargé depuis Actions
+   gpg --output sellwasl.dump --decrypt sellwasl-<date>.dump.gpg  # demande la phrase secrète
+   docker compose exec -T postgres psql -U sellwasl -d postgres -c "create database sellwasl_copie"
+   PG_DOCKER_CONTAINER=sellwasl-postgres-1 \
+     TARGET_DATABASE_URL=postgresql://sellwasl:sellwasl@localhost:5432/sellwasl_copie \
+     scripts/restore-db.sh sellwasl.dump
+   ```
+
+   Faire cet essai **avant le premier jour**, puis chaque trimestre.
+
+GitHub suspend les tâches programmées d'un dépôt public **après 60 jours sans commit** : si plus rien n'est poussé, relancer la tâche à la main (Actions → Sauvegarde → *Enable workflow*).
 
 ## 12. Répétition générale
 

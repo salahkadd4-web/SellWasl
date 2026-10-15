@@ -73,9 +73,9 @@ Un compte bloqué révèle qu'il existe (il faut déjà connaître le code de l'
 | Élément | Décision |
 |---|---|
 | Hébergeur | Sauvegardes automatiques de la base gérée, avec restauration à un instant donné si proposée (architecture §18.3) |
-| Script | `pnpm db:backup` (`scripts/backup-db.sh`) : pg_dump au format personnalisé, compressé, horodaté, relu après écriture ; dossier et fichiers lisibles par leur seul propriétaire ; rotation sur `RETENTION_DAYS` jours (14 par défaut). Sans client PostgreSQL : `PG_DOCKER_CONTAINER` |
-| Fréquence | Une fois par jour (tâche planifiée sur le serveur), archive copiée hors de l'hébergeur |
-| Restauration | `scripts/restore-db.sh <archive>` vers une **base vide** seulement (refus sinon) |
+| Script | `pnpm db:backup` (`scripts/backup-db.sh`) : pg_dump au format personnalisé, compressé, horodaté, relu après écriture ; dossier et fichiers lisibles par leur seul propriétaire ; rotation sur `RETENTION_DAYS` jours (14 par défaut). Sans client PostgreSQL : `PG_DOCKER_CONTAINER`. `BACKUP_SCHEMA=public` : ce seul schéma (Supabase) |
+| Fréquence | Une fois par jour : workflow GitHub Actions `backup.yml` (2 h 30), restauration d'essai dans une base vide, archive chiffrée en AES-256 (`BACKUP_PASSPHRASE`, le dépôt est public) gardée 30 jours hors de l'hébergeur (`docs/deployment.md` §11) |
+| Restauration | `scripts/restore-db.sh <archive>` vers une **base vide** seulement (refus sinon) ; une archive d'un seul schéma recrée elle-même `public` |
 | Test | `pnpm db:test-restore` : sauvegarde, restauration dans une base vide, comptes de lignes comparés table par table (79 tables vérifiées le 2026-10-10). À refaire avant le pilote, puis chaque trimestre |
 
 ## 7. Dépendances

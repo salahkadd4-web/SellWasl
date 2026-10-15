@@ -1,0 +1,98 @@
+# Sauvegarde nocturne de la base de production (phase 30, docs/deployment.md §11) : copie du schéma
+# public, restauration d'essai dans une base vide, chiffrement (le dépôt est public : une archive en
+# clair serait lisible par tous), archive gardée 30 jours. Sans les deux secrets, la tâche s'arrête
+# avec un avertissement, sans échec.
+name: Sauvegarde
+
+on:
+  schedule:
+    - cron: '30 1 * * *' # 2 h 30 à Alger (UTC+1)
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Sauvegarde, restauration d'essai, chiffrement
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      # Base vide où l'archive est restaurée : une archive qui ne se restaure pas fait échouer la tâche
+      restore:
+        image: postgres:17
+        env:
+          POSTGRES_USER: restore
+          POSTGRES_PASSWORD: restore
+          POSTGRES_DB: restore
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U restore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Secrets présents
+        id: secrets
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning::Secrets PRODUCTION_DATABASE_URL ou BACKUP_PASSPHRASE absents : pas de sauvegarde (docs/deployment.md §11)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+
+      # Supabase : PostgreSQL 15 ou 17 ; pg_dump 17 sait copier les deux
+      - name: Client PostgreSQL 17
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y > /dev/null
+          sudo apt-get install -y --no-install-recommends postgresql-client-17 > /dev/null
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+
+      - name: Sauvegarde
+        id: dump
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          BACKUP_DIR: backup
+          BACKUP_SCHEMA: public
+        run: echo "file=$(scripts/backup-db.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Restauration d'essai
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          FILE: ${{ steps.dump.outputs.file }}
+          TARGET_DATABASE_URL: postgresql://restore:restore@localhost:5432/restore
+        run: |
+          scripts/restore-db.sh "$FILE"
+          tables=$(psql "$TARGET_DATABASE_URL" -tAc "select count(*) from information_schema.tables where table_schema = 'public'")
+          migrations=$(psql "$TARGET_DATABASE_URL" -tAc 'select count(*) from "_prisma_migrations"')
+          echo "Restauration d'essai : $tables tables, $migrations migrations, $(du -h "$FILE" | cut -f1)."
+          [ "$tables" -gt 0 ] && [ "$migrations" -gt 0 ]
+
+      - name: Chiffrement
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          FILE: ${{ steps.dump.outputs.file }}
+        run: |
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric \
+            --cipher-algo AES256 --output "$FILE.gpg" "$FILE" <<< "$BACKUP_PASSPHRASE"
+          rm "$FILE"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          name: sauvegarde-${{ github.run_id }}
+          path: backup/*.gpg
+          if-no-files-found: error
+          retention-days: 30
