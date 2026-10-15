@@ -446,12 +446,7 @@ function CustomerDetail({
             ))}
         </div>
 
-        {can('debts.opening') && (
-          <OpeningDebt
-            customerId={c.id}
-            onSaved={(debtAmount) => onChanged({ ...c, debtAmount })}
-          />
-        )}
+        {can('debts.opening') && <OpeningDebt customerId={c.id} onSaved={onChanged} />}
 
         <section className="flex flex-col gap-2 border-t border-border pt-3">
           <h3 className="font-semibold text-text-dark">Historique</h3>

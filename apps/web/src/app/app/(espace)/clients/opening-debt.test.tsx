@@ -13,14 +13,16 @@ vi.mock('@/lib/api', async (original) => ({
 describe('OpeningDebt', () => {
   beforeEach(() => vi.mocked(api).mockReset());
 
-  it('modifiable : enregistre le montant et prévient la fiche', async () => {
+  it('modifiable : enregistre le montant, puis rend la fiche relue (nouvelle version)', async () => {
+    const reloaded = { id: 'c1', version: 3, debtAmount: 12000 };
     vi.mocked(api)
       .mockResolvedValueOnce({ openingDebtAmount: 0, openingDebtEditable: true, debtAmount: 0 })
       .mockResolvedValueOnce({
         openingDebtAmount: 12000,
         openingDebtEditable: true,
         debtAmount: 12000,
-      });
+      })
+      .mockResolvedValueOnce(reloaded);
     const onSaved = vi.fn();
     render(<OpeningDebt customerId="c1" onSaved={onSaved} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Modifier' }));
@@ -28,11 +30,13 @@ describe('OpeningDebt', () => {
     await userEvent.clear(input);
     await userEvent.type(input, '12 000');
     await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
-    expect(api).toHaveBeenLastCalledWith('company', '/customers/c1/opening-debt', {
+    expect(api).toHaveBeenCalledWith('company', '/customers/c1/opening-debt', {
       method: 'PUT',
       body: JSON.stringify({ amount: 12000 }),
     });
-    expect(onSaved).toHaveBeenCalledWith(12000);
+    // La saisie change la version du client : la fiche est relue, sinon « Modifier » serait en conflit
+    expect(api).toHaveBeenLastCalledWith('company', '/customers/c1');
+    expect(onSaved).toHaveBeenCalledWith(reloaded);
     expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull();
   });
 

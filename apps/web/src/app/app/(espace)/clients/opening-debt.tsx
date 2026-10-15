@@ -1,6 +1,6 @@
 'use client';
 
-import type { OpeningDebtState } from '@sellwasl/validation';
+import type { CustomerDto, OpeningDebtState } from '@sellwasl/validation';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Field } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
@@ -15,8 +15,8 @@ export function OpeningDebt({
   onSaved,
 }: {
   customerId: string;
-  /** Nouvelle dette du client, pour mettre la fiche à jour. */
-  onSaved: (debtAmount: number) => void;
+  /** Fiche relue après la saisie : dette et version ont changé (la version sert à « Modifier »). */
+  onSaved: (customer: CustomerDto) => void;
 }) {
   const [state, setState] = useState<OpeningDebtState | null>(null);
   const [editing, setEditing] = useState(false);
@@ -40,7 +40,7 @@ export function OpeningDebt({
       });
       setState(next);
       setEditing(false);
-      onSaved(next.debtAmount);
+      onSaved(await api<CustomerDto>('company', `/customers/${customerId}`));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
