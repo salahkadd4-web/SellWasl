@@ -6,7 +6,19 @@ import { type ReactNode, useState } from 'react';
 import { Alert, Badge, Button, Card, PageTitle } from '@/components/ui';
 import { api, errorMessage, getAccessToken } from '@/lib/api';
 
-/** Import CSV en deux temps (BR-IO-01, BR-IO-02) : aperçu avec les erreurs, puis confirmation. */
+type ImportKind = 'CUSTOMERS' | 'PRODUCTS' | 'OPENING_DEBTS';
+
+/** Routes de chaque import : les soldes d'ouverture ont les leurs (BR-PAY-09). */
+const PATHS: Record<ImportKind, { base: string; template: string }> = {
+  CUSTOMERS: { base: '/imports', template: '/imports/templates/customers' },
+  PRODUCTS: { base: '/imports', template: '/imports/templates/products' },
+  OPENING_DEBTS: { base: '/opening-debts/imports', template: '/opening-debts/template' },
+};
+
+/**
+ * Import CSV en deux temps (BR-IO-01, BR-IO-02, BR-PAY-09) : aperçu avec les erreurs, puis
+ * confirmation.
+ */
 export function ImportPanel({
   kind,
   title,
@@ -15,8 +27,9 @@ export function ImportPanel({
   templateName,
   help,
   unit,
+  tabs,
 }: {
-  kind: 'CUSTOMERS' | 'PRODUCTS';
+  kind: ImportKind;
   title: string;
   backHref: string;
   backLabel: string;
@@ -24,6 +37,8 @@ export function ImportPanel({
   help: ReactNode;
   /** Ce qui est importé, au pluriel : « client(s) », « ligne(s) ». */
   unit: string;
+  /** Onglets de la section, sous le titre (comptabilité). */
+  tabs?: ReactNode;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -36,9 +51,11 @@ export function ImportPanel({
     setBusy(true);
     try {
       const form = new FormData();
-      form.append('kind', kind);
+      if (PATHS[kind].base === '/imports') form.append('kind', kind);
       form.append('file', file);
-      setPreview(await api<ImportPreview>('company', '/imports', { method: 'POST', body: form }));
+      setPreview(
+        await api<ImportPreview>('company', PATHS[kind].base, { method: 'POST', body: form }),
+      );
     } catch (err) {
       setError(errorMessage(err, 'Lecture du fichier impossible.'));
     } finally {
@@ -52,7 +69,9 @@ export function ImportPanel({
     setBusy(true);
     try {
       setPreview(
-        await api<ImportPreview>('company', `/imports/${preview.id}/confirm`, { method: 'POST' }),
+        await api<ImportPreview>('company', `${PATHS[kind].base}/${preview.id}/confirm`, {
+          method: 'POST',
+        }),
       );
     } catch (err) {
       setError(errorMessage(err));
@@ -63,8 +82,7 @@ export function ImportPanel({
 
   async function downloadTemplate() {
     // Le modèle demande une session : téléchargement par l'API, puis enregistrement local
-    const path = kind === 'PRODUCTS' ? 'products' : 'customers';
-    const response = await fetch(`/api/v1/imports/templates/${path}`, {
+    const response = await fetch(`/api/v1${PATHS[kind].template}`, {
       headers: { Authorization: `Bearer ${getAccessToken('company') ?? ''}` },
     });
     if (!response.ok) {
@@ -92,6 +110,7 @@ export function ImportPanel({
           </Link>
         }
       />
+      {tabs}
 
       <Card className="flex flex-col gap-3">
         <div className="text-sm text-text-dark">{help}</div>

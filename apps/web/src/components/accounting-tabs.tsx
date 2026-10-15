@@ -7,6 +7,7 @@ import { CompanyAuth } from '@/lib/auth';
 const TABS = [
   { href: '/app/versements', label: 'Versements', permission: 'settlements.read' },
   { href: '/app/paiements', label: 'Dettes et paiements', permission: 'payments.read' },
+  { href: '/app/soldes-ouverture', label: "Soldes d'ouverture", permission: 'debts.opening' },
   { href: '/app/ecarts', label: 'Écarts', permission: 'discrepancies.read' },
   { href: '/app/retenues', label: 'Retenues', permission: 'deductions.manage' },
   { href: '/app/acomptes', label: 'Acomptes', permission: 'advances.manage' },

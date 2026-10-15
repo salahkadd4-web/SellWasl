@@ -138,6 +138,7 @@ export const COMPANY_NAV: NavItem[] = [
     permission: 'settlements.read',
     also: [
       '/app/paiements',
+      '/app/soldes-ouverture',
       '/app/ecarts',
       '/app/retenues',
       '/app/acomptes',

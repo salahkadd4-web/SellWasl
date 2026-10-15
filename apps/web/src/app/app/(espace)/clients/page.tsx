@@ -25,6 +25,7 @@ import {
 import { api, ApiClientError, errorMessage } from '@/lib/api';
 import { CompanyAuth } from '@/lib/auth';
 import { formatDA, formatDate, formatDateTime, FREQUENCY_LABELS } from '@/lib/labels';
+import { OpeningDebt } from './opening-debt';
 
 interface CustomerType {
   id: string;
@@ -444,6 +445,13 @@ function CustomerDetail({
               </Button>
             ))}
         </div>
+
+        {can('debts.opening') && (
+          <OpeningDebt
+            customerId={c.id}
+            onSaved={(debtAmount) => onChanged({ ...c, debtAmount })}
+          />
+        )}
 
         <section className="flex flex-col gap-2 border-t border-border pt-3">
           <h3 className="font-semibold text-text-dark">Historique</h3>
