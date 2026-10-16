@@ -6,7 +6,7 @@ import type { NextFunction, Request, Response } from 'express';
 const single = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
 /**
- * Adresse du client posée par le Web (phase 30, docs/deployment.md §9), retenue seulement avec la
+ * Adresse du client posée par le Web (phase 30, docs/deployment.md, étape 13), retenue seulement avec la
  * clé partagée `WEB_PROXY_SECRET` (comparaison à temps constant) et si c'est bien une adresse IP.
  */
 export function webProxyClientIp(

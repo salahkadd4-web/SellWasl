@@ -1,5 +1,5 @@
 // Initialisation d'une base neuve : catalogue des permissions et premier Super Admin
-// (docs/deployment.md §8). Relançable : les permissions sont remises à jour, un compte existant
+// (docs/deployment.md, étape 11). Relançable : les permissions sont remises à jour, un compte existant
 // n'est jamais modifié. Usage, depuis un poste, avec DATABASE_URL de la base visée :
 //   pnpm --filter @sellwasl/api platform:bootstrap <email> ["Nom"]
 // Le mot de passe est demandé deux fois, sans s'afficher.
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
       return;
     }
     console.log(`✔ Super Admin créé : ${email.trim().toLowerCase()}`);
-    console.log('Ensuite (docs/deployment.md §7 et §8) :');
+    console.log('Ensuite (docs/deployment.md, étape 12) :');
     console.log('  1. PLATFORM_ALLOWED_IPS : votre adresse IP, sur l’API et sur le Web ;');
     console.log('  2. /admin/login : e-mail et mot de passe ;');
     console.log('  3. scannez le QR code avec une application d’authentification, puis saisissez');

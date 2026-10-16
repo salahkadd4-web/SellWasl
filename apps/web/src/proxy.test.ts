@@ -16,7 +16,7 @@ async function loadProxy(env: Record<string, string | undefined>) {
 const forwarded = (response: Response, name: string) =>
   response.headers.get(`x-middleware-request-${name}`);
 
-/** Adresse du client vers l'API (phase 30, docs/deployment.md §9). */
+/** Adresse du client vers l'API (phase 30, docs/deployment.md, étape 13). */
 describe('proxy du Web : requêtes vers l’API', () => {
   afterEach(() => vi.unstubAllEnvs());
 

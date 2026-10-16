@@ -6,7 +6,7 @@ import { PASSWORD, startApp, type TestApp } from './helpers';
 const SECRET = 'cle-partagee-entre-le-web-et-l-api-0123456789';
 
 /**
- * Adresse du client transmise par le Web (phase 30, docs/deployment.md §9) : le Web passe par
+ * Adresse du client transmise par le Web (phase 30, docs/deployment.md, étape 13) : le Web passe par
  * Vercel puis Render, le mobile par Render seul ; l'API croit l'adresse posée par le Web
  * seulement avec la clé partagée.
  */

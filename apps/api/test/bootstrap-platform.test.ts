@@ -10,7 +10,7 @@ import { PLATFORM_EMAIL } from './helpers';
 
 class Rollback extends Error {}
 
-/** Initialisation de production : permissions et premier Super Admin (docs/deployment.md §8). */
+/** Initialisation de production : permissions et premier Super Admin (docs/deployment.md, étape 11). */
 describe('initialisation de la plateforme', () => {
   const prisma = new PrismaClient({
     // Base de test : DATABASE_URL est déjà celle de la suite (test/env.ts)

@@ -22,7 +22,7 @@ export class HealthController {
 
   /**
    * Adresse du client vue par l'API, pour régler TRUST_PROXY après le déploiement
-   * (docs/deployment.md §9). Ne renvoie que ce que l'appelant a lui-même envoyé ou montré.
+   * (docs/deployment.md, étape 13). Ne renvoie que ce que l'appelant a lui-même envoyé ou montré.
    */
   @Get('ip')
   ip(@Req() req: Request): { ip: string | null; viaWeb: boolean } {

@@ -1,4 +1,4 @@
-# Sauvegarde nocturne de la base de production (phase 30, docs/deployment.md §11) : copie du schéma
+# Sauvegarde nocturne de la base de production (phase 30, docs/deployment.md, étape 14) : copie du schéma
 # public, restauration d'essai dans une base vide, chiffrement (le dépôt est public : une archive en
 # clair serait lisible par tous), archive gardée 30 jours. Sans les deux secrets, la tâche s'arrête
 # avec un avertissement, sans échec.
@@ -43,7 +43,7 @@ jobs:
         id: secrets
         run: |
           if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
-            echo "::warning::Secrets PRODUCTION_DATABASE_URL ou BACKUP_PASSPHRASE absents : pas de sauvegarde (docs/deployment.md §11)."
+            echo "::warning::Secrets PRODUCTION_DATABASE_URL ou BACKUP_PASSPHRASE absents : pas de sauvegarde (docs/deployment.md, étape 14)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"

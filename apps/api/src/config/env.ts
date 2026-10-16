@@ -27,7 +27,7 @@ const envSchema = z.object({
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
   /**
    * Clé partagée avec le Web : l'adresse du client qu'il transmet n'est crue qu'avec elle
-   * (docs/deployment.md §9). Absente : seul TRUST_PROXY compte.
+   * (docs/deployment.md, étape 13). Absente : seul TRUST_PROXY compte.
    */
   WEB_PROXY_SECRET: z.string().min(32, '32 caractères au moins').optional(),
   /** Clé AES-256 des données chiffrées en base (secrets TOTP) : 32 octets en base64. */
