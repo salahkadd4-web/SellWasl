@@ -1,4 +1,5 @@
 // Dashboard, rapports, exports et analyse des retours (phase 21)
+import type { TrendUnit } from '@sellwasl/business-rules';
 import { z } from 'zod';
 import { RETURN_CONDITIONS, type ReturnConditionCode } from './stock';
 
@@ -328,4 +329,23 @@ export interface RefusalDto {
   contestComment: string | null;
   contestedAt: string | null;
   decidedAt: string | null;
+}
+
+/** Courbe des ventes de la page Statistiques : commandes et chiffre d'affaires par période. */
+export interface SalesTrendDto {
+  unit: TrendUnit;
+  /** Une entrée par période (jour, semaine, mois), vides comprises ; `start` : premier jour. */
+  points: { start: string; orders: number; revenue: number }[];
+}
+
+/** Courbe des retours de la page Statistiques : montants et taux de refus par période. */
+export interface ReturnsTrendDto {
+  unit: TrendUnit;
+  points: {
+    start: string;
+    refusedValue: number;
+    returnedValue: number;
+    resoldValue: number;
+    refusalRate: RateDto;
+  }[];
 }

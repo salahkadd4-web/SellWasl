@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { rate } from '@sellwasl/business-rules';
+import { rate, trendStart, trendStarts, trendUnit } from '@sellwasl/business-rules';
 import type {
   CommercialReportDto,
   DashboardDto,
@@ -9,6 +9,7 @@ import type {
   PresalesReportDto,
   RateDto,
   ReportsQuery,
+  SalesTrendDto,
   UserSheetDto,
 } from '@sellwasl/validation';
 import { notFound } from '../common/api-error';
@@ -325,6 +326,48 @@ export class ReportsService {
       },
     ).sort((a, b) => b.revenue - a.revenue);
     return { byDay, byProduct, byCustomer };
+  }
+
+  /**
+   * Ventes dans le temps (page Statistiques) : commandes et chiffre d'affaires par période, mêmes
+   * commandes que le rapport commercial. Filtré par produit : seules les lignes du produit comptent.
+   */
+  async salesTrend(q: ReportsQuery): Promise<SalesTrendDto> {
+    const unit = trendUnit(q.from, q.to);
+    const weekStartsOn = await this.returns.weekStartsOn();
+    const points = new Map(
+      trendStarts(q.from, q.to, unit, weekStartsOn).map((start) => [
+        start,
+        { start, orders: 0, revenue: 0 },
+      ]),
+    );
+    const at = (date: Date) => points.get(trendStart(dateOnly(date)!, unit, weekStartsOn))!;
+    if (q.productId) {
+      const lines = await this.db.orderLine.findMany({
+        where: { kind: 'NORMAL', productId: q.productId, order: this.orderWhere(q) },
+        select: { orderId: true, lineAmount: true, order: { select: { orderDate: true } } },
+      });
+      const counted = new Set<string>();
+      for (const l of lines) {
+        const point = at(l.order.orderDate);
+        point.revenue += Number(l.lineAmount);
+        if (!counted.has(l.orderId)) {
+          counted.add(l.orderId);
+          point.orders += 1;
+        }
+      }
+    } else {
+      const orders = await this.db.order.findMany({
+        where: this.orderWhere(q),
+        select: { orderDate: true, totalAmount: true },
+      });
+      for (const o of orders) {
+        const point = at(o.orderDate);
+        point.orders += 1;
+        point.revenue += Number(o.totalAmount);
+      }
+    }
+    return { unit, points: [...points.values()] };
   }
 
   async presales(q: ReportsQuery): Promise<PresalesReportDto> {

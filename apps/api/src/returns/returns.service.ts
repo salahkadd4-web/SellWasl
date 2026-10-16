@@ -1,5 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { netReturnCost, rate } from '@sellwasl/business-rules';
+import {
+  netReturnCost,
+  rate,
+  trendStart,
+  trendStarts,
+  trendUnit,
+  type WeekdayCode,
+} from '@sellwasl/business-rules';
 import {
   companySettingsSchema,
   type KeyLabel,
@@ -13,6 +20,7 @@ import {
   type ReturnsCrossDto,
   type ReturnsQuery,
   type ReturnsSummaryDto,
+  type ReturnsTrendDto,
 } from '@sellwasl/validation';
 import type { z } from 'zod';
 import { dateOnly, toDate } from '../field/field-errors';
@@ -122,6 +130,64 @@ export class ReturnsService {
   private async minVolume(): Promise<number> {
     const row = await this.db.companySettings.findFirst({ orderBy: { version: 'desc' } });
     return companySettingsSchema.parse(row?.data ?? {}).returnsMinVolume;
+  }
+
+  /** Premier jour des semaines des courbes : celui de la paie (samedi par défaut). */
+  async weekStartsOn(): Promise<WeekdayCode> {
+    const row = await this.db.companySettings.findFirst({ orderBy: { version: 'desc' } });
+    return companySettingsSchema.parse(row?.data ?? {}).payroll.weekStartsOn;
+  }
+
+  /**
+   * Retours dans le temps (page Statistiques) : refusé, retourné et revendu par période, avec le
+   * taux de refus sur les commandes présentées ; mêmes faits et mêmes filtres que l'analyse.
+   */
+  async trend(q: ReturnsQuery): Promise<ReturnsTrendDto> {
+    const unit = trendUnit(q.from, q.to);
+    const [facts, minVolume, weekStartsOn] = await Promise.all([
+      this.facts(q),
+      this.minVolume(),
+      this.weekStartsOn(),
+    ]);
+    const deliveries = await this.db.delivery.findMany({
+      where: {
+        deletedAt: null,
+        workday: { date: { gte: toDate(q.from), lte: toDate(q.to) } },
+        ...(q.driverId && { userId: q.driverId }),
+        ...(q.userId && { OR: [{ userId: q.userId }, { order: { sellerUserId: q.userId } }] }),
+        order: {
+          ...(q.sellerId && { sellerUserId: q.sellerId }),
+          ...(q.customerId && { customerId: q.customerId }),
+          ...(q.productId && { orderLines: { some: { productId: q.productId } } }),
+          ...((q.territoryId || q.partId) && {
+            customer: {
+              ...(q.territoryId && { territoryId: q.territoryId }),
+              ...(q.partId && { partId: q.partId }),
+            },
+          }),
+        },
+      },
+      select: { orderId: true, workday: { select: { date: true } } },
+    });
+    const buckets = new Map(
+      trendStarts(q.from, q.to, unit, weekStartsOn).map((start) => [
+        start,
+        { totals: emptyTotals(), presented: new Set<string>() },
+      ]),
+    );
+    const at = (date: Date) => buckets.get(trendStart(dateOnly(date)!, unit, weekStartsOn))!;
+    for (const f of facts) add(at(f.date).totals, f);
+    for (const d of deliveries) at(d.workday.date).presented.add(d.orderId);
+    return {
+      unit,
+      points: [...buckets.entries()].map(([start, { totals: t, presented }]) => ({
+        start,
+        refusedValue: t.refusedValue,
+        returnedValue: t.returnedValue,
+        resoldValue: t.resoldValue,
+        refusalRate: rate(t.refusedOrders.size, presented.size, minVolume),
+      })),
+    };
   }
 
   /** Faits de la période et des filtres. */

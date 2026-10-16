@@ -17,3 +17,4 @@ export * from './payroll';
 export * from './reprice';
 export * from './ip-allowlist';
 export * from './objectives';
+export * from './trend';

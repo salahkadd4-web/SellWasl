@@ -11,6 +11,7 @@ import {
   type ReturnsCrossDto,
   returnsCrossQuerySchema,
   returnsQuerySchema,
+  type ReturnsTrendDto,
 } from '@sellwasl/validation';
 import { z } from 'zod';
 import { type AuthUser, CurrentUser, RequirePermission } from '../common/auth-context';
@@ -36,6 +37,14 @@ export class ReturnsController {
     @Query(new ZodValidationPipe(returnsQuerySchema)) q: Out<typeof returnsQuerySchema>,
   ): Promise<ReturnsAxisDto> {
     return this.returns.axis(axis, q);
+  }
+
+  @RequirePermission('returns.read')
+  @Get('returns/trend')
+  trend(
+    @Query(new ZodValidationPipe(returnsQuerySchema)) q: Out<typeof returnsQuerySchema>,
+  ): Promise<ReturnsTrendDto> {
+    return this.returns.trend(q);
   }
 
   @RequirePermission('returns.read')

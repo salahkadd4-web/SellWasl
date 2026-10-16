@@ -8,6 +8,7 @@ import {
   mapQuerySchema,
   type PresalesReportDto,
   reportsQuerySchema,
+  type SalesTrendDto,
   type SupervisorMapDto,
   type TodayRowDto,
   type UserSheetDto,
@@ -67,6 +68,12 @@ export class ReportsController {
   @Get('commercial')
   commercial(@Query(reportsQuery) q: Out<typeof reportsQuerySchema>): Promise<CommercialReportDto> {
     return this.reports.commercial(q);
+  }
+
+  @RequirePermission('reports.read')
+  @Get('sales-trend')
+  salesTrend(@Query(reportsQuery) q: Out<typeof reportsQuerySchema>): Promise<SalesTrendDto> {
+    return this.reports.salesTrend(q);
   }
 
   @RequirePermission('reports.read')
