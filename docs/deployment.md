@@ -34,8 +34,8 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : annexe E.
 
 ### Étape 1 — Gestionnaire de mots de passe
 
-- [ ] Installer un gestionnaire de mots de passe (Bitwarden : gratuit, sur PC et téléphone).
-- [ ] Y créer une note « SellWasl — production » : toutes les valeurs de ce guide y seront rangées. Liste complète :
+- [x] Installer un gestionnaire de mots de passe (Bitwarden : gratuit, sur PC et téléphone).
+- [x] Y créer une note « SellWasl — production » : toutes les valeurs de ce guide y seront rangées. Liste complète :
 
 | Nom | Obtenue à l'étape |
 |---|---|
@@ -57,7 +57,7 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : annexe E.
 
 ### Étape 2 — Générer les secrets
 
-- [ ] Dans VS Code, ouvrir un terminal (**Terminal → Nouveau terminal**) et lancer, une ligne à la fois :
+- [x] Dans VS Code, ouvrir un terminal (**Terminal → Nouveau terminal**) et lancer, une ligne à la fois :
 
   ```powershell
   node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
@@ -65,9 +65,9 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : annexe E.
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   ```
 
-- [ ] Ranger le premier résultat sous `JWT_ACCESS_SECRET`, le deuxième sous `DATA_ENCRYPTION_KEY`, le troisième sous `WEB_PROXY_SECRET`.
-- [ ] Choisir une **phrase secrète des sauvegardes** : 5 mots ou plus, sans rapport avec vous (ex. « tapis orange quatre nuage boulon »). La ranger sous `BACKUP_PASSPHRASE`.
-- [ ] Choisir le **mot de passe du Super Admin** : 12 caractères ou plus, avec lettres et chiffres. Le ranger.
+- [x] Ranger le premier résultat sous `JWT_ACCESS_SECRET`, le deuxième sous `DATA_ENCRYPTION_KEY`, le troisième sous `WEB_PROXY_SECRET`.
+- [x] Choisir une **phrase secrète des sauvegardes** : 5 mots ou plus, sans rapport avec vous (ex. « tapis orange quatre nuage boulon »). La ranger sous `BACKUP_PASSPHRASE`. 
+- [X] Choisir le **mot de passe du Super Admin** : 12 caractères ou plus, avec lettres et chiffres. Le ranger.
 
 À savoir : perdre `DATA_ENCRYPTION_KEY` rend illisibles les doubles authentifications enregistrées ; perdre `BACKUP_PASSPHRASE` rend les sauvegardes illisibles. **Il n'y a pas de récupération possible.**
 
@@ -77,13 +77,13 @@ Coût : 0 €. À prévoir quand l'entreprise paiera : annexe E.
 
 Créer chaque compte avec la même adresse e-mail (de préférence « Continuer avec GitHub » quand c'est proposé : la connexion au dépôt sera plus simple).
 
-- [ ] **Supabase** — <https://supabase.com> → *Start your project*.
-- [ ] **Render** — <https://render.com> → *Get Started* (avec GitHub).
-- [ ] **Vercel** — <https://vercel.com/signup> → offre **Hobby**, avec GitHub. **Compte séparé de vos autres projets** (caba-store…) : quotas et règle « non commercial » s'appliquent à tout le compte ; une autre adresse e-mail si besoin.
-- [ ] **Cloudinary** — <https://cloudinary.com/users/register_free>.
-- [ ] **cron-job.org** — <https://console.cron-job.org/signup>.
-- [ ] **Expo** — <https://expo.dev/signup> (pour compiler l'application Android ; déjà fait si vous avez déjà compilé l'APK).
-- [ ] **Firebase** — <https://console.firebase.google.com> avec un compte Google (notifications Android, étape 16).
+- [x] **Supabase** — <https://supabase.com> → *Start your project*.
+- [x] **Render** — <https://render.com> → *Get Started* (avec GitHub).
+- [x] **Vercel** — <https://vercel.com/signup> → offre **Hobby**, avec GitHub. **Compte séparé de vos autres projets** (caba-store…) : quotas et règle « non commercial » s'appliquent à tout le compte ; une autre adresse e-mail si besoin.
+- [x] **Cloudinary** — <https://cloudinary.com/users/register_free>.
+- [x] **cron-job.org** — <https://console.cron-job.org/signup>.
+- [x] **Expo** — <https://expo.dev/signup> (pour compiler l'application Android ; déjà fait si vous avez déjà compilé l'APK).
+- [x] **Firebase** — <https://console.firebase.google.com> avec un compte Google (notifications Android, étape 16).
 
 **Vérifier** : vous pouvez vous connecter à chacun des sept.
 
@@ -91,9 +91,9 @@ Créer chaque compte avec la même adresse e-mail (de préférence « Continuer 
 
 L'espace Super Admin ne sera visible que depuis votre adresse (sécurité).
 
-- [ ] Depuis le PC qui servira à administrer (même connexion internet), ouvrir <https://api.ipify.org> : noter l'adresse (ex. `105.98.12.34`).
-- [ ] Ouvrir <https://api64.ipify.org> : si l'adresse est différente (avec des `:`), la noter aussi ; si c'est la même, vous n'avez pas d'IPv6.
-- [ ] Composer la valeur `PLATFORM_ALLOWED_IPS` : les adresses séparées par une virgule, ex. `105.98.12.34, 2c0f:f8f0:abcd::1`.
+- [x] Depuis le PC qui servira à administrer (même connexion internet), ouvrir <https://api.ipify.org> : noter l'adresse (ex. `105.98.12.34`).
+- [x] Ouvrir <https://api64.ipify.org> : si l'adresse est différente (avec des `:`), la noter aussi ; si c'est la même, vous n'avez pas d'IPv6.
+- [x] Composer la valeur `PLATFORM_ALLOWED_IPS` : les adresses séparées par une virgule, ex. `105.98.12.34, 2c0f:f8f0:abcd::1`.
 
 Votre adresse change (redémarrage de la box, 4G) : annexe B.
 
@@ -105,14 +105,14 @@ Votre adresse change (redémarrage de la box, 4G) : annexe B.
 
 ### Étape 5 — Supabase : créer la base
 
-- [ ] **New project** :
+- [x] **New project** :
   - *Name* : `sellwasl` ;
   - *Database Password* : cliquer *Generate a password*, le **copier et le ranger** (« Mot de passe de la base Supabase ») ;
   - *Region* : **Central EU (Frankfurt)** ;
   - *Plan* : Free → *Create new project* (2 minutes).
-- [ ] **Désactiver la Data API** (obligatoire) : **Project Settings → Data API** → désactiver *Enable Data API* → enregistrer. Sinon, les tables seraient lisibles par l'API REST de Supabase.
-- [ ] **Copier l'adresse de connexion** : bouton **Connect** (en haut) → onglet *Connection String* → *Method* : **Session pooler** (port **5432**) → copier l'adresse.
-- [ ] Dans l'adresse, remplacer `[YOUR-PASSWORD]` par le mot de passe de la base (sans les crochets). La ranger sous `DATABASE_URL`. Elle ressemble à :
+- [x] **Désactiver la Data API** (obligatoire) : **Project Settings → Data API** → désactiver *Enable Data API* → enregistrer. Sinon, les tables seraient lisibles par l'API REST de Supabase.
+- [x] **Copier l'adresse de connexion** : bouton **Connect** (en haut) → onglet *Connection String* → *Method* : **Session pooler** (port **5432**) → copier l'adresse.
+- [x] Dans l'adresse, remplacer `[YOUR-PASSWORD]` par le mot de passe de la base (sans les crochets). La ranger sous `DATABASE_URL`. Elle ressemble à :
   `postgresql://postgres.abcdefgh:MOTDEPASSE@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`
 
 Ne pas prendre « Direct connection » : elle n'existe qu'en IPv6, que Render et GitHub ne savent pas joindre.
@@ -121,22 +121,23 @@ Ne pas prendre « Direct connection » : elle n'existe qu'en IPv6, que Render et
 
 ### Étape 6 — Tester la connexion et créer les tables
 
-- [ ] Ouvrir **un nouveau terminal** VS Code, à la racine du dépôt, et lancer (remplacer l'adresse) :
+- [x] Ouvrir **un nouveau terminal** VS Code, à la racine du dépôt, et lancer (remplacer l'adresse) :
 
   ```powershell
   $env:DATABASE_URL = "postgresql://postgres.abcdefgh:MOTDEPASSE@aws-0-eu-central-1.pooler.supabase.com:5432/postgres"
   pnpm --filter @sellwasl/api prisma:deploy
   ```
 
-- [ ] Attendre le message **« All migrations have been successfully applied »** (17 migrations au 2026-10-16).
-- [ ] **Fermer ce terminal** (icône corbeille) : il pointe sur la base de production. Ne jamais y lancer `pnpm db:seed` ni `pnpm db:reset` (`db:reset` efface tout).
+- [x] Attendre le message **« All migrations have been successfully applied »** (17 migrations au 2026-10-16).
+- [x] **Fermer ce terminal** (icône corbeille) : il pointe sur la base de production. Ne jamais y lancer `pnpm db:seed` ni `pnpm db:reset` (`db:reset` efface tout).
 
 **Vérifier** : Supabase → **Table Editor** montre les tables (`company`, `customer`, `permission`…).
 
 ### Étape 7 — Cloudinary : stockage des photos
 
-- [ ] Tableau de bord Cloudinary → **Settings** (roue dentée) → **API Keys** (ou *Product environment*) → copier **API environment variable** : `cloudinary://<clé>:<secret>@<nom>`.
-- [ ] La ranger sous `CLOUDINARY_URL`.
+
+- [x] Tableau de bord Cloudinary → **Settings** (roue dentée) → **API Keys** (ou *Product environment*) → copier **API environment variable** : `cloudinary://<clé>:<secret>@<nom>`.
+- [x] La ranger sous `CLOUDINARY_URL`.
 
 Obligatoire : sans elle, les photos des produits seraient écrites sur le disque de Render, effacé à chaque redémarrage.
 
@@ -144,9 +145,9 @@ Obligatoire : sans elle, les photos des produits seraient écrites sur le disque
 
 ### Étape 8 — Render : mettre l'API en ligne
 
-- [ ] Vérifier d'abord que la CI de `main` est **verte** : GitHub → dépôt → **Actions** → dernière exécution « CI » sur `main`.
-- [ ] Render → **New + → Web Service** → *Git Provider* : GitHub → autoriser Render → choisir le dépôt `SellWasl`.
-- [ ] Remplir :
+- [x] Vérifier d'abord que la CI de `main` est **verte** : GitHub → dépôt → **Actions** → dernière exécution « CI » sur `main`.
+- [x] Render → **New + → Web Service** → *Git Provider* : GitHub → autoriser Render → choisir le dépôt `SellWasl`.
+- [x] Remplir :
 
 | Champ | Valeur |
 |---|---|
@@ -157,7 +158,7 @@ Obligatoire : sans elle, les photos des produits seraient écrites sur le disque
 | Root Directory | laisser vide |
 | Instance Type | **Free** |
 
-- [ ] **Advanced** :
+- [x] **Advanced** :
 
 | Champ | Valeur |
 |---|---|
@@ -166,7 +167,7 @@ Obligatoire : sans elle, les photos des produits seraient écrites sur le disque
 | Health Check Path | `/api/v1/health` |
 | Auto-Deploy | **After CI Checks Pass** |
 
-- [ ] **Environment Variables** → *Add Environment Variable*, une par ligne :
+- [x] **Environment Variables** → *Add Environment Variable*, une par ligne :
 
 | Key | Value |
 |---|---|
@@ -189,7 +190,7 @@ Obligatoire : sans elle, les photos des produits seraient écrites sur le disque
 
 Render Free s'endort après 15 minutes sans requête : les tâches de nuit (paie, purge des positions) et l'envoi des notifications s'arrêteraient, et Supabase se mettrait en pause.
 
-- [ ] cron-job.org → **Create cronjob** :
+- [x] cron-job.org → **Create cronjob** :
   - *Title* : `SellWasl API` ;
   - *URL* : `https://<adresse de l'API>/api/v1/health` ;
   - *Execution schedule* : **Every 10 minutes** ;
@@ -204,9 +205,9 @@ Render Free s'endort après 15 minutes sans requête : les tâches de nuit (paie
 
 ### Étape 10 — Vercel : mettre le Web en ligne
 
-- [ ] Vercel → **Add New… → Project** → importer le dépôt `SellWasl` (autoriser l'accès GitHub si demandé).
-- [ ] **Root Directory** → *Edit* → `apps/web`. *Framework Preset* : Next.js (détecté seul).
-- [ ] **Environment Variables**, une par ligne :
+- [x] Vercel → **Add New… → Project** → importer le dépôt `SellWasl` (autoriser l'accès GitHub si demandé).
+- [x] **Root Directory** → *Edit* → `apps/web`. *Framework Preset* : Next.js (détecté seul).
+- [x] **Environment Variables**, une par ligne :
 
 | Key | Value |
 |---|---|
@@ -216,14 +217,16 @@ Render Free s'endort après 15 minutes sans requête : les tâches de nuit (paie
 | `WEB_PROXY_SECRET` | **la même** qu'à l'étape 8 |
 | `PLATFORM_ALLOWED_IPS` | **la même** qu'à l'étape 8 |
 
-- [ ] **Deploy** (3 à 5 minutes). Ranger l'adresse (`https://….vercel.app`) sous « Adresse du Web ».
-- [ ] **Settings → Functions → Function Region** : **Frankfurt, Germany (fra1)** → *Save*.
-- [ ] **Settings → Git → Ignored Build Step** → *Custom* → commande :
+- [x] **Deploy** (3 à 5 minutes). Ranger l'adresse (`https://….vercel.app`) sous « Adresse du Web ».
+- [x] **Settings → Functions → Function Region** : **Frankfurt, Germany (fra1)** → *Save*.
+- [x] **Settings → Git → Ignored Build Step** → *Custom* → commande :
   `git diff --quiet HEAD^ HEAD -- . ../../packages ../../pnpm-lock.yaml` → *Save* (pas de nouveau déploiement quand seuls l'API ou le mobile changent).
-- [ ] MapTiler (<https://cloud.maptiler.com/account/keys>) : si votre clé est limitée à certains domaines, ajouter l'adresse du Web.
-- [ ] **Deployments → … → Redeploy** (la région et les réglages s'appliquent au déploiement suivant).
+- [x] MapTiler (<https://cloud.maptiler.com/account/keys>) : si votre clé est limitée à certains domaines, ajouter l'adresse du Web.
+- [x] **Deployments → … → Redeploy** (la région et les réglages s'appliquent au déploiement suivant).
 
 **Vérifier** : l'adresse du Web affiche la page de connexion ; une connexion avec un mauvais mot de passe affiche un message d'erreur (preuve que le Web joint l'API).
+
+
 
 ### Étape 11 — Créer le Super Admin
 
@@ -244,11 +247,13 @@ Il n'y a pas d'écran pour changer ce mot de passe : il doit rester dans le gest
 
 ### Étape 12 — Première connexion du Super Admin
 
-- [ ] Sur le téléphone, installer **Google Authenticator**, **Microsoft Authenticator** ou **2FAS**.
-- [ ] Sur le PC (réseau de l'étape 4), ouvrir `https://<adresse du Web>/admin/login` ; e-mail et mot de passe.
-- [ ] Un **QR code** s'affiche. Dans l'application du téléphone : **+ → Scanner un QR code** → viser l'écran. « SellWasl » apparaît avec un code à 6 chiffres qui change toutes les 30 secondes.
-- [ ] **Avant de continuer**, copier la **clé** affichée sous le QR code dans le gestionnaire (« Clé de secours de la double authentification ») : elle permet de réinscrire un nouveau téléphone.
-- [ ] Saisir le code à 6 chiffres.
+- [x] Sur le téléphone, installer **Google Authenticator**, **Microsoft Authenticator** ou **2FAS**.
+- [x] Sur le PC (réseau de l'étape 4), ouvrir `https://<adresse du Web>/admin/login` ; e-mail et mot de passe.
+
+
+- [x] Un **QR code** s'affiche. Dans l'application du téléphone : **+ → Scanner un QR code** → viser l'écran. « SellWasl » apparaît avec un code à 6 chiffres qui change toutes les 30 secondes.
+- [x] **Avant de continuer**, copier la **clé** affichée sous le QR code dans le gestionnaire (« Clé de secours de la double authentification ») : elle permet de réinscrire un nouveau téléphone.
+- [x] Saisir le code à 6 chiffres.
 
 Ensuite, chaque connexion demande : e-mail, mot de passe, code du moment. Téléphone perdu : annexe B.
 
