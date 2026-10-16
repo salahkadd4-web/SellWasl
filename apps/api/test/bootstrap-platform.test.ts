@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PERMISSIONS } from '@sellwasl/business-rules';
 import { PassThrough } from 'node:stream';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { bootstrapPlatform, hiddenPrompt } from '../scripts/bootstrap-platform';
+import { bootstrapPlatform, hiddenPrompt, syncPermissions } from '../scripts/bootstrap-platform';
 import { uuidv7 } from '../src/common/uuid';
 import { type Prisma, PrismaClient } from '../src/generated/prisma/client';
 import { PLATFORM_EMAIL } from './helpers';
@@ -126,5 +126,63 @@ describe('initialisation de la plateforme', () => {
     const prompt = hiddenPrompt(input, new PassThrough());
     input.end();
     await expect(prompt.ask('Mot de passe : ')).rejects.toThrow('Saisie interrompue');
+  });
+});
+
+/**
+ * Base distante (Supabase à Francfort, depuis l'Algérie) : chaque requête coûte ~60 ms et la
+ * transaction est limitée. Le catalogue s'écrit en quelques requêtes, jamais une par permission.
+ */
+describe('catalogue des permissions : peu de requêtes', () => {
+  type Row = { code: string; description: string; scope: 'PLATFORM' | 'COMPANY' };
+  const catalog = (): Row[] =>
+    PERMISSIONS.map((p) => ({ code: p.code, description: p.description, scope: p.scope }));
+
+  /** Table simulée : compte les requêtes envoyées. */
+  function fakeDb(rows: Row[]) {
+    const calls = { findMany: 0, createMany: 0, update: 0, other: 0 };
+    const created: Row[] = [];
+    const permission = new Proxy(
+      {
+        findMany: async () => (calls.findMany++, rows),
+        createMany: async ({ data }: { data: Row[] }) => (
+          calls.createMany++,
+          created.push(...data),
+          { count: data.length }
+        ),
+        update: async () => (calls.update++, {}),
+      },
+      {
+        get: (target, name: string) =>
+          name in target
+            ? target[name as keyof typeof target]
+            : async () => {
+                calls.other++;
+                return {};
+              },
+      },
+    );
+    return { db: { permission } as never, calls, created };
+  }
+
+  it('base neuve : une lecture et une seule écriture groupée', async () => {
+    const { db, calls, created } = fakeDb([]);
+    expect(await syncPermissions(db)).toBe(PERMISSIONS.length);
+    expect(calls).toEqual({ findMany: 1, createMany: 1, update: 0, other: 0 });
+    expect(created).toHaveLength(PERMISSIONS.length);
+  });
+
+  it('catalogue à jour : une lecture, aucune écriture', async () => {
+    const { db, calls } = fakeDb(catalog());
+    await syncPermissions(db);
+    expect(calls).toEqual({ findMany: 1, createMany: 0, update: 0, other: 0 });
+  });
+
+  it('une description changée : seule cette permission est mise à jour', async () => {
+    const rows = catalog();
+    rows[0] = { ...rows[0]!, description: 'ancienne' };
+    const { db, calls } = fakeDb(rows);
+    await syncPermissions(db);
+    expect(calls).toEqual({ findMany: 1, createMany: 0, update: 1, other: 0 });
   });
 });

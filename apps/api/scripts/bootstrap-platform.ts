@@ -19,12 +19,27 @@ const emailSchema = z.email('E-mail invalide');
 
 /** Catalogue des permissions (docs/rbac.md §4) : ajoutées ou remises à jour. */
 export async function syncPermissions(db: Pick<PrismaClient, 'permission'>): Promise<number> {
-  for (const p of PERMISSIONS) {
-    await db.permission.upsert({
-      where: { code: p.code },
-      update: { description: p.description, scope: p.scope },
-      create: { code: p.code, description: p.description, scope: p.scope },
+  // Peu de requêtes : une base distante coûte ~60 ms par aller-retour, et la transaction est limitée
+  const existing = new Map(
+    (await db.permission.findMany({ select: { code: true, description: true, scope: true } })).map(
+      (p) => [p.code, p],
+    ),
+  );
+  const missing = PERMISSIONS.filter((p) => !existing.has(p.code));
+  if (missing.length > 0) {
+    await db.permission.createMany({
+      data: missing.map((p) => ({ code: p.code, description: p.description, scope: p.scope })),
+      skipDuplicates: true,
     });
+  }
+  for (const p of PERMISSIONS) {
+    const row = existing.get(p.code);
+    if (row && (row.description !== p.description || row.scope !== p.scope)) {
+      await db.permission.update({
+        where: { code: p.code },
+        data: { description: p.description, scope: p.scope },
+      });
+    }
   }
   return PERMISSIONS.length;
 }
@@ -142,8 +157,10 @@ async function main(): Promise<void> {
         prompt.close();
       }
     }
-    const result = await prisma.$transaction((tx) =>
-      bootstrapPlatform(tx, { email, name, password }),
+    // Base distante, lancé depuis un poste : 5 s par défaut ne suffisent pas toujours
+    const result = await prisma.$transaction(
+      (tx) => bootstrapPlatform(tx, { email, name, password }),
+      { maxWait: 30_000, timeout: 120_000 },
     );
     console.log(`✔ ${result.permissions} permissions à jour.`);
     if (result.account === 'EXISTS') {
