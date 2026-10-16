@@ -46,6 +46,13 @@ export const COMPANY_NAV: NavItem[] = [
     icon: 'chart',
   },
   {
+    href: '/app/statistiques',
+    label: 'Statistiques',
+    permission: 'reports.read',
+    group: 'Pilotage',
+    icon: 'trend',
+  },
+  {
     href: '/app/retours',
     label: 'Analyse des retours',
     permission: 'returns.read',

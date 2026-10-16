@@ -1514,6 +1514,10 @@ development → staging → production
 - [ ] Publication sur les stores si nécessaire
 - [ ] iOS ultérieurement
 
+## Statistiques en graphiques
+
+- [x] Page Statistiques : ventes dans le temps, classement des vendeurs et livreurs, top 10 produits et clients, retours dans le temps ; filtres période, secteur, vendeur, livreur, produit (`/reports/sales-trend`, `/returns/trend`)
+
 ## Reprise des données de l'entreprise
 
 - [x] Soldes d'ouverture des dettes : fiche client et import CSV (BR-PAY-09)

@@ -3,6 +3,7 @@ const PATHS = {
   home: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10',
   pulse: 'M3 12h4l2-6 4 12 2-6h6',
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  trend: 'M3 17l6-6 4 4 8-8M15 7h6v6',
   undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3',
   store: 'M3 9l2-5h14l2 5M4 9v11h16V9M9 20v-6h6v6M3 9h18',
   map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',

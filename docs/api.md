@@ -379,6 +379,7 @@ Phase 21 (réalisé). Périodes `from`, `to` (jours inclus, 366 au plus, sinon `
 | `GET` | `/reports/today` | `reports.read` — une ligne par utilisateur de terrain : journée, x/N, hors zone, par téléphone, commandes, CA, dernière position, dernière synchronisation, batterie, opérations en attente, `online` (signal de moins de 3 × l'intervalle de position) |
 | `GET` | `/reports/map?date` | `reports.read` — parties du jour, clients du jour (visités ou non), dernière position du jour de chaque utilisateur |
 | `GET` | `/reports/users/{id}?from&to` | `reports.read` — fiche en lecture seule ; `returns` si le module est actif |
+| `GET` | `/reports/sales-trend?from&to&territoryId&userId&productId` | `reports.read` — page Statistiques : commandes et chiffre d'affaires par jour (62 jours au plus), semaine (183 jours, à partir du jour `payroll.weekStartsOn`) ou mois, périodes vides comprises ; avec `productId`, seules les lignes du produit comptent |
 | `GET` | `/reports/commercial`, `/reports/presales`, `/reports/delivery`, `/reports/lost-sales` | `reports.read` — par jour, produit et client ; par pré-vendeur et secteur ; par livreur (délai moyen) et motif d'échec ; par article, client et vendeur |
 
 Analyse des retours (module `RETURNS_ANALYSIS`, désactivé par défaut ; sinon `403`). Filtres en plus : `sellerId`, `lotId`, `supplierId`, `reasonId`, `condition`. Sous le volume minimum (`returnsMinVolume`, défaut 20), un taux vaut `null` avec `insufficient: true`.
@@ -386,6 +387,7 @@ Analyse des retours (module `RETURNS_ANALYSIS`, désactivé par défaut ; sinon 
 | Méthode | Chemin | Permission |
 |---|---|---|
 | `GET` | `/returns/axis/{axis}?from&to` | `returns.read` — `axis` : `product`, `lot`, `supplier`, `seller`, `driver`, `customer`, `territory`, `route`, `reason`, `condition` ; refusé, retourné, revendu, écarts, coût net, taux de l'axe (`rateLabel`), part du défectueux ; un refus dont la contestation est retenue ne compte pas pour le client |
+| `GET` | `/returns/trend?from&to&territoryId&sellerId&driverId&productId` | `returns.read` — page Statistiques : refusé, retourné et revendu (DA) et taux de refus par période, même pas de temps que `/reports/sales-trend` |
 | `GET` | `/returns/cross?rows&cols&kind` | `returns.read` — deux axes différents (`400` sinon), faits `REFUSAL`, `RESALE`, `RETURN` ou `GAP` |
 | `GET` | `/returns/facts?kind&axis&value` | `returns.read` — 200 faits au plus, avec commande, bon et déchargement ; `value=none` : faits sans valeur pour l'axe |
 | `GET` | `/me/refusals?from&to` | `returns.contest` — refus des commandes du pré-vendeur (30 derniers jours par défaut) |

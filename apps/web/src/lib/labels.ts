@@ -241,3 +241,25 @@ export function formatMonth(month: string): string {
     year: 'numeric',
   });
 }
+
+const SHORT_MONTHS = [
+  'janv.',
+  'févr.',
+  'mars',
+  'avr.',
+  'mai',
+  'juin',
+  'juil.',
+  'août',
+  'sept.',
+  'oct.',
+  'nov.',
+  'déc.',
+];
+
+/** Libellé d'une période de courbe (page Statistiques) : « 05/10 », « sem. 10/10 », « oct. 2026 ». */
+export function trendLabel(start: string, unit: 'DAY' | 'WEEK' | 'MONTH'): string {
+  const [year, month, day] = start.split('-');
+  if (unit === 'MONTH') return `${SHORT_MONTHS[Number(month) - 1]} ${year}`;
+  return `${unit === 'WEEK' ? 'sem. ' : ''}${day}/${month}`;
+}
