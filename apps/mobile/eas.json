@@ -12,7 +12,11 @@
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://sellwasl-api.onrender.com",
+        "EXPO_PUBLIC_MAPTILER_KEY": "UoBpmCjKPFLma7f8HJcn"
+      }
     },
     "production": {
       "android": { "buildType": "app-bundle" }
