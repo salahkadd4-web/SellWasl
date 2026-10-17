@@ -1,16 +1,15 @@
 import { colors } from '@sellwasl/config';
-import { useRouter } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
-import { syncCatalogPhotos, usePhotoSyncState } from '@/catalog/photos';
 import { confirmLogout } from '@/offline/logout';
 import { Card, PrimaryButton, Screen, Title } from '@/ui';
 
-/** Profil du vendeur : identité, téléphone, photos du catalogue, imprimante, déconnexion. */
+/**
+ * Profil du vendeur : identité, téléphone, connexion, déconnexion. Les photos du catalogue se
+ * mettent à jour seules à l'ouverture de session ; l'imprimante se choisit dans « Bons du jour ».
+ */
 export default function ProfileScreen() {
-  const router = useRouter();
   const { me, profile, offline, logout } = useAuth();
-  const photos = usePhotoSyncState();
 
   return (
     <Screen>
@@ -27,24 +26,6 @@ export default function ProfileScreen() {
           {offline ? 'Hors connexion' : 'En ligne'}
         </Text>
       </Card>
-      <Card title="Photos du catalogue">
-        <Text style={styles.muted}>
-          {photos.total === 0
-            ? 'Aucune photo gardée sur le téléphone'
-            : `${photos.ready} / ${photos.total} gardées sur le téléphone`}
-        </Text>
-        <PrimaryButton
-          title="Mettre à jour les photos"
-          variant="secondary"
-          busy={photos.running}
-          onPress={() => void syncCatalogPhotos()}
-        />
-      </Card>
-      <PrimaryButton
-        title="Tester l'imprimante"
-        variant="secondary"
-        onPress={() => router.push('/printer-test')}
-      />
       <PrimaryButton
         title="Déconnexion"
         variant="secondary"
@@ -56,7 +37,6 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   line: { fontSize: 15, color: colors.textDark },
-  muted: { fontSize: 15, color: colors.muted },
   online: { fontSize: 15, fontWeight: '600', color: colors.status.synced },
   offline: { fontSize: 15, fontWeight: '600', color: colors.status.error },
 });
