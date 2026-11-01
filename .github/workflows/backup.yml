@@ -49,7 +49,7 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.secrets.outputs.ready == 'true'
 
       # Supabase : PostgreSQL 15 ou 17 ; pg_dump 17 sait copier les deux
@@ -89,7 +89,7 @@ jobs:
             --cipher-algo AES256 --output "$FILE.gpg" "$FILE" <<< "$BACKUP_PASSPHRASE"
           rm "$FILE"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.secrets.outputs.ready == 'true'
         with:
           name: sauvegarde-${{ github.run_id }}
